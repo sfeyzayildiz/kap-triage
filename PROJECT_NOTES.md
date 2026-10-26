@@ -22,3 +22,9 @@
 - id 14: amount written with 'milyar'
 ## Extraction Rules
 - **counterparty_name**: proper names only (full or partial, e.g. 'Turkcell Grup şirketleri'). Descriptions like 'bir banka' → null.
+## Dev set results (15 manual samples, gemma4:e4b)
+| field | regex | LLM |
+| amount | 12/15 | 15/15 |
+| currency | 12/15 | 15/15 |
+Known LLM issue: hallucinated related_party (id 14)
+Note: prompt tuned on these samples, numbers optimistic
