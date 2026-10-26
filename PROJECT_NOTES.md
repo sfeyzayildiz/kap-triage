@@ -20,3 +20,5 @@
 - id 1: multiple amounts in text, regex picks the first
 - id 7: amount written with 'milyon'
 - id 14: amount written with 'milyar'
+## Extraction Rules
+- **counterparty_name**: proper names only (full or partial, e.g. 'Turkcell Grup şirketleri'). Descriptions like 'bir banka' → null.
