@@ -15,3 +15,8 @@
 - **Is the counterparty explicitly named?** No, the company name is concealed due to trade secrets. It is anonymously referred to as "a domestic defense industry company" (yurt içinde yerleşik bir savunma sanayi şirketi).
 - **Is there a duration or delivery date?** Yes. A clear deadline is specified in the text, stating the delivery target is by 30.11.2026.
 - **Is the information in the disclosure text or in a PDF attachment?** All required information is located directly in the "Explanations" (Açıklamalar) text field. There are no PDF attachments, meaning PDF parsing is not required to extract the data.
+
+## Baseline failure modes (15 manual samples, 12/15 correct)
+- id 1: multiple amounts in text, regex picks the first
+- id 7: amount written with 'milyon'
+- id 14: amount written with 'milyar'
