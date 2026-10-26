@@ -28,3 +28,7 @@
 | currency | 12/15 | 15/15 |
 Known LLM issue: hallucinated related_party (id 14)
 Note: prompt tuned on these samples, numbers optimistic
+## Collector design notes
+
+- **Archive range:** Matriks KAP archive starts January 2024, so a full pull covers roughly 3 years of data.
+- **Pagination:** The endpoint returns at least 100 records in a single call (no hard upper limit observed at 100). Full company pulls will still be chunked monthly, so that any hidden limit is respected and a failed request only needs retrying for that month.
