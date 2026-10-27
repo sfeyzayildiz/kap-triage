@@ -49,3 +49,30 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Planned to run on the rented server, but the server ([server-ip]) cannot reach any Matriks address: TCP timeouts on 443 and 80, while the server firewall allows outbound traffic and the Mac connects fine. Asked Matriks whether the IP is restricted (27 Oct).
 - Until then it runs on the Mac via launchd (`deploy/com.feyza.kap-daily.plist`), daily at 23:43; runs on wake if the Mac was asleep. Log: `data/daily.log`.
 - The server clone and its read-only deploy key are ready if access is granted.
+## 2026-10-28: Set A error analysis and adjudication
+
+**Why:** Raw agreement with Matriks (v1 91/100, v2 92/100) mixes real LLM errors with definition differences and Matriks errors.
+
+**Method:**
+- Manually reviewed the 10 disclosures where v1 or v2 disagreed with Matriks on amount.
+- Wrote annotation rules for the "correct" amount: `docs/annotation_guidelines.md` (v1.0, R1–R5).
+- Gold labels for the 10 cases in `data/adjudicated_amount.jsonl` (not in git).
+- `scripts/score_adjudicated.py` rescores existing results without rerunning the LLM.
+
+**Results (Set A):**
+| Prompt | Raw amount (vs Matriks) | Adjudicated amount | Adjudicated currency |
+|---|---|---|---|
+| v1 | 91/100 | 96/99 | 97/99 |
+| v2 | 92/100 | 96/99 | 97/99 |
+
+1 case excluded as `needs_review` (mixed-currency contract, known gap).
+
+**Findings:**
+- After adjudication, v1 and v2 are equal; the raw 1-point gap was noise.
+- Matriks was wrong in 3 cases: 2 kept the pre-revision amount, 1 has a value not found in the text.
+- All remaining LLM errors map to rules R1–R4 (equivalent currency, VAT, multiple orders, total vs company share).
+- v1 found the EGP amount in one case but the currency came back empty. Check currency normalization.
+
+**Caveat:** Rules were derived from Set A errors, so a prompt using them must also be evaluated on another set.
+
+**Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
