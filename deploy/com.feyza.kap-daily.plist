@@ -5,16 +5,24 @@
     <key>Label</key>
     <string>com.feyza.kap-daily</string>
 
-    <!-- venv python, so collector.py runs with the same packages -->
+    <!--
+      Runs from a separate deploy clone (~/projects/kap-deploy) that always
+      stays on main, so the dev folder's current branch never affects the
+      nightly job. data/ and .env in the deploy clone are symlinks to
+      ~/projects/kap-explore, so there is a single database.
+      After merging a PR: git -C ~/projects/kap-deploy pull
+    -->
+
+    <!-- deploy venv python (same Python and packages as the dev venv) -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/<user>/projects/kap-explore/.venv/bin/python</string>
+        <string>/Users/<user>/projects/kap-deploy/.venv/bin/python</string>
         <string>scripts/daily_collect.py</string>
     </array>
 
-    <!-- scripts use relative paths (data/, .env), so run from repo root -->
+    <!-- scripts use relative paths (data/, .env), so run from the deploy clone root -->
     <key>WorkingDirectory</key>
-    <string>/Users/<user>/projects/kap-explore</string>
+    <string>/Users/<user>/projects/kap-deploy</string>
 
     <!-- every day at 23:43; if the Mac is asleep, runs on wake -->
     <key>StartCalendarInterval</key>
@@ -25,7 +33,7 @@
         <integer>43</integer>
     </dict>
 
-    <!-- logs go to data/ (gitignored) -->
+    <!-- logs stay in the real data/ folder (gitignored) -->
     <key>StandardOutPath</key>
     <string>/Users/<user>/projects/kap-explore/data/daily.log</string>
     <key>StandardErrorPath</key>
