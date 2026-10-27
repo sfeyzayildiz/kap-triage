@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.feyza.kap-daily</string>
+
+    <!-- venv python, so collector.py runs with the same packages -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/<user>/projects/kap-explore/.venv/bin/python</string>
+        <string>scripts/daily_collect.py</string>
+    </array>
+
+    <!-- scripts use relative paths (data/, .env), so run from repo root -->
+    <key>WorkingDirectory</key>
+    <string>/Users/<user>/projects/kap-explore</string>
+
+    <!-- every day at 23:43; if the Mac is asleep, runs on wake -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>23</integer>
+        <key>Minute</key>
+        <integer>43</integer>
+    </dict>
+
+    <!-- logs go to data/ (gitignored) -->
+    <key>StandardOutPath</key>
+    <string>/Users/<user>/projects/kap-explore/data/daily.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/<user>/projects/kap-explore/data/daily.log</string>
+</dict>
+</plist>
