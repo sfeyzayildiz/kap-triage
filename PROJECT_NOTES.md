@@ -76,3 +76,20 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 **Caveat:** Rules were derived from Set A errors, so a prompt using them must also be evaluated on another set.
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
+## 2026-10-27/28: Postmortems
+
+### Incident 1: Daily collector failed on DB lock
+- **What happened:** At 23:43 the launchd collector failed with `Could not set lock`. ntfy sent FAILED.
+- **Impact:** No data loss. Collector rerun manually, OK.
+- **Root cause:** `eval_vs_matriks.py` kept a DuckDB connection open for ~50 min during the LLM loop. A `read_only=True` connection still holds a lock: many readers are allowed, but no writer while a reader is connected.
+- **Fix:** Eval closes the connection right after loading its rows. `daily_collect.py` retries up to 3 times, 5 min apart, on lock errors only. Any other exception now also sends a FAILED alert (before, an exception in `counts()` would crash silently).
+- **Lesson:** Keep DB connections short in long-running jobs. Retry only transient errors.
+
+### Incident 2: Eval hung on a stuck Ollama model
+- **What happened:** At sample 75 the model stayed in `Stopping...`. The eval waited forever because `call_llm` had no timeout.
+- **Impact:** Eval stalled until noticed. Ollama restarted, eval resumed from where it stopped.
+- **Root cause:** No timeout on the Ollama HTTP call.
+- **Fix:** `ollama.Client(timeout=LLM_TIMEOUT)` (default 120 s, set via env). The eval stops after 3 errors in a row, and a resumed run retries failed rows instead of treating them as done.
+- **Lesson:** Every network call needs a timeout. A resumable job must not mark failures as finished.
+
+**Verified:** Timeout and error-streak stop tested with `LLM_TIMEOUT=0.01`. Lock retry tested by holding a write connection for 15 s while running the collector with `LOCK_WAIT=10`.

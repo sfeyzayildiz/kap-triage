@@ -11,6 +11,9 @@ from pydantic import BaseModel, ValidationError
 
 load_dotenv()
 MODEL=os.environ.get('OLLAMA_MODEL','gemma4:e4b')
+LLM_TIMEOUT=float(os.environ.get('LLM_TIMEOUT','120'))
+# fail fast if Ollama hangs; the caller records the error and moves on
+CLIENT=ollama.Client(timeout=LLM_TIMEOUT)
 
 SAMPLES_PATH=Path('data/manual_samples.txt')
 OUT_PATH=Path('data/llm_preds.jsonl')
@@ -80,7 +83,7 @@ def currency_from_text(amount,text):
 def call_llm(text,retries=1,prompt=None):
     messages=[{'role':'user','content':(prompt or PROMPT)+text}]
     for attempt in range(retries+1):
-        resp=ollama.chat(
+        resp=CLIENT.chat(
             model=MODEL,
             messages=messages,
             format=Disclosure.model_json_schema(),

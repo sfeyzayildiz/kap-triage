@@ -14,6 +14,7 @@ CURRENCY_FIELD='currency'  # TODO: check name in Disclosure class
 N_WITH=70     # regex finds an amount in text
 N_WITHOUT=30  # regex finds nothing, but Matriks has an amount
 TOL=0.01      # 1% relative tolerance
+MAX_ERROR_STREAK=3   # stop the run after this many errors in a row
 
 AMOUNT_RE=r'(?i)(\d[\d.,]*\s*(milyon|milyar|bin)?\s*(tl|türk lirası|usd|abd doları|dolar|euro|avro|eur|€|\$))|([€$]\s*\d)'
 
@@ -81,13 +82,17 @@ def amount_ok(llm,mx):
     return abs(llm-mx)/abs(mx)<=TOL
 
 
-def load_done(out):
+def load_done(out,retry_errors=False):
+    '''Load finished rows; the last row per news_id wins.
+    retry_errors=True drops rows that ended in an error so a resumed run tries them again.'''
     if not out.exists():
         return {}
     recs={}
     with out.open(encoding='utf-8') as f:
         for line in f:
             r=json.loads(line)
+            if retry_errors and r.get('error'):
+                continue
             r['amount_ok']=amount_ok(r['llm_amount'],r['matriks_amount'])
             recs[r['news_id']]=r
     return recs
@@ -106,9 +111,10 @@ def run(limit,ids_path,out,prompt_version):
     else:
         rows=con.execute(SAMPLE_SQL).fetchall()
         cols=[c[0] for c in con.description]
+    con.close()
     if limit:
         rows=rows[:limit]
-    done=load_done(out)
+    done=load_done(out,retry_errors=True)
     mixed=[r['news_id'] for r in done.values() if r.get('prompt_version')!=prompt_version]
     if mixed:
         raise SystemExit(f'{out} has {len(mixed)} rows from another prompt version; use a new --out')
@@ -116,6 +122,7 @@ def run(limit,ids_path,out,prompt_version):
     test_set=Path(ids_path).stem if ids_path else 'default_sample'
     print(f'{len(rows)} samples, {len(done)} already done')
 
+    streak=0
     with out.open('a',encoding='utf-8') as f:
         for i,row in enumerate(rows,1):
             r=dict(zip(cols,row))
@@ -149,6 +156,10 @@ def run(limit,ids_path,out,prompt_version):
                 'seconds':round(time.time()-t0,1),
             }
             f.write(json.dumps(rec,ensure_ascii=False)+'\n')
+            # stop early if the model keeps failing (e.g. Ollama hung); rerun the same command to resume
+            streak=streak+1 if err else 0
+            if streak>=MAX_ERROR_STREAK:
+                raise SystemExit(f'{streak} errors in a row, last: {err}\nCheck Ollama (ollama ps), restart it, then rerun the same command to resume.')
             f.flush()
             mark='OK' if rec['amount_ok'] and rec['cur_ok'] else 'XX'
             print(f'[{i}/{len(rows)}] {mark} {rec["group"]} {rec["seconds"]}s')
