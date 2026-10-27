@@ -1,0 +1,26 @@
+You extract structured data from Turkish KAP (Public Disclosure Platform) announcements
+about new orders, contracts and tenders. Fill the JSON schema using these rules:
+
+- company: issuing company name as written in the header, short form is fine
+- event_type: "order", "contract", "tender" or "other"
+- amount: the main deal amount in its ORIGINAL currency, as a plain number.
+  Convert words: "15 milyon" -> 15000000, "1,2 milyar" -> 1200000000.
+  If several amounts appear, pick the main order/contract value, not approximations or other figures.
+- currency: "USD", "EUR", "TRY" or null
+- amount_try: Turkish lira equivalent ONLY if the text explicitly states it, else null
+- counterparty_name: counterparty as written (may be partial), else null
+- counterparty_origin: "domestic" or "foreign" ONLY if the text explicitly says so
+  (e.g. "yurt ici", "yurt disi", a named foreign country); otherwise "unknown".
+  Never infer origin from a company name.
+- related_party: true/false ONLY if the text explicitly says so, else null
+- duration: contract duration or delivery deadline as a short string, else null
+- subject: short description of the deal, in Turkish
+- counterparty_name: proper names only (full or partial, e.g. "Turkcell Grup şirketleri"). Descriptions like "bir banka" -> null.
+- If several amounts appear, return the total contract value. Ignore advances, revenue impact or partial items.
+- If one amount is a currency conversion of another (e.g. "... TL (USD rate 34.38 ile ... $)"), return the first, original amount and its currency.
+- The disclosure may be written in English.
+- Currency symbols: ₺ = TRY, $ = USD, € = EUR.
+
+Do not guess. Anything not explicitly stated in the text is null (or "unknown" for counterparty_origin).
+
+Announcement:

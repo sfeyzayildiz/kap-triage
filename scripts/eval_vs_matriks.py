@@ -5,7 +5,7 @@ from pathlib import Path
 
 import duckdb
 
-from llm_extract import call_llm
+from llm_extract import MODEL,call_llm,load_prompt
 
 DB='data/kap.duckdb'
 OUT=Path('data/eval_llm_vs_matriks.jsonl')
@@ -93,7 +93,7 @@ def load_done(out):
     return recs
 
 
-def run(limit,ids_path,out):
+def run(limit,ids_path,out,prompt_version):
     con=duckdb.connect(DB,read_only=True)
     if ids_path:
         ids=load_ids(ids_path)
@@ -109,6 +109,11 @@ def run(limit,ids_path,out):
     if limit:
         rows=rows[:limit]
     done=load_done(out)
+    mixed=[r['news_id'] for r in done.values() if r.get('prompt_version')!=prompt_version]
+    if mixed:
+        raise SystemExit(f'{out} has {len(mixed)} rows from another prompt version; use a new --out')
+    prompt=load_prompt(prompt_version)
+    test_set=Path(ids_path).stem if ids_path else 'default_sample'
     print(f'{len(rows)} samples, {len(done)} already done')
 
     with out.open('a',encoding='utf-8') as f:
@@ -118,7 +123,7 @@ def run(limit,ids_path,out):
                 continue
             t0=time.time()
             try:
-                pred=to_dict(call_llm(r['aciklama']))
+                pred=to_dict(call_llm(r['aciklama'],prompt=prompt))
                 err=None
             except Exception as e:
                 pred={}
@@ -129,6 +134,9 @@ def run(limit,ids_path,out):
             rec={
                 'news_id':r['news_id'],
                 'kap_url':r['kap_url'],
+                'prompt_version':prompt_version,
+                'model':MODEL,
+                'test_set':test_set,
                 'group':'regex_hit' if r['regex_hit'] else 'regex_miss',
                 'is_update':r['is_update'],
                 'matriks_amount':r['amount'],
@@ -182,8 +190,9 @@ if __name__=='__main__':
     p.add_argument('--summary',action='store_true')
     p.add_argument('--ids',default='',help='jsonl with a news_id per line; replaces the default sample')
     p.add_argument('--out',default=str(OUT))
+    p.add_argument('--prompt',default='v2',help='prompt version, reads prompts/extract_<version>.txt')
     args=p.parse_args()
     out=Path(args.out)
     if not args.summary:
-        run(args.limit,args.ids,out)
+        run(args.limit,args.ids,out,args.prompt)
     summarize(out)
