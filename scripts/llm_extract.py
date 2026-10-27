@@ -53,6 +53,10 @@ about new orders, contracts and tenders. Fill the JSON schema using these rules:
 - duration: contract duration or delivery deadline as a short string, else null
 - subject: short description of the deal, in Turkish
 - counterparty_name: proper names only (full or partial, e.g. "Turkcell Grup şirketleri"). Descriptions like "bir banka" -> null.
+- If several amounts appear, return the total contract value. Ignore advances, revenue impact or partial items.
+- If one amount is a currency conversion of another (e.g. "... TL (USD rate 34.38 ile ... $)"), return the first, original amount and its currency.
+- The disclosure may be written in English.
+- Currency symbols: ₺ = TRY, $ = USD, € = EUR.
 
 Do not guess. Anything not explicitly stated in the text is null (or "unknown" for counterparty_origin).
 
@@ -70,21 +74,57 @@ def load_samples(path):
             samples[int(m.group(1))]=body.strip()
     return samples
 
-
-def call_llm(text):
-    resp=ollama.chat(
-        model=MODEL,
-        messages=[{'role':'user','content':PROMPT+text}],
-        format=Disclosure.model_json_schema(),
-        options={'temperature':0},
-    )
-    try:
-        return Disclosure.model_validate_json(resp.message.content).model_dump()
-    except ValidationError as e:
-        print(f'  invalid output: {str(e)[:150]}')
-        return None
+CUR_WORDS={
+    '₺':'TRY','tl':'TRY','türk lirası':'TRY',
+    '?':'TRY',  # ₺ lost in encoding upstream (shows up as a literal '?')
+    '$':'USD','usd':'USD','abd doları':'USD',
+    '€':'EUR','eur':'EUR','avro':'EUR','euro':'EUR',
+}
 
 
+def tr_number(x):
+    # 155413239.52 -> '155.413.239,52' (also '750.000.000' for whole numbers)
+    s=f'{x:,.2f}'.replace(',','X').replace('.',',').replace('X','.')
+    return [s,s[:-3]] if s.endswith(',00') else [s]
+
+
+def currency_from_text(amount,text):
+    low=text.lower()
+    for num in tr_number(amount):
+        i=low.find(num)
+        if i==-1:
+            continue
+        after=low[i+len(num):i+len(num)+15]
+        # pick the currency mentioned closest to the number
+        hits=[(after.find(k),v) for k,v in CUR_WORDS.items() if k in after]
+        if hits:
+            return min(hits)[1]
+    return None
+
+def call_llm(text,retries=1):
+    messages=[{'role':'user','content':PROMPT+text}]
+    for attempt in range(retries+1):
+        resp=ollama.chat(
+            model=MODEL,
+            messages=messages,
+            format=Disclosure.model_json_schema(),
+            options={'temperature':0,'num_ctx':8192},
+        )
+        content=resp.message.content
+        try:
+            data=Disclosure.model_validate_json(content).model_dump()
+            # fallback: model found the amount but not the currency
+            if data.get('amount') is not None and data.get('currency') is None:
+                data['currency']=currency_from_text(data['amount'],text)
+            return data
+        except ValidationError as e:
+            print(f'  invalid output (attempt {attempt+1}): {str(e)[:300]}')
+            # show the model its own output and the error, then ask again
+            messages=messages+[
+                {'role':'assistant','content':content},
+                {'role':'user','content':f'Your output was invalid: {str(e)[:500]}\nReturn the corrected JSON only.'},
+            ]
+    return None
 def main():
     samples=load_samples(SAMPLES_PATH)
     print(f'{len(samples)} samples loaded, model: {MODEL}')
