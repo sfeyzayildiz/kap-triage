@@ -36,6 +36,19 @@ UNION ALL
 (SELECT * FROM m WHERE NOT regex_hit ORDER BY hash(news_id) LIMIT {N_WITHOUT})
 '''
 
+IDS_SQL=f'''
+SELECT d.news_id,d.kap_url,d.aciklama,d.is_update,n.amount,n.cur,
+    regexp_matches(d.aciklama,'{AMOUNT_RE}') AS regex_hit
+FROM disclosures d
+JOIN new_business n ON n.url=d.kap_url
+WHERE d.aciklama IS NOT NULL AND list_contains(?,d.news_id)
+'''
+
+
+def load_ids(path):
+    with open(path,encoding='utf-8') as f:
+        return [str(json.loads(line)['news_id']) for line in f if line.strip()]
+
 
 def norm_cur(c):
     if not c:
@@ -68,11 +81,11 @@ def amount_ok(llm,mx):
     return abs(llm-mx)/abs(mx)<=TOL
 
 
-def load_done():
-    if not OUT.exists():
+def load_done(out):
+    if not out.exists():
         return {}
     recs={}
-    with OUT.open(encoding='utf-8') as f:
+    with out.open(encoding='utf-8') as f:
         for line in f:
             r=json.loads(line)
             r['amount_ok']=amount_ok(r['llm_amount'],r['matriks_amount'])
@@ -80,29 +93,38 @@ def load_done():
     return recs
 
 
-def run(limit):
+def run(limit,ids_path,out):
     con=duckdb.connect(DB,read_only=True)
-    rows=con.execute(SAMPLE_SQL).fetchall()
-    cols=[c[0] for c in con.description]
+    if ids_path:
+        ids=load_ids(ids_path)
+        rows=con.execute(IDS_SQL,[ids]).fetchall()
+        cols=[c[0] for c in con.description]
+        order={nid:i for i,nid in enumerate(ids)}
+        rows=sorted(rows,key=lambda row:order[str(row[0])])
+        if len(rows)!=len(ids):
+            print(f'WARNING: {len(ids)} ids, {len(rows)} found in DB')
+    else:
+        rows=con.execute(SAMPLE_SQL).fetchall()
+        cols=[c[0] for c in con.description]
     if limit:
         rows=rows[:limit]
-    done=load_done()
+    done=load_done(out)
     print(f'{len(rows)} samples, {len(done)} already done')
 
-    with OUT.open('a',encoding='utf-8') as f:
+    with out.open('a',encoding='utf-8') as f:
         for i,row in enumerate(rows,1):
             r=dict(zip(cols,row))
             if r['news_id'] in done:
                 continue
             t0=time.time()
             try:
-                out=to_dict(call_llm(r['aciklama']))
+                pred=to_dict(call_llm(r['aciklama']))
                 err=None
             except Exception as e:
-                out={}
+                pred={}
                 err=str(e)
-            llm_amt=out.get(AMOUNT_FIELD)
-            llm_cur=norm_cur(out.get(CURRENCY_FIELD))
+            llm_amt=pred.get(AMOUNT_FIELD)
+            llm_cur=norm_cur(pred.get(CURRENCY_FIELD))
             mx_cur=norm_cur(r['cur'])
             rec={
                 'news_id':r['news_id'],
@@ -124,8 +146,8 @@ def run(limit):
             print(f'[{i}/{len(rows)}] {mark} {rec["group"]} {rec["seconds"]}s')
 
 
-def summarize():
-    recs=list(load_done().values())
+def summarize(out):
+    recs=list(load_done(out).values())
     if not recs:
         print('no results yet')
         return
@@ -158,7 +180,10 @@ if __name__=='__main__':
     p=argparse.ArgumentParser()
     p.add_argument('--limit',type=int,default=0)
     p.add_argument('--summary',action='store_true')
+    p.add_argument('--ids',default='',help='jsonl with a news_id per line; replaces the default sample')
+    p.add_argument('--out',default=str(OUT))
     args=p.parse_args()
+    out=Path(args.out)
     if not args.summary:
-        run(args.limit)
-    summarize()
+        run(args.limit,args.ids,out)
+    summarize(out)
