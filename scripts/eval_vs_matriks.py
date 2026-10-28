@@ -23,7 +23,7 @@ GIT_COMMIT=git_commit()
 
 DB='data/kap.duckdb'
 OUT=Path('data/eval_llm_vs_matriks.jsonl')
-AMOUNT_FIELD='amount'      # TODO: check name in Disclosure class
+AMOUNT_FIELD='amount'      
 CURRENCY_FIELD='currency'  # TODO: check name in Disclosure class
 N_WITH=70     # regex finds an amount in text
 N_WITHOUT=30  # regex finds nothing, but Matriks has an amount
@@ -149,8 +149,13 @@ def run(limit,ids_path,out,prompt_version):
             except Exception as e:
                 pred={}
                 err=str(e)
-            llm_amt=pred.get(AMOUNT_FIELD)
-            llm_cur=norm_cur(pred.get(CURRENCY_FIELD))
+            if 'headline_amount' in pred:
+                # v4+: score the headline amount chosen by code, not the raw extracted part
+                llm_amt=pred.get('headline_amount')
+                llm_cur=norm_cur(pred.get('headline_currency'))
+            else:
+                llm_amt=pred.get(AMOUNT_FIELD)
+                llm_cur=norm_cur(pred.get(CURRENCY_FIELD))
             mx_cur=norm_cur(r['cur'])
             rec={
                 'news_id':r['news_id'],
@@ -168,6 +173,8 @@ def run(limit,ids_path,out,prompt_version):
                 'llm_amount':llm_amt,
                 'llm_cur':llm_cur,
                 'amount_try_stated':pred.get('amount_try_stated'),
+                'llm_amount_raw':pred.get(AMOUNT_FIELD),
+                'headline_source':pred.get('headline_source'),
                 'needs_review_reasons':pred.get('needs_review_reasons'),
                 'amount_ok':amount_ok(llm_amt,r['amount']),
                 'cur_ok':llm_cur==mx_cur,

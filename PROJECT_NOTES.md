@@ -180,3 +180,56 @@ amount 14/15, currency 14/15, event_type 14/15, counterparty_origin 11/15, relat
 9. A bigger model can be worse in practice: fewer review flags and more silent errors. Compare flag rate and silent errors, not only accuracy.
 10. Check the first 10–15 samples of a long run before letting it finish. The 26b thinking run took about 5 hours to show what was visible in 15 minutes.
 11. Every LLM call needs both a timeout and a max-token limit (`NUM_PREDICT`); thinking can run away on hard inputs.
+
+
+## 2026-10-29: Server access to Matriks
+
+- From the rented server ([server-ip]), connections to `<MATRIKS_API_HOST>` and `analistdocs.matriksdata.com` on port 443 time out (10 s). The same server reaches google.com (HTTP 200).
+- From the home connection (Mac), the same hosts answer. Unauthenticated `/dumrul/` returns HTTP 503, which is the normal reply without a token.
+- Conclusion: a network rule on the Matriks side blocks this IP or its range. This is not the application-level IP restriction Matriks said does not exist. Reported on 28 Oct; Matriks forwarded it to their system team.
+- Until it is fixed, collection runs on the Mac (launchd).
+- Check (no token, not a data pull): `curl -sS -o /dev/null -w '%{http_code}\n' --max-time 10 https://<MATRIKS_API_HOST>/dumrul/`. 503 = reachable, timeout = blocked.
+
+### Lesson
+- Before trusting a network test, check which machine the prompt belongs to. The first "server" test was run on the Mac by mistake and looked like a success.
+
+
+## 2026-10-29: Extraction v4 (mixed-currency headline): rejected
+
+### Goal
+Resolve mixed-currency deals without a human: the headline is the TL grand total written in the text (guidelines v1.2, R6). The model copies the figure into `amount_try_stated`; code picks the headline (`postprocess_v4`).
+
+### Decision rule (set before the final run)
+Adopt v4 only if adjudicated accuracy is at least 95/97 (v3) and there are 0 silent errors.
+
+### Results (Set A, gold v1.2, gemma4:e4b, thinking on)
+| run | adjudicated | flagged (of 100) | silent |
+|---|---|---|---|
+| v3 (rescored on gold v1.2) | 95/97 | 10 | 0 |
+| v4, first run | 94/97 | 14 | 1 (5702054) |
+| v4b (TL check in code, narrower prompt) | 95/97 | 20 | 1 (6324169) |
+
+Decision: **v3 stays.** v4 stays in the repo as a documented experiment (`prompts/extract_v4.txt`, `postprocess_v4`).
+
+### Findings
+- v4 fixed its target cases (6362247, 6179778: correct TL total).
+- Prompt changes moved the contract-currency choice on unrelated texts written as "X TL (Y EUR)" without conversion wording: 5702054 in run 1, 6324169 in run 2. Both became silent errors.
+- Run-to-run variation: the same text got `mixed_currency` in one run and `multi_currency_items` in another. Code that treats both codes the same kept the headline stable.
+- The model put a USD equivalent into the TL field (5453484) and one TL part into the TL total (5418861). `check_try_stated` now flags both.
+- The flag rate doubled (10 to 20), which works against the goal of less manual review.
+- 5713200: the "₺" sign was lost in the source text (shown as "?"), see "Lost currency symbol".
+- Set A was used twice to design v4, so the v4 numbers are optimistic (leakage). Set B is the honest test.
+
+### Kept from this work
+- Guidelines v1.2 (R6) and gold v1.2. The old gold is backed up as `data/adjudicated_amount_v1.1.jsonl`.
+- The eval scores `headline_amount` when present; new columns `llm_amount_raw` and `headline_source`.
+- DZD added to the known currencies. This also changes `unknown_currency_code` for v3.
+
+### Lessons
+- A prompt change has side effects on cases it was not written for. Measure the whole set, not only the target cases.
+- Write the decision rule before the run, then follow it.
+- Prefer flag-only code checks over prompt changes: they are deterministic, unit-tested, and cannot break other cases.
+- Do not relabel gold after seeing a model error. 5702054 keeps its Matriks label.
+
+### Next
+- Code-only check, no prompt change: "X TL (Y EUR)" without conversion wording gets `currency_unclear`. Measure it on Set B, not Set A.

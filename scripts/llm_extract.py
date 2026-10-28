@@ -68,7 +68,7 @@ class DisclosureV3(BaseModel):
 
 
 # each prompt version is tied to the schema it was evaluated with
-SCHEMAS={'v1':Disclosure,'v2':Disclosure,'v3':DisclosureV3}
+SCHEMAS={'v1':Disclosure,'v2':Disclosure,'v3':DisclosureV3,'v4':DisclosureV3}
 
 PROMPT_DIR=Path(__file__).resolve().parent.parent/'prompts'
 DEFAULT_PROMPT='v2'
@@ -100,7 +100,7 @@ CUR_WORDS={
 
 # currencies we accept without review; anything else is flagged
 ISO_CURRENCIES={
-    'TRY','USD','EUR','GBP','CHF','JPY','CNY','RUB','CAD','AUD',
+    'TRY','USD','EUR','GBP','CHF','JPY','DZD','CNY','RUB','CAD','AUD',
     'SEK','NOK','DKK','PLN','RON','SAR','AED','QAR','KWD','IQD',
     'EGP','AZN','KZT','UZS','GEL',
 }
@@ -177,6 +177,64 @@ def postprocess_v3(data,text):
     data['needs_review']=bool(data['needs_review_reasons'])
     return data
 
+MIXED_CODES={'mixed_currency','multi_currency_items'}
+
+FOREIGN_BEFORE=re.compile(r'(ABD\s+Doları|Dolar|USD|Avro|Euro|EUR|[$€£])\s*\)?\s*(ve|\+|ile)\s*$',re.I)
+TL_AFTER=re.compile(r'\s*(TL|₺|Türk\s+Lirası|lira)',re.I)
+TR_NUMBER=re.compile(r'(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+,\d+|\d+)(?:\s*(milyon|milyar))?',re.I)
+SCALE={'milyon':1e6,'milyar':1e9}
+
+
+def check_try_stated(stated,text):
+    '''Return a review code if the stated TL figure cannot be used as a TL total, else None.'''
+    found=[]
+    for m in TR_NUMBER.finditer(text or ''):
+        value=float(m.group(1).replace('.','').replace(',','.'))*SCALE.get((m.group(2) or '').lower(),1)
+        if abs(value-stated)<0.5:
+            found.append(m)
+    if not found:
+        return 'try_stated_not_found'
+    tl=[m for m in found if TL_AFTER.match(text[m.end():m.end()+20])]
+    if not tl:
+        return 'try_stated_not_tl'
+    if any(FOREIGN_BEFORE.search(text[max(0,m.start()-40):m.start()]) for m in tl):
+        return 'try_stated_is_part'
+    return None
+
+
+def postprocess_v4(data,text):
+    '''v3 checks plus the headline amount rule for mixed-currency deals.'''
+    data=postprocess_v3(data,text)
+    reasons=data['needs_review_reasons']
+    mixed=bool(MIXED_CODES.intersection(reasons))
+    if mixed:
+        # a TL total next to foreign-currency parts is expected here, not a wrong pick
+        reasons=[r for r in reasons if r!='try_stated_but_currency_try']
+    stated=data.get('amount_try_stated')
+    if stated is not None:
+        problem=check_try_stated(stated,text)
+        if problem:
+            # code does not trust this TL figure: flag it and keep it out of the headline
+            reasons.append(problem)
+            stated=None
+    if mixed and stated is not None:
+        # business rule: the headline is the TL grand total written in the text
+        data['headline_amount']=stated
+        data['headline_currency']='TRY'
+        data['headline_source']='try_stated_total'
+        amount=data.get('amount')
+        if data.get('currency')=='TRY' and amount is not None and stated<amount:
+            reasons.append('try_total_lt_part')
+    else:
+        data['headline_amount']=data.get('amount')
+        data['headline_currency']=data.get('currency')
+        data['headline_source']='amount'
+    data['needs_review_reasons']=list(dict.fromkeys(reasons))
+    data['needs_review']=bool(data['needs_review_reasons'])
+    return data
+
+POSTPROCESS={'v3':postprocess_v3,'v4':postprocess_v4}
+
 
 def call_llm(text,retries=1,prompt=None,version=None):
     version=version or DEFAULT_PROMPT
@@ -196,8 +254,9 @@ def call_llm(text,retries=1,prompt=None,version=None):
         content=resp.message.content
         try:
             data=schema.model_validate_json(content).model_dump()
-            if schema is DisclosureV3:
-                return postprocess_v3(data,text)
+            post=POSTPROCESS.get(version)
+            if post:
+                return post(data,text)
             # v1/v2: model found the amount but not the currency
             if data.get('amount') is not None and data.get('currency') is None:
                 data['currency']=currency_from_text(data['amount'],text)
