@@ -1,11 +1,25 @@
 import argparse
-import json
+import json 
+import subprocess
 import time
 from pathlib import Path
 
 import duckdb
 
-from llm_extract import MODEL,call_llm,load_prompt
+from llm_extract import MODEL,NUM_PREDICT,THINK,call_llm,load_prompt
+
+
+def git_commit():
+    # tie every result row to the code that produced it; -dirty = uncommitted changes
+    try:
+        h=subprocess.run(['git','rev-parse','--short','HEAD'],capture_output=True,text=True,check=True).stdout.strip()
+        dirty=subprocess.run(['git','status','--porcelain','--untracked-files=no'],capture_output=True,text=True,check=True).stdout.strip()
+        return h+('-dirty' if dirty else '')
+    except Exception:
+        return None
+
+
+GIT_COMMIT=git_commit()
 
 DB='data/kap.duckdb'
 OUT=Path('data/eval_llm_vs_matriks.jsonl')
@@ -143,6 +157,9 @@ def run(limit,ids_path,out,prompt_version):
                 'kap_url':r['kap_url'],
                 'prompt_version':prompt_version,
                 'model':MODEL,
+                'think':THINK,
+                'num_predict':NUM_PREDICT,
+                'git_commit':GIT_COMMIT,
                 'test_set':test_set,
                 'group':'regex_hit' if r['regex_hit'] else 'regex_miss',
                 'is_update':r['is_update'],

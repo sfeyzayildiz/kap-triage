@@ -15,6 +15,13 @@ load_dotenv()
 MODEL=os.environ.get('OLLAMA_MODEL','gemma4:e4b')
 LLM_TIMEOUT=float(os.environ.get('LLM_TIMEOUT','120'))
 # fail fast if Ollama hangs; the caller records the error and moves on
+# thinking: unset keeps the Ollama default (on for gemma4); 'true'/'false' forces it
+THINK_ENV=os.environ.get('OLLAMA_THINK','').strip().lower()
+if THINK_ENV not in ('','true','false'):
+    raise ValueError(f'OLLAMA_THINK must be true, false or unset, got {THINK_ENV!r}')
+THINK={'true':True,'false':False}.get(THINK_ENV)
+# max generated tokens, thinking included; -1 means no limit (Ollama default)
+NUM_PREDICT=int(os.environ.get('NUM_PREDICT','-1'))
 CLIENT=ollama.Client(timeout=LLM_TIMEOUT)
 
 SAMPLES_PATH=Path('data/manual_samples.txt')
@@ -178,11 +185,13 @@ def call_llm(text,retries=1,prompt=None,version=None):
     schema=SCHEMAS[version]
     messages=[{'role':'user','content':(prompt or load_prompt(version))+text}]
     for attempt in range(retries+1):
+        extra={} if THINK is None else {'think':THINK}
         resp=CLIENT.chat(
             model=MODEL,
             messages=messages,
             format=schema.model_json_schema(),
-            options={'temperature':0,'num_ctx':8192},
+            options={'temperature':0,'num_ctx':8192,'num_predict':NUM_PREDICT},
+            **extra,
         )
         content=resp.message.content
         try:

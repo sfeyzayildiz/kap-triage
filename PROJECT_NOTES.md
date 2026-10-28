@@ -156,3 +156,27 @@ amount 14/15, currency 14/15, event_type 14/15, counterparty_origin 11/15, relat
 - Ceiling test: `gemma4:26b` on Set A (running).
 - Thinking-off experiment on e4b (speed vs accuracy); `OLLAMA_THINK` setting and git commit in eval rows.
 - v4: multi-currency rule (guidelines v1.2), then the second-set measurement.
+## 2026-10-28: Thinking mode and ceiling test
+
+### Setup
+- Prompt v3 (`ece690d`), Set A, same gold as above (guidelines v1.1).
+- New settings: `OLLAMA_THINK` (unset keeps the Ollama default, which is on for gemma4) and `NUM_PREDICT` (2048 for thinking-off runs). Every eval row now records `think`, `num_predict` and `git_commit`.
+
+### Results (Set A, adjudicated)
+| run | raw amount | adj. amount | flagged | silent errors |
+|---|---|---|---|---|
+| e4b, thinking on | 89/100 | 95/97 | 10 | 0 |
+| e4b, thinking off | 86/100 | 90/97 | 8 | 3 |
+| 26b, thinking off | 84/100 | 89/97 | 4 | 7 |
+| 26b, thinking on | stopped: 24 of 87 timed out at 600 s | | | |
+
+### Findings
+1. **Thinking helps e4b:** +5 adjudicated and 3 fewer silent errors. With thinking off, 4 samples broke (6522576, 5672342, 5713200, 6324169) and 1 was fixed (5927197). Thinking off is about 10x faster (~3 s vs ~20 s per sample).
+2. **The bigger model is not better here.** With thinking off, 26b scores like e4b but flags half as often and makes the most silent errors: it is confidently wrong. With thinking on, it fails to finish on 28% of samples, mostly the hard ones (6 of the 12 adjudicated cases).
+3. **Remaining e4b errors are definition questions** (multi-currency deals), not model capacity. A stronger family (e.g. Qwen) can be tried later; not a priority.
+4. **Decision:** keep `gemma4:e4b` with thinking on. At 1–2 disclosures a day, speed does not matter; accuracy and zero silent errors do.
+
+### Lessons
+9. A bigger model can be worse in practice: fewer review flags and more silent errors. Compare flag rate and silent errors, not only accuracy.
+10. Check the first 10–15 samples of a long run before letting it finish. The 26b thinking run took about 5 hours to show what was visible in 15 minutes.
+11. Every LLM call needs both a timeout and a max-token limit (`NUM_PREDICT`); thinking can run away on hard inputs.
