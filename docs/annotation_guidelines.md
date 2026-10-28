@@ -1,4 +1,5 @@
 # Annotation Guidelines: Contract Amount
+Version 1.1 (2026-10-28). Changes since 1.0: R3 now states that multi-currency orders get a null amount and currency.
 
 Version: 1.0 (2026-10-28)
 Scope: "new business" disclosures (KAP). Defines the correct amount for gold labels and for the LLM extraction prompt.
@@ -34,7 +35,7 @@ Use the VAT-excluded amount. If only a VAT-included amount is given, use it and 
 
 ### R3. Multiple orders
 Use the sum of all orders in the disclosure, in the same currency. Set `n_items` to the number of orders.
-If orders are in different currencies, set `needs_review=true`.
+If orders are in different currencies, do not sum them: set `amount` and `currency` to null and `needs_review=true` (reason `multi_currency_items`). A partial sum in one currency would understate the deal.
 
 ### R4. Total vs company share
 Use the company's share (the part that affects the company's revenue). Store the full contract value in `total_amount`.

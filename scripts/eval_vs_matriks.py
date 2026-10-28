@@ -130,7 +130,7 @@ def run(limit,ids_path,out,prompt_version):
                 continue
             t0=time.time()
             try:
-                pred=to_dict(call_llm(r['aciklama'],prompt=prompt))
+                pred=to_dict(call_llm(r['aciklama'],prompt=prompt,version=prompt_version))
                 err=None
             except Exception as e:
                 pred={}
@@ -150,6 +150,8 @@ def run(limit,ids_path,out,prompt_version):
                 'matriks_cur':mx_cur,
                 'llm_amount':llm_amt,
                 'llm_cur':llm_cur,
+                'amount_try_stated':pred.get('amount_try_stated'),
+                'needs_review_reasons':pred.get('needs_review_reasons'),
                 'amount_ok':amount_ok(llm_amt,r['amount']),
                 'cur_ok':llm_cur==mx_cur,
                 'error':err,
