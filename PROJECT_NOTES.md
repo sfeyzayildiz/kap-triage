@@ -351,3 +351,13 @@ Decision: **v3 stays.** v4 stays in the repo as a documented experiment (`prompt
   - `cumulative_total`: compare only amounts in the chosen currency (TL conversions of a USD amount were treated as larger totals). Removed 3 unneeded flags.
 - Result after narrowing: Set A 0/100 silent, 11/100 flagged (new checks add 0 flags) → **adopted**. Set B (optimistic, leaked): 1/100 silent (only the gold typo 5820056), 12/100 flagged.
 - Caveat: the new checks never fire on Set A, so Set A only shows they do not over-flag. Evidence that they catch errors comes only from Set B (leaked). A fresh held-out set (Set C) is needed for an honest number.
+### Gold amount presence check (2026-10-30)
+- `scripts/check_gold_amounts.py`: checks each gold amount appears in `aciklama`; stdout = counts + ids, details in `/tmp`. Exit 1 if any problem.
+- Set B frozen gold: 1 problem (5820056, known typo). Corrected gold: 0. Set A adjudicated: 0 (R3/R4 counted as computed).
+- Run before new labeling and after every label change.
+
+### Known limitation: amount_checks currency pattern (2026-10-30)
+- `MONEY_RE` in `scripts/amount_checks.py` does not match "ABD Doları" / "Amerikan Doları" (e.g. "553 milyon ABD Doları").
+- In Set B, 10 of 81 gold amounts are written only in this form, so `amount_is_projection` and `cumulative_total` may silently skip about 1 in 8 amount-bearing disclosures.
+- Not fixed in place: these checks were accepted on Set A and are frozen. A fix goes into a new version and must be measured on Set C.
+- `check_gold_amounts.py` normalizes these words to USD before matching, so the presence check is not affected.

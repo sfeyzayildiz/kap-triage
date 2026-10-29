@@ -71,7 +71,8 @@ class DisclosureV3(BaseModel):
 SCHEMAS={'v1':Disclosure,'v2':Disclosure,'v3':DisclosureV3,'v4':DisclosureV3}
 
 PROMPT_DIR=Path(__file__).resolve().parent.parent/'prompts'
-DEFAULT_PROMPT='v2'
+DEFAULT_PROMPT='v3'
+LEGACY_PROMPT='v2'  # results of this version keep the original OUT_PATH file name
 
 
 def load_prompt(version=DEFAULT_PROMPT):
@@ -278,8 +279,8 @@ def main():
 
     version=args.prompt
     prompt=load_prompt(version)
-    # the default prompt keeps the original file, so earlier results stay reproducible
-    if version==DEFAULT_PROMPT:
+    # v2 results keep the original file name, so earlier results stay reproducible
+    if version==LEGACY_PROMPT:
         out_path=OUT_PATH
     else:
         out_path=OUT_PATH.with_name(f'{OUT_PATH.stem}_{version}.jsonl')
