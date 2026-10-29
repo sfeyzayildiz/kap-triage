@@ -233,3 +233,121 @@ Decision: **v3 stays.** v4 stays in the repo as a documented experiment (`prompt
 
 ### Next
 - Code-only check, no prompt change: "X TL (Y EUR)" without conversion wording gets `currency_unclear`. Measure it on Set B, not Set A.
+
+## 2026-10-29: Set B (honest test set)
+- Script: `scripts/sample_set_b.py`, seed 20261029. Source: apitest archive (1273 disclosures with text).
+- Excluded by news_id: dev (21 hits for 15 samples, some texts repeat in updates), eval_v1 (100), Set A (100), earlier label set `test_label.jsonl` (45, generated 27 Oct, may have been seen). Total 266, no overlap.
+- Pool: 827 matched, 180 unmatched. Set B: 80 matched + 20 unmatched, shuffled together; 13 updates, 55 symbols.
+- Unmatched cases test whether the model invents an amount when Matriks has none.
+- Frozen file: `data/test_set_b.jsonl` (not in git), file sha1 `FILE_SHA1`. Each row has `text_sha1`; after a prod refresh, relabel only rows whose text hash changed.
+- Do not re-run `sample_test_sets.py`: the archive has grown, so it would overwrite Set A with a different sample. Overwrite guard to be added.
+
+### Decision rule (set before labeling and before the run)
+- System under test: v3 prompt + code checks frozen before the Set B run. Code checks added after that are reported separately.
+- Pass: 0-1 silent errors in 100 and flag rate at most 15%.
+- No prompt change is made based on Set B. If it fails, errors are analyzed and only code-only checks are considered; any later numbers on Set B are reported as optimistic (leakage).
+
+## 2026-10-29: Set B labeling
+- Tool: `scripts/label_set_b.py`. Blind labeling: shows only the disclosure text (the same `aciklama` the model gets), never Matriks values or model output. Saves after each case; `--redo NEWS_ID` relabels one case.
+- Labels follow guidelines v1.2 and use the Set A gold format (`amount: null` means no amount in the text). Output: `data/gold_set_b.jsonl`; RAG questions: `data/rag_questions.jsonl`.
+- The first 5 cases were a calibration round labeled with Claude's guidance (3 entry errors found and fixed with `--redo`). The remaining 95 are labeled independently.
+- Tool hardened after calibration: `save?` accepts only Enter or r; a RAG question already used for another case is rejected.
+- Input limit found: the model sees only `aciklama`, not `form_json`. When the amount is only in the KAP form (e.g. 6108271), gold is `null` and Matriks may still have an amount. Next step candidate: give `form_json` to the model too.
+- Optional: a second annotator labels 20 cases independently to measure inter-annotator agreement.
+**Labeling completed (29 Oct 2026).**
+- 100/100 cases labeled blind (first 5 as calibration round with Claude, remaining 95 independently; ambiguous cases marked `discussed` in `note`).
+- Gold summary: 19 cases with no amount in text (`amount: null`), 10 cases `needs_review: true`.
+- RAG questions: 66 (7 negative, `answerable: false`), across 39+ companies.
+- Rule change during labeling: max 1 question per company relaxed to max 2 when the disclosure is a clearly different deal with a distinguishing detail (tests "right disclosure of the same company"). YEOTK and LINK have 3 questions each; kept because each covers a different deal.
+- Data quality finding: some disclosure texts have split Turkish characters from PDF extraction (e.g. `sayg ı yla`); RAG preprocessing should normalize these.
+
+### RAG question set guidelines
+- The answer is in this disclosure's text only.
+- The question points to one disclosure: company + a distinguishing detail (country, counterparty, product).
+- Paraphrase like an analyst would; do not copy project codes or exact phrases. Use the common company name.
+- Short, checkable answer (a name, amount, date, duration).
+- Mix angles: counterparty, currency income, related party, revision, duration, delivery date. Skip the case if no good question comes in about 30 seconds.
+- Multi-disclosure questions (e.g. largest foreign deal this year) are collected separately; their answers will come from SQL over extracted fields.
+
+### Demo scenario (draft)
+1. Alert: ntfy message for a real recent disclosure.
+2. Follow-up question: has the company won similar deals abroad before? Answer with KAP links (RAG).
+3. Big picture: largest foreign deals this year, from SQL over extracted fields.
+4. Red flag: a related-party deal is flagged.
+5. Honesty: an unclear text gets `needs_review`.
+- Evaluation numbers go on one slide, as the answer to "why trust this?"
+- Every question type shown in the demo must also be in the test set.
+- Later: stock price reaction after disclosures (event study), needs price data and a license check.
+
+## 2026-10-29: Blind check of the first 20 Set B labels
+- Script: `scripts/check_first20.py` (money regex vs gold label; Matriks values not shown; output kept outside the repo).
+- Done before any model run on Set B, so corrections are allowed.
+- Corrections (3 cases, all `rule`/`note`; no `amount` or `currency` changed):
+  - 5755329: R1 -> R2 (single currency, "+ KDV"). Entry error.
+  - 6064088: R1 -> R2, note fixed (VAT-inclusive; TL in parentheses is a conversion). Rule clarification.
+  - 5499831: note completed only (was cut off).
+- RAG question fix: 6064088 counterparty name typo.
+- Guidelines v1.3: R2 scope and "one rule per case" clarified. Gap: guidelines mention `amount_try_stated` and `vat_included`, but the gold schema does not have these fields.
+- Gold/RAG files are gitignored; dated backups in ~/kap-backups/.
+- To do: check all 100 labels for consistency with v1.3 (VAT mentioned but rule is not R2).
+
+## 2026-10-29: R2 consistency check across all 100 Set B labels
+- Script: `scripts/check_vat_rule.py` (flags VAT in text with rule != R2, and R2 with no VAT in text; output kept outside the repo).
+- Remaining flags are deliberate: R1 (X TL (Y USD, rate) pattern), R3, R5 cases where the deciding rule is not VAT (guidelines v1.3).
+- Corrections:
+  - 6071306: R1 -> R2, note set to VAT-inclusive (same pattern as 6064088). Rule clarification.
+  - 5705618: note standardized to the X TL (Y USD, rate) pattern. During the redo an entry error appeared (amount 100x, needs_review false); caught by the re-check and fixed.
+- Total corrections before the Set B run: 5 cases (1 entry error, 2 rule clarifications, 2 note fixes), plus 1 RAG question typo. No amount changed in the final gold.
+- Lesson: after every `--redo`, re-print the edited rows to verify.
+
+## 2026-10-29: Decision on the `currency_unclear` code check (before the Set B run)
+- Context: the "X TL (Y USD, rate)" pattern was noticed while labeling Set B texts (model outputs on Set B not seen). Adding the check now would be designed with test-set inputs in view (mild leakage).
+- Decision: run the model on Set B once and report two numbers from the same run:
+  1. Frozen system (v3 prompt + code checks frozen before this note). The pass/fail decision rule applies to this number only.
+  2. Frozen system + `currency_unclear` check. Reported as a supplementary result, labeled "designed after seeing Set B texts, before seeing model outputs".
+- Check definition (fixed now; not to be changed after seeing Set B results):
+  - Fires when the text has a TL amount (TL, TRY, ₺ or the broken `?`) immediately followed by a parenthesis that contains a foreign-currency amount (USD, $, EUR, €, GBP, £), and the parenthesis does not contain an explicit equivalence word (`karşılığı`, `karşılık gelen`, `eşdeğer`).
+  - A rate mention alone (`kur`, `kuru`, `güncel kur`, `TCMB`) does not resolve the ambiguity.
+  - Action: set `needs_review=true` and add flag `currency_unclear`. The extracted amount and currency are not changed.
+- Development and testing of the check: Set A and non-Set B archive only.
+- The check code is committed before the Set B run, even though its result is reported separately.
+
+**Implementation (30 Oct 2026):** `scripts/currency_check.py` (`find_unclear`, `currency_unclear`; 14-case self-test). Applied post-hoc in scoring, not inside `llm_extract.py`, so one Set B run yields both numbers.
+
+**Archive check (Set B excluded):** `scripts/check_currency_unclear.py` → 1173 checked, 17 flagged (1.4%). All 17 inspected manually: each is a TL amount followed by a foreign-currency amount in parentheses with no equivalence word (several with only an exchange rate, e.g. `Kur: 41,30`). 0 false positives. Recall not measured (missed patterns not searched).
+
+### Set B scoring rules (fixed 30 Oct 2026, before the Set B run)
+- Script: `scripts/score_silent.py`. Same `amount_ok` / `norm_cur` as `score_adjudicated.py`.
+- Flagged = `needs_review_reasons` non-empty or run error (second number: also `currency_unclear`). Run errors are visible failures and count toward the flag rate.
+- Silent error = not flagged and (amount, currency) differs from gold. Types: fabricated (gold null, model amount), missed (gold amount, model null), wrong_amount, wrong_currency. Both null = correct.
+- Gold `needs_review: true` rows are **included** (changed from Set A, where they were excluded): on an ambiguous case the expected behaviour is to flag, so an unflagged different answer is a silent error. Set A is re-scored with the same rule for comparison.
+- Report a one-sided 95% upper bound for the silent error rate (0/100 → ~3%).
+- Decision unchanged: PASS if silent errors <= 1 and flag rate <= 15%.
+- Set A re-scored with these rules (`eval_v3final_test_amount.jsonl`, 12 gold rows + 88 Matriks): frozen 0/100 silent (95% upper bound 3.0%), 10/100 flagged; +currency_unclear 0/100 silent, 11/100 flagged. All 3 gold needs_review rows were flagged, so the stricter rule does not change Set A.
+- Run fix (30 Oct 2026): `IDS_SQL` in `eval_vs_matriks.py` used an inner join with `new_business`, so the 20 unmatched Set B ids were dropped (80/100 loaded). Changed to LEFT JOIN; selection only, extraction unchanged. The first attempt was stopped at the start and its partial output deleted before any result was inspected.
+### Set B result (30 Oct 2026, commit 44426af, v3, gemma4:e4b, thinking default on)
+- 100/100 run, 0 run errors.
+- Frozen system: **4/100 silent errors** (fabricated=1, wrong_amount=3), 95% upper bound 8.9%; flagged 8/100. **Decision: FAIL** (limit <= 1 silent).
+- + currency_unclear (designed after seeing Set B texts, before model outputs): 3/100 silent (fabricated=1, wrong_amount=2), upper bound 7.6%; flagged 9/100. Still FAIL.
+- Gold needs_review rows: 10; flagged 6 (frozen) / 7 (+currency_unclear).
+- Interpretation: Set A's 0/100 was optimistic (v3 was developed on Set A). Per the decision rule, no prompt changes; only code checks may be added, and any later Set B number is reported as optimistic (leaked).
+- Silent error ids: 5491869 (fabricated), 5628896, 5763995, 5820056 (wrong_amount). 5628896 is caught by currency_unclear.
+
+### Set B error analysis (30 Oct 2026, one case at a time on the KAP page)
+- 5491869 (fabricated): model took a budgeted single-year revenue (EUR, for 2027) of a 2025–2032 project as the contract amount; no total value in text. Gold null is correct. Candidate code check: projection/revenue wording near the chosen amount → `amount_is_projection` flag.
+- 5628896 (wrong_amount): TL (USD) currency ambiguity; caught by currency_unclear.
+- 5763995 (wrong_amount): text gives an additional order and the cumulative total; gold takes the total (R5), model took the increment unflagged. Guideline gap: is an additional order R5? (open for guideline v1.4, gold unchanged). Candidate code check: cumulative wording (`ek olarak`, `ilave`, `toplamda`) + multiple amounts → `cumulative_total` flag.
+- 5820056: **gold typo** (a digit dropped when typing the amount); model is correct. Found after seeing model output, so the decision number keeps the frozen gold. Corrected copy: `data/gold_set_b_corrected.jsonl` (backup in `~/kap-backups`).
+- Gold-corrected numbers (post-hoc, not the decision): frozen 3/100 silent, + currency_unclear 2/100. Still FAIL; the decision does not depend on the typo.
+- Pattern: in all model errors the text has more than one plausible number and the model picks one without flagging.
+- Lesson for future labeling: check automatically that each gold amount appears in the text, before any model run.
+### Post-hoc checks: amount_is_projection, cumulative_total (rule fixed 30 Oct 2026, before measuring)
+- Designed after the Set B error analysis (5491869, 5763995). Code only; prompt unchanged; the amount is never changed, only flagged.
+- Adopted if, on Set A (development set), all checks together keep 0 silent errors and flag rate <= 15%.
+- Any Set B number using these checks is reported as optimistic (leaked), never as the decision.
+- Result (30 Oct 2026): Set A 0/100 silent but flag rate 16/100 (5 extra flags from the new checks) → **not adopted** (limit 15%). Set B (optimistic): 1/100 silent (only the gold typo), 15/100 flagged. Next: find which check over-flags on Set A and narrow it (Set A is the development set).
+- Narrowing on Set A (development set), 30 Oct 2026:
+  - `amount_is_projection`: dropped `yıllık`/`annual` ('3 yıllık sözleşme' means 3-year, not annual). Removed 2 unneeded flags.
+  - `cumulative_total`: compare only amounts in the chosen currency (TL conversions of a USD amount were treated as larger totals). Removed 3 unneeded flags.
+- Result after narrowing: Set A 0/100 silent, 11/100 flagged (new checks add 0 flags) → **adopted**. Set B (optimistic, leaked): 1/100 silent (only the gold typo 5820056), 12/100 flagged.
+- Caveat: the new checks never fire on Set A, so Set A only shows they do not over-flag. Evidence that they catch errors comes only from Set B (leaked). A fresh held-out set (Set C) is needed for an honest number.

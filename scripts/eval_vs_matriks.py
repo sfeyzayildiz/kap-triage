@@ -55,7 +55,7 @@ IDS_SQL=f'''
 SELECT d.news_id,d.kap_url,d.aciklama,d.is_update,n.amount,n.cur,
     regexp_matches(d.aciklama,'{AMOUNT_RE}') AS regex_hit
 FROM disclosures d
-JOIN new_business n ON n.url=d.kap_url
+LEFT JOIN new_business n ON n.url=d.kap_url
 WHERE d.aciklama IS NOT NULL AND list_contains(?,d.news_id)
 '''
 

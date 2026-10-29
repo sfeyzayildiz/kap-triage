@@ -1,5 +1,5 @@
 # Annotation Guidelines: Contract Amount
-Version 1.2 (2026-10-28). Changes since 1.1: mixed-currency deals get a headline amount from the TL total written in the text (R6).
+Version 1.3 (2026-10-28). Changes since 1.1: mixed-currency deals get a headline amount from the TL total written in the text (R6).
 
 Scope: "new business" disclosures (KAP). Defines the correct amount for gold labels and for the LLM extraction prompt.
 
@@ -30,6 +30,9 @@ Use the contract currency. A figure written as an equivalent ("... TL karşılı
 - TRY conversion for comparison is done in code with the CBRT (TCMB) rate on the publication date.
 
 ### R2. VAT
+- R2 applies whenever the text states the VAT status of the chosen amount (VAT-excluded, VAT-included, or both given). It does not apply when VAT is not mentioned.
+- If only a VAT-included amount is given, write `VAT-inclusive` in `note` (the gold schema has no `vat_included` field).
+- If more than one rule applies, `rule` holds the rule that changes the meaning of the amount (e.g. R5 for a revision, R2 for a VAT-inclusive amount); mention the others in `note`.
 Use the VAT-excluded amount. If only a VAT-included amount is given, use it and set `vat_included=true`.
 
 ### R3. Multiple orders
