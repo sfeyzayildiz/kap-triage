@@ -2,7 +2,7 @@ import os
 import time
 import subprocess
 import sys
-from datetime import date,timedelta
+from datetime import date,datetime,timedelta
 
 import duckdb
 import requests
@@ -26,9 +26,11 @@ def counts():
     con.close()
     return nb,d
 
+def ts():
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def notify(title,msg,priority='default'):
-    print(f'{title}: {msg}')
+    print(f'[{ts()}] {title}: {msg}',flush=True)
     if not NTFY_URL:
         return
     # HTTP headers must be ASCII, so keep titles in plain English
@@ -46,7 +48,7 @@ def retry_on_lock(fn):
         except Exception as e:
             if 'could not set lock' not in str(e).lower() or attempt==LOCK_RETRIES:
                 raise
-            print(f'DB locked (attempt {attempt}/{LOCK_RETRIES}), retrying in {LOCK_WAIT}s',flush=True)
+            print(f'[{ts()}] DB locked (attempt {attempt}/{LOCK_RETRIES}), retrying in {LOCK_WAIT}s',flush=True)
             time.sleep(LOCK_WAIT)
 
 
