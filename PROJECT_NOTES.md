@@ -413,5 +413,40 @@ Findings:
 - Nearly all recall@1 misses are the right company but the wrong disclosure: 16 of 16 for e5, 19 of 19 for `bge-m3`, 19 of 20 for qwen3. Finding the company is not the weak point; separating that company's disclosures is.
 - e5 reads at most 512 tokens, so 8 of 1273 docs are cut. Their tails are not searchable. Chunking was not tested.
 - The texts are apitest data; prod texts have not been compared.
+
+## 2026-11-01: Combined pipeline
+- `scripts/pipeline.py`: prompt v3 and `postprocess_v3`, then `currency_unclear`, `amount_is_projection`, `cumulative_total`. These are the same functions and inputs as level 2 of `score_silent.py`. `amount_checks.py` and the prompt are unchanged.
+- Code only adds flags. It never changes the amount or currency.
+- Any failure stays in the output as `run_error` with `needs_review`, so a disclosure cannot disappear from the morning list.
+- Not an evaluation: the combined system still has no honest number. Set B with these checks is leaked (1/100 silent, 12/100 flagged); Set C is needed.
+
+## 2026-11-01: Set C plan
+- Rule, frozen system and run commands: `docs/set_c_plan.md`, committed before sampling. PASS: at most 1 silent error in 100 and a flag rate of at most 15% at level 2.
+- `scripts/sample_set_c.py`, seed 20261101: excludes all earlier sets by news_id (366 ids) and any disclosure with the same normalized text (6 dropped). Pool: 747 matched, 154 unmatched. Set C: 100 rows, 80 matched + 20 unmatched, 12 updates, 59 symbols.
+- Labeling: `python scripts/label_set_b.py --set-c`, guidelines v1.3, gold in `data/gold_set_c.jsonl`, RAG questions in `data/rag_questions_c.jsonl`. Stop with `q`, it resumes.
+- The open guideline question (is an additional order R5?) stays open: guidelines v1.3 are used unchanged and no rule is changed while labeling.
+- No model runs on Set C until all 100 are labeled.
+- Labeling guide for Feyza: `docs/set_c_labeling_guide.xlsx` (fields, R1-R6, watch-outs, day tracker, RAG question type targets). No real data; examples are invented. Type targets are a suggestion. Formulas not recalculated here (no LibreOffice).
+
+## 2026-11-01: Matriks data access
+- Email thread (Oct 26-28): Feyza named company sector information and fundamental analysis data as possible supporting services; Matriks replied that the services can be used. Daily prices were not named, so they are not covered explicitly. Keep the thread for the license line in the presentation.
+- Fundamental analysis data, if available, is a second revenue source and could help with the `rt` / `shf_ret` difference.
+- The documentation is public at `analistdocs.matriksdata.com` (read 2026-11-01; no API call). Base URL in the docs is apitest. What it offers:
+  - Daily prices: `GET v1/tick/bar.gz`, `symbol`, `period=1day`, `start`, `end`; fields date, time, open, high, low, close, volume, totalQuantity, weightedAverage. One symbol per request; `count` max 1000.
+  - Income statement: `GET v1/fundamentals/INC`, `symbols`, `periods` (YYYYMM, months 03/06/09/12), optional `currency`, `unadjusted`. Revenue item code not shown; whether values are quarterly or year-to-date is not stated.
+  - Item keys: `GET v1/fundamental-key` and its `/info` path; revenue key not shown on the page.
+  - Sector: `GET v4/meta/symbols.gz` (`seI`, `seC`) and `v4/meta/sectors.gz`.
+  - `v1/profit-table` is profit, not revenue. `v1/company-cards` has no sector, market cap or revenue field.
+- `new-business-api` field definitions now documented: `rt` = deal value in TRY at that day's central bank rate / shifted revenue of the related balance sheet; `shfRet` = that shifted revenue; `cumRt` = all deals of the period in TRY / shifted revenue; `marValRt` = deal amount / market value; `tcmbExRt` = previous day's closing central bank rate for `cur`; `per` = related balance sheet period. Our `rt` check agrees.
+- Not documented: what "shifted" means, and whether it can be negative. The docs do not explain negative `shfRet` or the prod difference, and they say nothing about how a pull is counted. `v1/historic-ratio` also returns `shiftedReturn` ("Kaydırılmış Hasılat") and `shiftedNetProceeds`.
+- Pattern in local data (counts only): negative `shf_ret` appears on 267 rows, all in periods ending 03/06/09, none in any period ending 12. 2024 and 2025 quarters have 27-64 negatives each; 202603 and 202606 have 3 each. 45 of 129 symbols are affected; 37 of them also have positive rows.
+- Hypothesis, not confirmed: shifted revenue is a trailing 12-month figure built by subtraction (previous full year + current year-to-date - previous year-to-date). A December period needs no subtraction, which would explain why it is never negative. Testing it needs `INC` figures, which means one pull.
+- `cum_rt < rt` is mostly explained: 222 of the 226 rows have negative `shf_ret`.
+- Within one symbol and period, `shf_ret` is the same on 297 of 318 multi-row groups, so it behaves like a balance-sheet value.
+- Fallback for the importance score: rows with `shf_ret <= 0` can use the same company's latest earlier December value. It exists for 206 of the 270 such rows. Coverage of matched disclosures rises from 920 to 1044 of 1067 (apitest values; not valid until the prod difference is explained).
+- Claude does not guess endpoints beyond these pages and does not call the API. The rule of one pull per day still applies; daily bars need one request per symbol, so ask Matriks before a price pull.
+- Her Oct 28 question about refreshing the archive from prod once: the reply is not in what was shared.
+- No email has been sent about prices or field definitions yet.
+- Project scope stays "Yeni İş İlişkisi" unless Feyza decides otherwise; prices are supporting data for the stock-move module.
 - `rt` uses the Matriks amount, which was wrong in some Set A cases. The score should divide our extracted amount by `shf_ret` instead of trusting `rt`.
 - Daily prices: still unknown, no price endpoint in the repo. Feyza asks Matriks; do not guess endpoints.
