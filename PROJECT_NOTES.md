@@ -189,6 +189,7 @@ amount 14/15, currency 14/15, event_type 14/15, counterparty_origin 11/15, relat
 - Conclusion: a network rule on the Matriks side blocks this IP or its range. This is not the application-level IP restriction Matriks said does not exist. Reported on 28 Oct; Matriks forwarded it to their system team.
 - Until it is fixed, collection runs on the Mac (launchd).
 - Check (no token, not a data pull): `curl -sS -o /dev/null -w '%{http_code}\n' --max-time 10 https://<MATRIKS_API_HOST>/dumrul/`. 503 = reachable, timeout = blocked.
+- 2026-10-31 test: Mac reaches <MATRIKS_API_HOST>:443 with and without VPN (VPN is not a factor). Server [server-ip] (TR, IPv4) times out on TCP 443 to <MATRIKS_API_HOST> ([api-ip]) but reaches www.kap.org.tr:443. Consistent with a network-level block on Matriks' side for the server IP. Collection stays on the Mac.
 
 ### Lesson
 - Before trusting a network test, check which machine the prompt belongs to. The first "server" test was run on the Mac by mistake and looked like a success.
@@ -361,3 +362,56 @@ Decision: **v3 stays.** v4 stays in the repo as a documented experiment (`prompt
 - In Set B, 10 of 81 gold amounts are written only in this form, so `amount_is_projection` and `cumulative_total` may silently skip about 1 in 8 amount-bearing disclosures.
 - Not fixed in place: these checks were accepted on Set A and are frozen. A fix goes into a new version and must be measured on Set C.
 - `check_gold_amounts.py` normalizes these words to USD before matching, so the presence check is not affected.
+### RAG text normalization (2026-10-30)
+- Profile (`scripts/text_artifacts.py`, 1273 rows): nbsp 438 rows, `?` next to digit (broken ₺) 24, split Turkish letters 12, multi-space 4. Texts are short (words median 52, p95 163, max 358), so one document per disclosure, no chunking.
+- `scripts/normalize.py` (embedding input only; v3 extraction keeps raw `aciklama`): nbsp → space, `İ STANBUL` → `İSTANBUL`, `?` next to digit → ₺, collapse spaces.
+- 7 heavy rows (>=5 split hits, every Turkish letter split off): spaces around Turkish letters are removed. Known limitation: real word boundaries next to a Turkish letter are lost (`adet ş arj` → `adetşarj`).
+- Left as is: 3 rows with a single split letter in different directions (5476493, 5980983, 6290203) and 1 non-digit `?` (6425402).
+
+## 2026-10-30: Scope decision
+- Scope: only "Yeni İş İlişkisi" disclosures (agreed with the BTK instructor).
+- Target user: brokerage equity analyst.
+- Positioning: morning triage agent ("is this disclosure important, why, and is it reliable?").
+- Reason: each new disclosure type needs its own extraction schema and labeled test set; depth gives measured reliability, RAG over the full history, revision/cancellation tracking and the daily triage agent.
+
+## 2026-10-31: Revenue ratios already in `new_business`
+- The importance score does not need a separate financials source for most disclosures: `new_business` already has `rt` (deal value / shifted revenue), `shf_ret`, `cum_rt`, `mar_val_rt` and `per` (definitions from `scripts/schema.sql`; `rt` verified below, `cum_rt` and `mar_val_rt` not verified).
+- Coverage (counts only, 1273 disclosures, apitest data): 1067 have a `new_business` record; 904 of them have `rt > 0` (71% of all disclosures), 1047 have `mar_val_rt > 0` (82%). Disclosures without a record have no ratio.
+- In `new_business` overall (1582 rows, 129 symbols): `rt > 0` 1296, `shf_ret > 0` 1312, `mar_val_rt > 0` 1562.
+- Verified (counts only): `rt` equals TRY amount / `shf_ret` within 1% on 1242 of 1296 rows with `rt > 0`, within 5% on 1286; it is a ratio, not a percent. TRY amount = `amount` for TRY rows, `amount * tcmb_ex_rt` otherwise.
+- Non-positive `rt` is mostly negative, not zero: `shf_ret < 0` on 267 rows, `rt < 0` on 265, `rt = 0` on 19. Why revenue is negative is not known (question for Matriks); the score must not read these as small deals.
+- `cum_rt < rt` on 226 rows, which the definition does not explain on its face; not used until checked.
+- No sign of record lag: `new_business.date` equals the disclosure date on all 1067 matched rows; match rate is 8/9 (last 3 days), 8/8 (4-7), 37/41 (8-30), 76/84 (31-90), 938/1131 (older). Same-day availability cannot be measured because re-fetches reset `fetched_at`.
+- All 515 `new_business` rows without a disclosure are older than the first disclosure, so that archive simply starts earlier.
+
+## 2026-10-31: Prod API probe (`scripts/prod_probe.py`, one request, run by Feyza; nightly job paused so it was the day's only pull)
+- HTTP 200 with the current token at `https://<MATRIKS_API_HOST>/dumrul`.
+- Last 30 days of `new_business` (ending yesterday): 49 rows on both sides, 49 URLs in common, none only on one side. No completeness gap in this window.
+- `rt` differs by more than 1% on 47 of 49 rows. Prod: 45 positive, 2 negative, `shf_ret` negative on 2. Local apitest, same window: 44 positive, 0 negative, `shf_ret` negative on 0; its `rt` matches amount / `shf_ret` on all 44.
+- Open: size and cause of the difference, and which side is correct. The probe printed no direction and the prod rows were not saved. Prod `shf_ret`, `amount` and `tcmb_ex_rt` were not compared. Different revenue values are one hypothesis, not a finding.
+- Consequence: `rt` and `shf_ret` are not safe for the importance score until this is explained. The apitest coverage numbers above do not carry over to prod.
+- Disclosure texts (`v2/news`) were not compared, so Sets A/B and the RAG docs are still apitest-only.
+- Decision: a second counts-only probe (`feat/prod-api`, not run yet) measures the direction and cause of the difference. It runs when Feyza is back, 3-4 days away, as the only pull of a night with the launchd job paused. The job was paused only on 31 Oct and re-enabled after 23:50 that night; the 3-day lookback covers the skipped night.
+
+## 2026-10-31: Retrieval evaluation setup
+- Installed: `bge-m3`, `qwen3-embedding:0.6b` (Ollama), `sentence-transformers==6.2.0`, torch 2.15.0. MPS available. `turkish-e5-large` not downloaded yet (about 2.4 GB, estimated from 0.6B F32 parameters).
+- `scripts/eval_retrieval.py`: follows `docs/rag_model_choice.md`. It stops if the question counts change (66/59). Ollama calls use `truncate=False`, so an over-long text fails instead of being cut silently. `--timing N` measures speed only, with no scoring.
+- Prefixes from the model cards, none on documents: `bge-m3` none; `qwen3` `Instruct: <card example task>\nQuery:<q>` (card advises English instructions); `turkish-e5-large` `Instruct: <card Turkish-search task>\nQuery: <q>`.
+- Speed on the first 20 docs: `bge-m3` 0.11 s/doc (about 2.5 min projected), `qwen3` 0.31 s/doc (about 7 min projected).
+
+### Result (2026-10-31, commit 5ee4cd0, rule in `docs/rag_model_choice.md`)
+| model | recall@5 | recall@1 | wrong same-company | truncated docs | negatives top-1 min/median/max |
+|---|---|---|---|---|---|
+| `bge-m3` | 53/59 = 0.898 | 40/59 = 0.678 | 19 | 0 | 0.560 / 0.678 / 0.785 |
+| `ytu-ce-cosmos/turkish-e5-large` | 51/59 = 0.864 | 43/59 = 0.729 | 16 | 8 | 0.545 / 0.647 / 0.742 |
+| `qwen3-embedding:0.6b` | 50/59 = 0.847 | 39/59 = 0.661 | 19 | 0 | 0.644 / 0.694 / 0.821 |
+
+**Decision: `ytu-ce-cosmos/turkish-e5-large`.** `bge-m3` has the highest recall@5, but the gap is 2 questions (e5) and 3 questions (qwen3), so rule 2 makes it a tie and the higher recall@1 decides. Recall@5 is 0.864, above 0.85, so the BM25 hybrid step is not triggered.
+
+Findings:
+- The gaps are small (2-4 questions of 59), and the winner comes from the tie rule, not a clear lead. The same 66 questions were used for selection, so 0.864 is optimistic; a held-out question set is needed.
+- Nearly all recall@1 misses are the right company but the wrong disclosure: 16 of 16 for e5, 19 of 19 for `bge-m3`, 19 of 20 for qwen3. Finding the company is not the weak point; separating that company's disclosures is.
+- e5 reads at most 512 tokens, so 8 of 1273 docs are cut. Their tails are not searchable. Chunking was not tested.
+- The texts are apitest data; prod texts have not been compared.
+- `rt` uses the Matriks amount, which was wrong in some Set A cases. The score should divide our extracted amount by `shf_ret` instead of trusting `rt`.
+- Daily prices: still unknown, no price endpoint in the repo. Feyza asks Matriks; do not guess endpoints.
