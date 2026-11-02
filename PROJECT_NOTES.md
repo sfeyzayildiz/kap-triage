@@ -495,4 +495,13 @@ Findings:
 - Full build: 1275 docs in 33 s on MPS; a rerun embedded 0.
 - `similar_earlier`: the same company's earlier disclosures closest to this one (document-to-document cosine). The morning list shows the top 2 with date, similarity and KAP link, to help find the original of a revision or a repeated order.
 - Not measured: the retrieval evaluation (recall@5 0.864) was question-to-document; document-to-document similarity has no measured quality.
-- `morning.py --from-pipeline` now stops if the file's dates differ from `--date`. Reason: a run with the 10-28 pipeline file and `--date 2026-10-30` overwrote the 10-30 report; both reports were rebuilt from the right data.
+- `morning.py --from-pipeline` now stops if the file's dates differ from `--date`.
+
+## 2026-11-02: Triage agent (LangGraph)
+- `scripts/agent.py`, `langgraph==1.0.2`. Graph: route (LLM, `gemma4:e4b`, structured output: intent, symbol, date, topic) -> validate (code) -> one tool (code) -> END.
+- Tools: `morning` (day's ranked list; reuses `data/morning_D.jsonl` only if that day's disclosure count is unchanged), `company` (last 12 months of a symbol, with Matriks amounts labeled as such), `why_moved` (abnormal return vs XU100 on the day, z, split check, disclosures in the 4 days before, or "no new-business disclosure, cause may be elsewhere"), `search` (embedding search, top 5, with the measured recall stated), `unknown` (help).
+- Design: the LLM only reads the question. Numbers and links come from code, so the answer cannot contain invented figures. Code checks the route: a ticker must exist in our data; if the model took it from a company name, the answer says so; dates after the last price day fall back with a note.
+- LangSmith tracing is forced off in code; the agent makes no network calls besides local Ollama.
+- `morning.py` split into `extract_day`, `enrich`, `save`, `load_saved` for reuse.
+- Smoke test (routes only, 9 questions incl. repeats): all went to the expected tool; one unrelated question went to help. Not an evaluation: no fixed question set, no decision rule. A router test set would need questions written by Feyza.
+- 13 self-test checks. Reason: a run with the 10-28 pipeline file and `--date 2026-10-30` overwrote the 10-30 report; both reports were rebuilt from the right data.

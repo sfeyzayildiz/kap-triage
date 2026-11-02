@@ -12,6 +12,7 @@ Usage:
 '''
 import argparse
 import json
+import os
 from datetime import date, datetime, timedelta
 
 import duckdb
@@ -153,6 +154,51 @@ def _self_test():
     print('self-test ok: 8 checks')
 
 
+def extract_day(day):
+    '''Run extraction v3 + code checks on every disclosure of day.'''
+    from pipeline import analyze, load_rows
+    results=[]
+    for news_id,url,symbol,published_at,text in load_rows(str(day),None):
+        results.append({**analyze(text),'news_id':str(news_id),'kap_url':url,'symbol':symbol,
+                        'published_at':str(published_at)})
+    return results
+
+
+def enrich(results):
+    '''Add importance, price reaction, history and similar earlier disclosures.'''
+    index,_=rag_update()  # embeds only disclosures not yet in the index
+    con=duckdb.connect(DB_PATH,read_only=True)
+    try:
+        items=[]
+        for r in results:
+            published=datetime.fromisoformat(r['published_at'])
+            items.append({**r,'importance':score_result(con,r),'reaction':reaction(con,r['symbol'],published),
+                          'history':history(con,r['symbol'],published),
+                          'similar':similar_earlier(index,r['news_id'],k=SIMILAR_K)})
+    finally:
+        con.close()
+    return items
+
+
+def save(day,items):
+    out_path=f'data/morning_{day}.md'
+    with open(out_path,'w',encoding='utf-8') as f:
+        f.write(render(str(day),items))
+    with open(f'data/morning_{day}.jsonl','w',encoding='utf-8') as f:
+        for i in items:
+            f.write(json.dumps(i,ensure_ascii=False,default=str)+'\n')
+    return out_path
+
+
+def load_saved(day):
+    '''Items of an earlier morning run, or None.'''
+    path=f'data/morning_{day}.jsonl'
+    if not os.path.exists(path):
+        return None
+    with open(path,encoding='utf-8') as f:
+        return [json.loads(l) for l in f if l.strip()]
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--date',type=date.fromisoformat)
@@ -175,29 +221,9 @@ def main():
         if other:
             raise SystemExit(f'{other} rows in {args.from_pipeline} are not from {args.date}')
     else:
-        from pipeline import analyze, load_rows
-        results=[]
-        for news_id,url,symbol,published_at,text in load_rows(str(args.date),None):
-            results.append({**analyze(text),'news_id':str(news_id),'kap_url':url,'symbol':symbol,
-                            'published_at':str(published_at)})
-
-    index,_=rag_update()  # embeds only disclosures not yet in the index
-    con=duckdb.connect(DB_PATH,read_only=True)
-    try:
-        items=[]
-        for r in results:
-            published=datetime.fromisoformat(r['published_at'])
-            items.append({**r,'importance':score_result(con,r),'reaction':reaction(con,r['symbol'],published),
-                          'history':history(con,r['symbol'],published),
-                          'similar':similar_earlier(index,r['news_id'],k=SIMILAR_K)})
-    finally:
-        con.close()
-    out_path=f'data/morning_{args.date}.md'
-    with open(out_path,'w',encoding='utf-8') as f:
-        f.write(render(str(args.date),items))
-    with open(f'data/morning_{args.date}.jsonl','w',encoding='utf-8') as f:
-        for i in items:
-            f.write(json.dumps(i,ensure_ascii=False,default=str)+'\n')
+        results=extract_day(args.date)
+    items=enrich(results)
+    out_path=save(args.date,items)
     look=sum(i['importance']['needs_review'] or i['importance']['level']=='high' for i in items)
     print(f'disclosures={len(items)} look_first={look} flagged={sum(i["importance"]["needs_review"] for i in items)} -> {out_path}')
 
