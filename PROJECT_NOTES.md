@@ -482,3 +482,10 @@ Findings:
 - Descriptive count over 493 trading days (2024-11-01 to 2026-10-30): 1378 abnormal moves, 92 (6.7%) with a new-business disclosure in the 4 days before, 11 split days skipped. Most moves have another cause, so module B must say "no new-business disclosure, cause may be elsewhere" in most cases. Not used to tune anything.
 - 1378 of about 72,000 stock-days is about 1.9%, far above the 0.27% a normal distribution gives for |z| >= 3: daily returns have fat tails, so z >= 3 is a screening threshold, not a significance test.
 - Mean reactions were not computed. Any test of whether disclosures (or the importance score) move prices needs its own decision rule, committed before measuring.
+
+## 2026-11-02: Morning list (one command)
+- `scripts/morning.py --date D`: pipeline (v3 + code checks) -> importance score -> price reaction -> company history (last 12 months: count, updates/corrections, last date) -> `data/morning_D.md` (Turkish, KAP link per item) and `data/morning_D.jsonl`. `--from-pipeline FILE` skips the LLM. Stdout: counts only. 7 self-test checks.
+- Order: flagged or high first, then by score. Flagged items always show "KONTROL ET" with the reasons in Turkish. The footer says the score is a rule-based ranking, not a prediction.
+- First end-to-end run with the LLM: 2026-10-30, 2 disclosures, 0 flagged, 0 look-first, about 1 minute.
+- Prices end on 2026-10-30, so newer disclosures show "henüz tepki günü yok" until prices are updated. A daily price update would be a second daily pull; not done without asking.
+- History is SQL only for now; similar past disclosures by embedding search (RAG) come next.
