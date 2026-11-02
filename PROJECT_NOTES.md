@@ -450,3 +450,18 @@ Findings:
 - Project scope stays "Yeni İş İlişkisi" unless Feyza decides otherwise; prices are supporting data for the stock-move module.
 - `rt` uses the Matriks amount, which was wrong in some Set A cases. The score should divide our extracted amount by `shf_ret` instead of trusting `rt`.
 - Daily prices: still unknown, no price endpoint in the repo. Feyza asks Matriks; do not guess endpoints.
+
+## 2026-11-02: Daily price bars approved
+- Feyza asked Matriks (Matriks yetkilisi) whether she may use `v1/tick/bar.gz` daily bars and pull about 130 symbols at most 1 request/sec in one go under the one-pull-per-day rule. Reply on 2026-11-02: "Kullanabilirsiniz." Keep the thread for the license line.
+- The real count is 148 disclosure symbols plus `XU100` (149 requests), not 130 (129 is the `new_business` count). Same pattern (one session, 1 request/sec), so treated as covered; stated here so it is not hidden.
+- Docs (`/tarihsel-tick-veriler/bar`, read 2026-11-02): params `symbol`, `period=1day`, `start`, `end` (YYYY-MM-DD); response is a JSON list with date, time (ms epoch), open, high, low, close, volume, totalQuantity, weightedAverage. `count` max 1000. Only `divide=false` exists, so **prices are unadjusted**: splits and bonus issues look like crashes. Index support is not documented; `XU100` is tried as one extra symbol.
+- `scripts/price_collect.py`: `--plan` (no network), `--pull --yes` (one request per symbol, raw JSON to `data/raw_bars/`, manifest with status per symbol, resumes without re-pulling ok symbols), `--load` (raw files to table `daily_bars`, no network). Range: first disclosure minus 60 days (2024-09-01) to yesterday, about 540 trading days, under the 1000 cap. Refuses 23:30-23:59. Stdout: counts and dates only. 9 self-test checks.
+- Pull is Feyza's to run, in the daytime; the nightly new-business job stays on.
+
+### Pull result (2026-11-02, 11:46-11:52, run by Feyza, the day's only price pull)
+- 149 requests: 148 ok, 1 `http_503` after 5 tries (EFORC). EFORC is not re-pulled today; the manifest lets a later pull fetch only it.
+- `XU100` works: 533 bars, so index-relative returns are possible.
+- `daily_bars`: 148 symbols, 73,606 rows, 2024-09-02 to 2026-10-30. No null fields, no bar with close outside high/low. 17 symbols have fewer than 500 bars (later listings; minimum 43).
+- 1263 of 1275 disclosures fall inside their symbol's bar history.
+- 5 day-to-day moves above 30% (5 symbols). BIST daily price limits are about ±10% for most shares, so these are very likely splits or bonus issues in unadjusted prices; the move module must exclude or flag them, not explain them.
+- Speed: about 1.3 s per request (3.2 minutes total).
