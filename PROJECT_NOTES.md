@@ -466,6 +466,9 @@ Findings:
 - 5 day-to-day moves above 30% (5 symbols). BIST daily price limits are about ±10% for most shares, so these are very likely splits or bonus issues in unadjusted prices; the move module must exclude or flag them, not explain them.
 - Speed: about 1.3 s per request (3.2 minutes total).
 
+### Decision: no daily price update (Feyza, 2026-11-02)
+- Prices are not pulled every day, so there is never a second pull on the same day. One refresh pull is planned around 12 Nov, before the demo on 14 Nov (it also retries EFORC). Until then the morning list shows "henüz tepki günü yok" for disclosures after 2026-10-30.
+
 ## 2026-11-02: Importance score v1
 - Rules in `docs/importance_score.md`, written before any measurement: size against the company's own earlier deals (median TRY value, at least 3 deals; absolute TRY bands otherwise), foreign currency +1, foreign counterparty +1, duration of at least 2 years +1, related party -2. Levels: >= 4 high, 2-3 medium, else low. Revisions score only the increase.
 - `scripts/importance.py`: reads a pipeline file, writes `data/triage_<label>.jsonl`, prints counts only. 20 self-test checks.
