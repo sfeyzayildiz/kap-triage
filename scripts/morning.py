@@ -1,6 +1,7 @@
 '''Morning list: one command from a day's disclosures to a ranked report with KAP links.
 
 Steps: extraction v3 + code checks (pipeline.py) -> importance score (importance.py)
+-> similar earlier disclosures of the company (rag_index.py)
 -> price reaction (price_moves.py) -> company history (SQL) -> Markdown report.
 The report contains amounts, so it goes to data/morning_<date>.md; stdout shows only counts.
 
@@ -17,9 +18,11 @@ import duckdb
 
 from importance import score_result
 from price_moves import INDEX, abnormal, daily_returns, event_reaction, load_closes
+from rag_index import similar_earlier, update as rag_update
 
 DB_PATH='data/kap.duckdb'
 HISTORY_DAYS=365
+SIMILAR_K=2
 
 REVIEW_TR={
     'currency_unclear':'para birimi belirsiz','amount_is_projection':'tutar bir tahmin olabilir',
@@ -110,6 +113,8 @@ def render(day,items):
         lines.append(f'- Geçmiş: son 12 ayda {h["n"]} bildirim'+
                      (f', {h["n_updates"]} güncelleme/düzeltme' if h['n_updates'] else '')+
                      (f', sonuncusu {h["last"]}' if h['last'] else ''))
+        for s in item.get('similar',[]):
+            lines.append(f'- Benzer eski bildirim: {s["published_at"][:10]} (benzerlik {tr_num(s["score"],2)}) {s["kap_url"]}')
         lines.append('')
     lines.append('Kaynak: KAP bildirimleri ve Matriks verisi. Skor kurallı bir sıralamadır, tahmin değildir; '
                  'çıkarım hatası olabilir, karar öncesi KAP metnini okuyun.')
@@ -136,14 +141,16 @@ def _self_test():
             'reaction':{'status':'too_early'},'history':hist},
            {'symbol':'FLAG','kap_url':'u3','amount':None,'importance':low,'reaction':{'status':'no_bar'},'history':hist},
            {'symbol':'BIG','kap_url':'u1','amount':1500000.0,'currency':'USD','importance':imp,
-            'reaction':{'status':'ok','t0':'2026-10-30','ar0':0.021,'z0':2.4,'possible_split':False},'history':hist}]
+            'reaction':{'status':'ok','t0':'2026-10-30','ar0':0.021,'z0':2.4,'possible_split':False},'history':hist,
+            'similar':[{'published_at':'2026-05-01 09:00:00','score':0.914,'kap_url':'u9'}]}]
     text=render('2026-10-30',items)
     assert '3 bildirim; önce bakılacak: 2' in text
     assert text.index('BIG')<text.index('FLAG')<text.index('LOW')
     assert '1.500.000 USD' in text and 'medyanının 3,5 katı' in text and '+2,1%' in text
     assert 'KONTROL ET: para birimi belirsiz' in text
+    assert 'Benzer eski bildirim: 2026-05-01 (benzerlik 0,91) u9' in text
     assert 'Bugün yeni iş ilişkisi bildirimi yok.' in render('2026-11-01',[])
-    print('self-test ok: 7 checks')
+    print('self-test ok: 8 checks')
 
 
 def main():
@@ -164,6 +171,9 @@ def main():
     if args.from_pipeline:
         with open(args.from_pipeline,encoding='utf-8') as f:
             results=[json.loads(l) for l in f if l.strip()]
+        other=sum(r['published_at'][:10]!=str(args.date) for r in results)
+        if other:
+            raise SystemExit(f'{other} rows in {args.from_pipeline} are not from {args.date}')
     else:
         from pipeline import analyze, load_rows
         results=[]
@@ -171,13 +181,15 @@ def main():
             results.append({**analyze(text),'news_id':str(news_id),'kap_url':url,'symbol':symbol,
                             'published_at':str(published_at)})
 
+    index,_=rag_update()  # embeds only disclosures not yet in the index
     con=duckdb.connect(DB_PATH,read_only=True)
     try:
         items=[]
         for r in results:
             published=datetime.fromisoformat(r['published_at'])
             items.append({**r,'importance':score_result(con,r),'reaction':reaction(con,r['symbol'],published),
-                          'history':history(con,r['symbol'],published)})
+                          'history':history(con,r['symbol'],published),
+                          'similar':similar_earlier(index,r['news_id'],k=SIMILAR_K)})
     finally:
         con.close()
     out_path=f'data/morning_{args.date}.md'

@@ -489,3 +489,10 @@ Findings:
 - First end-to-end run with the LLM: 2026-10-30, 2 disclosures, 0 flagged, 0 look-first, about 1 minute.
 - Prices end on 2026-10-30, so newer disclosures show "henüz tepki günü yok" until prices are updated. A daily price update would be a second daily pull; not done without asking.
 - History is SQL only for now; similar past disclosures by embedding search (RAG) come next.
+
+## 2026-11-02: Search index in the morning list
+- `scripts/rag_index.py`: one `turkish-e5-large` vector per disclosure (same doc text as `build_docs.py`, no prefix on documents, card prefix on queries) in `data/rag_index.npz`, with news_id, KAP link, symbol, date and text sha1. Updates are incremental: only new or changed texts are embedded. 8 self-test checks.
+- Full build: 1275 docs in 33 s on MPS; a rerun embedded 0.
+- `similar_earlier`: the same company's earlier disclosures closest to this one (document-to-document cosine). The morning list shows the top 2 with date, similarity and KAP link, to help find the original of a revision or a repeated order.
+- Not measured: the retrieval evaluation (recall@5 0.864) was question-to-document; document-to-document similarity has no measured quality.
+- `morning.py --from-pipeline` now stops if the file's dates differ from `--date`. Reason: a run with the 10-28 pipeline file and `--date 2026-10-30` overwrote the 10-30 report; both reports were rebuilt from the right data.
