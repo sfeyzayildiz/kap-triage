@@ -1,0 +1,210 @@
+'''Price reaction to disclosures and abnormal-move scan, from daily_bars.
+
+Abnormal return = stock return - XU100 return (market-adjusted, close to close).
+Prices are unadjusted, so a day with |stock return| > SPLIT_JUMP is treated as a
+possible split or bonus issue: it is flagged, never explained.
+Stdout shows only counts; details go to data/.
+
+Usage:
+  python scripts/price_moves.py --self-test
+  python scripts/price_moves.py --scan 2026-10-30
+  python scripts/price_moves.py --reactions
+'''
+import argparse
+import json
+import statistics
+from datetime import date, datetime, timedelta
+
+import duckdb
+
+DB_PATH='data/kap.duckdb'
+INDEX='XU100'
+CLOSE_HOUR=18  # published at or after 18:00 -> reaction on the next trading day
+SPLIT_JUMP=0.22  # BIST daily limit is about 10%; larger moves are corporate actions
+EST_DAYS=60
+MIN_EST=30
+Z_ABNORMAL=3.0
+EVENT_DAYS=3  # t0, t0+1, t0+2
+LOOKBACK_DAYS=4  # scan: disclosures up to this many calendar days before the move
+
+
+def load_closes(con,start,end,symbols=None):
+    '''{symbol: [(date, close), ...]} sorted by date, always including the index.'''
+    sql='SELECT symbol,date,close FROM daily_bars WHERE date BETWEEN ? AND ?'
+    params=[start,end]
+    if symbols:
+        wanted=sorted(set(symbols)|{INDEX})
+        sql+=f' AND symbol IN ({",".join("?" for _ in wanted)})'
+        params+=wanted
+    series={}
+    for sym,d,close in con.execute(sql+' ORDER BY symbol,date',params).fetchall():
+        series.setdefault(sym,[]).append((d,close))
+    return series
+
+
+def daily_returns(points):
+    return {d:c/p-1 for (_,p),(d,c) in zip(points,points[1:])}
+
+
+def abnormal(stock,market):
+    '''{date: (abnormal return, stock return)} on days both have a return.'''
+    return {d:(r-market[d],r) for d,r in stock.items() if d in market}
+
+
+def reaction_day(published_at,trading_days):
+    '''First trading day on which the market could react.'''
+    day=published_at.date()
+    if published_at.hour>=CLOSE_HOUR:
+        day+=timedelta(days=1)
+    later=[d for d in trading_days if d>=day]
+    return later[0] if later else None
+
+
+def sigma_before(ar,day):
+    '''Std of abnormal returns over the EST_DAYS trading days before day, split days left out.'''
+    past=[a for d,(a,r) in sorted(ar.items()) if d<day and abs(r)<=SPLIT_JUMP][-EST_DAYS:]
+    return (statistics.stdev(past),len(past)) if len(past)>=MIN_EST else (None,len(past))
+
+
+def event_reaction(ar,trading_days,published_at):
+    t0=reaction_day(published_at,trading_days)
+    if t0 is None:
+        return {'status':'too_early'}
+    window=[d for d in trading_days if d>=t0][:EVENT_DAYS]
+    if t0 not in ar:
+        return {'status':'no_bar','t0':str(t0)}
+    sigma,n_est=sigma_before(ar,t0)
+    out={'status':'ok','t0':str(t0),'ar0':ar[t0][0],'n_est':n_est,
+         'car':sum(ar[d][0] for d in window if d in ar),'car_days':sum(d in ar for d in window),
+         'possible_split':any(abs(ar[d][1])>SPLIT_JUMP for d in window if d in ar)}
+    out['z0']=out['ar0']/sigma if sigma else None
+    if sigma is None:
+        out['status']='short_history'
+    return out
+
+
+def scan(series,day):
+    '''Abnormal moves on day: |z| >= Z_ABNORMAL, split days left out and counted.'''
+    market=daily_returns(series.get(INDEX,[]))
+    moves,splits=[],0
+    for sym,points in series.items():
+        if sym==INDEX:
+            continue
+        ar=abnormal(daily_returns(points),market)
+        if day not in ar:
+            continue
+        a,r=ar[day]
+        if abs(r)>SPLIT_JUMP:
+            splits+=1
+            continue
+        sigma,_=sigma_before(ar,day)
+        if sigma and abs(a/sigma)>=Z_ABNORMAL:
+            moves.append({'symbol':sym,'date':str(day),'ar':a,'z':a/sigma})
+    return moves,splits
+
+
+def disclosures_before(con,symbol,day):
+    '''News ids of the symbol's disclosures from LOOKBACK_DAYS before day up to day's close.'''
+    end=datetime(day.year,day.month,day.day,CLOSE_HOUR)
+    rows=con.execute('''SELECT news_id,kap_url,published_at FROM disclosures
+        WHERE symbol=? AND published_at>=? AND published_at<? ORDER BY published_at''',
+        [symbol,end-timedelta(days=LOOKBACK_DAYS),end]).fetchall()
+    return [{'news_id':str(n),'kap_url':u,'published_at':str(p)} for n,u,p in rows]
+
+
+def _self_test():
+    days=[date(2026,1,1)+timedelta(days=i) for i in range(80)]
+    idx=[(d,100.0) for d in days]
+    stock,price=[],10.0
+    for i,d in enumerate(days):
+        price*=1.01 if i%2 else 0.99
+        if i==70:
+            price*=1.08  # abnormal day
+        if i==75:
+            price*=0.5  # split
+        stock.append((d,price))
+    series={INDEX:idx,'AAA':stock}
+    market=daily_returns(idx)
+    ar=abnormal(daily_returns(stock),market)
+
+    assert reaction_day(datetime(2026,1,5,17,59),days)==date(2026,1,5)
+    assert reaction_day(datetime(2026,1,5,18,0),days)==date(2026,1,6)
+    assert reaction_day(datetime(2026,12,1,9),days) is None
+
+    moves,splits=scan(series,days[70])
+    assert len(moves)==1 and moves[0]['symbol']=='AAA' and moves[0]['z']>Z_ABNORMAL and splits==0
+    moves,splits=scan(series,days[75])
+    assert moves==[] and splits==1
+    assert scan(series,days[71])[0]==[]
+
+    out=event_reaction(ar,days,datetime.combine(days[69],datetime.min.time()).replace(hour=19))
+    assert out['status']=='ok' and out['t0']==str(days[70]) and out['car_days']==3 and not out['possible_split']
+    out=event_reaction(ar,days,datetime.combine(days[74],datetime.min.time()).replace(hour=19))
+    assert out['possible_split']
+    out=event_reaction(ar,days,datetime.combine(days[10],datetime.min.time()).replace(hour=9))
+    assert out['status']=='short_history' and out['z0'] is None
+
+    con=duckdb.connect()
+    con.execute('CREATE TABLE disclosures (news_id BIGINT, kap_url VARCHAR, symbol VARCHAR, published_at TIMESTAMP)')
+    con.executemany('INSERT INTO disclosures VALUES (?,?,?,?)',[
+        (1,'u1','AAA',datetime(2026,3,9,19,0)),(2,'u2','AAA',datetime(2026,3,11,18,30)),
+        (3,'u3','AAA',datetime(2026,3,1,9,0)),(4,'u4','BBB',datetime(2026,3,10,9,0))])
+    assert [x['news_id'] for x in disclosures_before(con,'AAA',date(2026,3,11))]==['1']
+    con.close()
+    print('self-test ok: 10 checks')
+
+
+def main():
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--scan',type=date.fromisoformat,help='abnormal moves on this trading day')
+    ap.add_argument('--reactions',action='store_true',help='reaction for every disclosure')
+    ap.add_argument('--self-test',action='store_true')
+    args=ap.parse_args()
+    if args.self_test:
+        _self_test()
+        return
+    if not (args.scan or args.reactions):
+        ap.error('give --scan DATE, --reactions or --self-test')
+
+    con=duckdb.connect(DB_PATH,read_only=True)
+    try:
+        if args.scan:
+            series=load_closes(con,args.scan-timedelta(days=150),args.scan)
+            moves,splits=scan(series,args.scan)
+            for m in moves:
+                m['disclosures']=disclosures_before(con,m['symbol'],args.scan)
+            out_path=f'data/moves_{args.scan}.jsonl'
+            rows=moves
+            explained=sum(bool(m['disclosures']) for m in moves)
+            summary=f'symbols={len(series)-1} abnormal={len(moves)} with_disclosure={explained} split_days_skipped={splits}'
+        else:
+            disc=con.execute('SELECT news_id,kap_url,symbol,published_at FROM disclosures ORDER BY published_at').fetchall()
+            first,last=disc[0][3].date(),disc[-1][3].date()
+            series=load_closes(con,first-timedelta(days=150),last+timedelta(days=10))
+            trading_days=[d for d,_ in series.get(INDEX,[])]
+            market=daily_returns(series.get(INDEX,[]))
+            cache,rows={},[]
+            for news_id,url,sym,published in disc:
+                if sym not in series:
+                    rows.append({'news_id':str(news_id),'kap_url':url,'symbol':sym,'status':'no_symbol_bars'})
+                    continue
+                if sym not in cache:
+                    cache[sym]=abnormal(daily_returns(series[sym]),market)
+                rows.append({'news_id':str(news_id),'kap_url':url,'symbol':sym,
+                             **event_reaction(cache[sym],trading_days,published)})
+            out_path='data/reactions.jsonl'
+            status={}
+            for r in rows:
+                status[r['status']]=status.get(r['status'],0)+1
+            summary=f'disclosures={len(rows)} '+' '.join(f'{k}={v}' for k,v in sorted(status.items()))+\
+                    f' possible_split={sum(bool(r.get("possible_split")) for r in rows)}'
+    finally:
+        con.close()
+    with open(out_path,'w',encoding='utf-8') as f:
+        for r in rows:
+            f.write(json.dumps(r,ensure_ascii=False)+'\n')
+    print(f'{summary} -> {out_path}')
+
+
+if __name__=='__main__':
+    main()

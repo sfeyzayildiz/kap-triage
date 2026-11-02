@@ -474,3 +474,11 @@ Findings:
 - Available context (counts only): 86 of 125 companies have at least 3 earlier deals by 2026-10-01; central bank rates exist for USD (459 days) and EUR (224), rare currencies on a few days only, so those fall back to `no_rate`.
 - First real run: pipeline output for 2026-10-28 (2 rows): 1 medium, 1 low, 0 flagged.
 - Weights are judgment, not fitted. No measured accuracy for the score.
+
+## 2026-11-02: Price moves module
+- `scripts/price_moves.py`: abnormal return = stock return - XU100 return (close to close, market-adjusted). Reaction day t0 = first trading day on or after the disclosure date, the next one if published at or after 18:00. Sigma from the 60 trading days before (at least 30), split days left out. A day with |stock return| > 22% is a possible split or bonus issue (BIST limit about 10%): flagged, never explained. 10 self-test checks.
+- `--reactions` (all disclosures, `data/reactions.jsonl`): ok 1239, short_history 21, no_symbol_bars 12, no_bar 3; possible_split 3.
+- `--scan DATE` (`data/moves_<date>.jsonl`): |z| >= 3, plus the symbol's disclosures from 4 days before to the day's close. 2026-10-30: 147 symbols, 3 abnormal moves, 2 with a disclosure.
+- Descriptive count over 493 trading days (2024-11-01 to 2026-10-30): 1378 abnormal moves, 92 (6.7%) with a new-business disclosure in the 4 days before, 11 split days skipped. Most moves have another cause, so module B must say "no new-business disclosure, cause may be elsewhere" in most cases. Not used to tune anything.
+- 1378 of about 72,000 stock-days is about 1.9%, far above the 0.27% a normal distribution gives for |z| >= 3: daily returns have fat tails, so z >= 3 is a screening threshold, not a significance test.
+- Mean reactions were not computed. Any test of whether disclosures (or the importance score) move prices needs its own decision rule, committed before measuring.
