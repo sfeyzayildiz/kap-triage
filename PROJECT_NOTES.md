@@ -465,3 +465,12 @@ Findings:
 - 1263 of 1275 disclosures fall inside their symbol's bar history.
 - 5 day-to-day moves above 30% (5 symbols). BIST daily price limits are about ±10% for most shares, so these are very likely splits or bonus issues in unadjusted prices; the move module must exclude or flag them, not explain them.
 - Speed: about 1.3 s per request (3.2 minutes total).
+
+## 2026-11-02: Importance score v1
+- Rules in `docs/importance_score.md`, written before any measurement: size against the company's own earlier deals (median TRY value, at least 3 deals; absolute TRY bands otherwise), foreign currency +1, foreign counterparty +1, duration of at least 2 years +1, related party -2. Levels: >= 4 high, 2-3 medium, else low. Revisions score only the increase.
+- `scripts/importance.py`: reads a pipeline file, writes `data/triage_<label>.jsonl`, prints counts only. 20 self-test checks.
+- Revenue and market-value ratios are off (`USE_REVENUE=False`) until the prod/apitest `rt` difference is explained.
+- `needs_review` does not change the score; it is shown next to it, and flagged items are always listed.
+- Available context (counts only): 86 of 125 companies have at least 3 earlier deals by 2026-10-01; central bank rates exist for USD (459 days) and EUR (224), rare currencies on a few days only, so those fall back to `no_rate`.
+- First real run: pipeline output for 2026-10-28 (2 rows): 1 medium, 1 low, 0 flagged.
+- Weights are judgment, not fitted. No measured accuracy for the score.
