@@ -57,8 +57,9 @@ def wait_for_network(resolve=socket.getaddrinfo,sleep=time.sleep):
             resolve(API_HOST,443)
             return attempt
         except OSError:
-            print(f'[{ts()}] no network (attempt {attempt}/{NET_RETRIES}), retrying in {NET_WAIT}s',flush=True)
-            if attempt<NET_RETRIES:
+            last=attempt==NET_RETRIES
+            print(f'[{ts()}] no network (attempt {attempt}/{NET_RETRIES}), '+('giving up' if last else f'retrying in {NET_WAIT}s'),flush=True)
+            if not last:
                 sleep(NET_WAIT)
     raise RuntimeError(f'no network after {NET_RETRIES} attempts')
 def retry_on_lock(fn):
