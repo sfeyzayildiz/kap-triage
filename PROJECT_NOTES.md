@@ -89,6 +89,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-03: Postmortem, nightly run of 2 Nov failed (no network)
+- `LastExitStatus` 256; no rows added (last disclosure still 2026-10-30). Log (error lines only, shown by Feyza): `NameResolutionError`, failed to resolve `ntfy.sh`. The Mac had no network at run time, most likely because launchd ran the job right after wake, before Wi-Fi reconnected.
+- Second fault: `notify()` raised inside the `except` block, so no FAILED alert reached Feyza and the alert error hid the original one.
+- Fix (`fix/daily-network-wait`): `wait_for_network()` resolves the API host up to 10 times, 60 s apart, before any request, so waiting never causes a second pull. `notify()` now catches request errors and logs only the error type. `--self-test` (2 checks) is run by Feyza, since Claude does not run this script.
+- No data lost: the 3-day lookback picks up 2 Nov on the next successful run.
+
 ## 2026-10-27/28: Postmortems
 
 ### Incident 1: Daily collector failed on DB lock

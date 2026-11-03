@@ -1,4 +1,5 @@
 import os
+import socket
 import time
 import subprocess
 import sys
@@ -17,6 +18,9 @@ LOOKBACK_DAYS=3
 LOCK_RETRIES=3
 LOCK_WAIT=int(os.environ.get('LOCK_WAIT','300'))   # seconds between attempts
 NTFY_URL=os.environ.get('NTFY_URL')
+API_HOST='<MATRIKS_API_HOST>'  # same host as API in collector.py
+NET_RETRIES=10
+NET_WAIT=60   # seconds; after wake from sleep Wi-Fi can take a while
 
 
 def counts():
@@ -33,13 +37,30 @@ def notify(title,msg,priority='default'):
     print(f'[{ts()}] {title}: {msg}',flush=True)
     if not NTFY_URL:
         return
-    # HTTP headers must be ASCII, so keep titles in plain English
-    requests.post(
-        NTFY_URL,
-        data=msg.encode('utf-8'),
-        headers={'Title':title,'Priority':priority},
-        timeout=10,
-    )
+    try:
+        # HTTP headers must be ASCII, so keep titles in plain English
+        requests.post(
+            NTFY_URL,
+            data=msg.encode('utf-8'),
+            headers={'Title':title,'Priority':priority},
+            timeout=10,
+        )
+    except requests.RequestException as e:
+        # a failed alert must not hide the original error
+        print(f'[{ts()}] notify failed: {type(e).__name__}',flush=True)
+
+
+def wait_for_network(resolve=socket.getaddrinfo,sleep=time.sleep):
+    '''Wait until the API host resolves, before any request is sent (so a retry is never a second pull).'''
+    for attempt in range(1,NET_RETRIES+1):
+        try:
+            resolve(API_HOST,443)
+            return attempt
+        except OSError:
+            print(f'[{ts()}] no network (attempt {attempt}/{NET_RETRIES}), retrying in {NET_WAIT}s',flush=True)
+            if attempt<NET_RETRIES:
+                sleep(NET_WAIT)
+    raise RuntimeError(f'no network after {NET_RETRIES} attempts')
 def retry_on_lock(fn):
     '''Call fn(); if it fails because another process holds the DB lock, wait and try again.'''
     for attempt in range(1,LOCK_RETRIES+1):
@@ -61,9 +82,27 @@ def run_collector(start,end):
     if r.returncode!=0:
         raise RuntimeError(r.stderr[-500:] or 'no stderr')
 
+def _self_test():
+    calls=[]
+    def flaky(host,port):
+        calls.append(host)
+        if len(calls)<3:
+            raise socket.gaierror('down')
+    assert wait_for_network(flaky,sleep=lambda s:None)==3 and calls==[API_HOST]*3
+    def down(host,port):
+        raise socket.gaierror('down')
+    try:
+        wait_for_network(down,sleep=lambda s:None)
+        raise AssertionError('must raise')
+    except RuntimeError:
+        pass
+    print('self-test ok: 2 checks')
+
+
 def main():
     end=date.today()
     start=end-timedelta(days=LOOKBACK_DAYS)
+    wait_for_network()
     before=retry_on_lock(counts)
     retry_on_lock(lambda:run_collector(start,end))
     after=retry_on_lock(counts)
@@ -72,6 +111,9 @@ def main():
 
 
 if __name__=='__main__':
+    if sys.argv[1:]==['--self-test']:
+        _self_test()
+        sys.exit(0)
     try:
         main()
     except Exception as e:
