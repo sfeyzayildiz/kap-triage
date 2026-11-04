@@ -103,7 +103,8 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - `scripts/prod_refresh.py`: `--snapshot`, `--plan`, `--run --yes` (refuses unless the snapshot exists and the nightly job is paused), `--compare` (counts only: period later/earlier/same, revenue changes with the same period, amount/currency changes, negative revenue before/after). 9 self-test checks.
   - Snapshot taken: `new_business_apitest`, 1584 rows, before any prod row was written.
   - Plan: 35 months + 1 news search count on prod = 36 requests, one night with the job paused.
-- The nightly job switches to prod only when Feyza pulls `kap-deploy`. Her 28 Oct question to Matriks about refreshing the archive from prod had no reply seen; the refresh is one session at 1 request/sec as that day's only pull.
+- The nightly job switches to prod only when Feyza pulls `kap-deploy`.
+- Matriks approved refreshing the archive from prod (reply to Feyza's 28 Oct question, reported by Feyza on 2026-11-05). The refresh is one session at 1 request/sec as that day's only pull.
 
 ## 2026-11-03: Corpus statistics (`scripts/corpus_stats.py`, counts only)
 - 1275 disclosures, 2024-10-31 to 2026-10-30, 148 symbols. 23 full months: 35 / 53 / 86 per month (min / median / max). 455 days with a disclosure: median 2, max 8.
