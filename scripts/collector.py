@@ -24,7 +24,10 @@ from dotenv import load_dotenv
 
 from parse_form import parse_form
 
-API='https://<MATRIKS_API_HOST>/dumrul'
+# new_business comes from prod (probe v2, 2026-11-05: same deals, newer revenue periods);
+# news is not tested on prod yet, so it stays on apitest
+NB_API=os.environ.get('MATRIKS_NB_API','https://<MATRIKS_API_HOST>/dumrul')
+NEWS_API=os.environ.get('MATRIKS_NEWS_API','https://<MATRIKS_API_HOST>/dumrul')
 DB_PATH='data/kap.duckdb'
 SCHEMA_PATH='scripts/schema.sql'
 MIN_INTERVAL=1.1
@@ -38,11 +41,11 @@ KAP_LINK=re.compile(r'https?://www\.kap\.org\.tr/Bildirim/\d+')
 HEADLINE_SYM=re.compile(r'KAP:\s*([A-Z0-9]+)')
 
 
-def get(path,params):
+def get(path,params,base=NEWS_API):
     wait=MIN_INTERVAL
     for attempt in range(1,MAX_TRIES+1):
         time.sleep(wait)
-        resp=requests.get(f'{API}/{path}',params=params,headers={'Authorization':f'jwt {TOKEN}'},timeout=60)
+        resp=requests.get(f'{base}/{path}',params=params,headers={'Authorization':f'jwt {TOKEN}'},timeout=60)
         if resp.status_code==429 or resp.status_code>=500:
             wait=MIN_INTERVAL*2**attempt
             print(f'  HTTP {resp.status_code}, retry {attempt}/{MAX_TRIES} in {wait:.1f}s')
@@ -70,8 +73,8 @@ def answer_is_yes(value):
     return (value or '').strip().lower().startswith('evet')
 
 
-def fetch_new_business(con,s,e):
-    rows=get('v1/new-business-api',{'start':s.isoformat(),'end':e.isoformat()})
+def fetch_new_business(con,s,e,base=NB_API):
+    rows=get('v1/new-business-api',{'start':s.isoformat(),'end':e.isoformat()},base=base)
     data=[(norm_url(r.get('url')),r.get('sym'),r.get('date'),r.get('cur'),r.get('amount'),
            r.get('desc'),r.get('per'),r.get('rt'),r.get('shfRet'),r.get('tcmbExRt'),
            r.get('cumRt'),r.get('marValRt')) for r in rows if r.get('url')]

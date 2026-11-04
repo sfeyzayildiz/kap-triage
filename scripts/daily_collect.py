@@ -18,7 +18,7 @@ LOOKBACK_DAYS=3
 LOCK_RETRIES=3
 LOCK_WAIT=int(os.environ.get('LOCK_WAIT','300'))   # seconds between attempts
 NTFY_URL=os.environ.get('NTFY_URL')
-API_HOST='<MATRIKS_API_HOST>'  # same host as API in collector.py
+API_HOSTS=('<MATRIKS_API_HOST>','<MATRIKS_API_HOST>')  # NB_API and NEWS_API hosts in collector.py
 NET_RETRIES=10
 NET_WAIT=60   # seconds; after wake from sleep Wi-Fi can take a while
 
@@ -51,10 +51,11 @@ def notify(title,msg,priority='default'):
 
 
 def wait_for_network(resolve=socket.getaddrinfo,sleep=time.sleep):
-    '''Wait until the API host resolves, before any request is sent (so a retry is never a second pull).'''
+    '''Wait until the API hosts resolve, before any request is sent (so a retry is never a second pull).'''
     for attempt in range(1,NET_RETRIES+1):
         try:
-            resolve(API_HOST,443)
+            for host in API_HOSTS:
+                resolve(host,443)
             return attempt
         except OSError:
             last=attempt==NET_RETRIES
@@ -89,7 +90,7 @@ def _self_test():
         calls.append(host)
         if len(calls)<3:
             raise socket.gaierror('down')
-    assert wait_for_network(flaky,sleep=lambda s:None)==3 and calls==[API_HOST]*3
+    assert wait_for_network(flaky,sleep=lambda s:None)==3 and calls==[API_HOSTS[0]]*3+[API_HOSTS[1]]
     def down(host,port):
         raise socket.gaierror('down')
     try:
