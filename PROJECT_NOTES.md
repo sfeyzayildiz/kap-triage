@@ -89,6 +89,24 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-03: Corpus statistics (`scripts/corpus_stats.py`, counts only)
+- 1275 disclosures, 2024-10-31 to 2026-10-30, 148 symbols. 23 full months: 35 / 53 / 86 per month (min / median / max). 455 days with a disclosure: median 2, max 8.
+- Updates 136 (11%), corrections 14.
+- Publish time: 26% before the 10:00 open, 48% during the session, 26% after the 18:00 close. About half arrive while the market is closed, which is the case for a morning list.
+- Concentration: the top 10 symbols have 36% of disclosures; the top one has 5%.
+- 1067 (84%) have a Matriks `new_business` record. Currency of those: USD 527, TRY 351, EUR 180, GBP 2, AED 1, empty 6. So most matched deals are in foreign currency.
+- Text length: median 52 words, max 358, none empty.
+
+## 2026-11-03: Demo candidate days (`scripts/demo_candidates.py`)
+- A demo day must have at least 3 disclosures, all outside dev, eval_v1, Set A, the old label set, Set B and Set C (466 ids), and prices for 5 days after it. Set C stays unseen by the model until it is labeled.
+- 33 such days. Most disclosures: 2025-05-06 (5), 2025-11-27 (5). Most recent: 2026-09-17 (4), 2026-08-26 (3), 2026-08-17 (4), 2026-06-09 (4), 2026-04-22 (4).
+- Morning lists built for six of them (2026-11-04, `data/morning_<date>.md`), as disclosures / look first / flagged: 2026-09-17 4/1/1, 2026-08-17 4/1/1, 2026-06-09 4/3/2, 2026-04-22 4/0/0, 2025-11-27 5/0/0, 2025-05-06 5/2/2.
+- These flags are the system's output on unlabeled cases, not a measurement. Feyza picks the demo days after reading the reports; a mix (one quiet day, one day with flags) shows both sides.
+
+## 2026-11-04: Nightly run after the network fix
+- `LastExitStatus` 0. +3 disclosures (2 Nov: 1, 3 Nov: 2), +2 `new_business`; no empty texts, no duplicate ids. The 2 Nov disclosure missed by the failed run came in through the 3-day lookback.
+- The two 30 Oct disclosures still have no `new_business` record, and 30 Oct is now outside the lookback, so a late Matriks record would not be fetched.
+
 ## 2026-11-03: Postmortem, nightly run of 2 Nov failed (no network)
 - `LastExitStatus` 256; no rows added (last disclosure still 2026-10-30). Log (error lines only, shown by Feyza): `NameResolutionError`, failed to resolve `ntfy.sh`. The Mac had no network at run time, most likely because launchd ran the job right after wake, before Wi-Fi reconnected.
 - Second fault: `notify()` raised inside the `except` block, so no FAILED alert reached Feyza and the alert error hid the original one.
