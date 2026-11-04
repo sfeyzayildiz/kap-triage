@@ -89,6 +89,16 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-05: Prod API probe v2 (run by Feyza at about 00:40 on 5 Nov; nightly job paused for 5 Nov, so it is that day's only pull)
+- 30 days ending 4 Nov: 34 rows on both sides, 34 in common, none only on one side.
+- Same on all 34: `amount`, `cur`, `tcmb_ex_rt`. The deal records themselves agree.
+- `rt` differs on 33, `shf_ret` on 34; all 33 `rt` differences come with a `shf_ret` difference and none with an amount or rate difference. So the `rt` gap is a revenue gap.
+- Both sides are internally consistent (`rt` = TRY amount / `shf_ret`): prod 32/34, local 30/34.
+- `per` (balance-sheet period) differs on 26 of 34 (25 of the 33 `rt` differences). Median `shf_ret` prod/local 1.51, median `rt` prod/local 0.66. One sign flip.
+- Reading: the environments mostly link deals to different balance-sheet periods, and prod revenue is larger. Most likely prod uses a newer period and apitest is stale. Not proven: the probe does not print which side's period is later, and 8 rows differ in revenue with the same period.
+- Proposal (waiting for Feyza): treat prod as the reference; switch the collector to prod; keep a copy of the apitest `new_business` table, then refresh the archive from prod once (about 25 monthly requests, one night, job paused). The copy lets us measure the period direction offline. Then turn on the revenue ratio with a rule written before measuring (our amount / prod `shf_ret`, December fallback for negatives).
+- Evaluations are not affected: Set B and Set C are scored on amount and currency, which agree.
+
 ## 2026-11-03: Corpus statistics (`scripts/corpus_stats.py`, counts only)
 - 1275 disclosures, 2024-10-31 to 2026-10-30, 148 symbols. 23 full months: 35 / 53 / 86 per month (min / median / max). 455 days with a disclosure: median 2, max 8.
 - Updates 136 (11%), corrections 14.
