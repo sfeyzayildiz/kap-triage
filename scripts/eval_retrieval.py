@@ -8,6 +8,7 @@ Usage:
   python scripts/eval_retrieval.py --self-test
   python scripts/eval_retrieval.py --model bge-m3 --timing 20
   python scripts/eval_retrieval.py --model bge-m3
+  python scripts/eval_retrieval.py --model ytu-ce-cosmos/turkish-e5-large --set c   (held-out, once)
 '''
 import argparse
 import hashlib
@@ -21,9 +22,13 @@ import time
 import numpy as np
 
 DOCS_PATH='data/rag_docs.jsonl'
-QUESTIONS_PATH='data/rag_questions.jsonl'
-EXPECTED_QUESTIONS=66
-EXPECTED_ANSWERABLE=59
+# question sets: path, expected total, expected answerable, output suffix.
+# 'dev' picked the model (Set B questions); 'c' is the held-out set, measured once (docs/set_c_plan.md).
+QUESTION_SETS={
+    'dev':{'path':'data/rag_questions.jsonl','total':66,'answerable':59,'suffix':''},
+    'c':{'path':'data/rag_questions_c.jsonl','total':53,'answerable':48,'suffix':'_set_c'},
+}
+EXPECTED_QUESTIONS=QUESTION_SETS['dev']['total']
 BATCH_SIZE=16
 TOP_K=10
 OLLAMA_TIMEOUT=300
@@ -152,7 +157,10 @@ def _self_test():
     out=summarize(rows)
     assert (out['hit1'],out['hit5'],out['wrong_same_company'])==(1,2,1)
     assert out['neg_min']==0.4 and out['neg_max']==0.6
-    print('self-test ok: 10 checks')
+    # dev output path unchanged (old results stay valid); held-out set writes its own file
+    assert QUESTION_SETS['dev']['suffix']=='' and QUESTION_SETS['c']['suffix']=='_set_c'
+    assert (QUESTION_SETS['c']['total'],QUESTION_SETS['c']['answerable'])==(53,48)
+    print('self-test ok: 12 checks')
 
 
 def timing(name,docs,count):
@@ -170,6 +178,7 @@ def main():
     parser.add_argument('--model',choices=sorted(MODELS))
     parser.add_argument('--timing',type=int,metavar='N')
     parser.add_argument('--self-test',action='store_true')
+    parser.add_argument('--set',choices=sorted(QUESTION_SETS),default='dev')
     args=parser.parse_args()
     if args.self_test:
         _self_test()
@@ -182,9 +191,10 @@ def main():
         timing(args.model,docs,args.timing)
         return
 
-    questions=load_jsonl(QUESTIONS_PATH)
+    qset=QUESTION_SETS[args.set]
+    questions=load_jsonl(qset['path'])
     answerable=sum(1 for q in questions if q['answerable'])
-    if len(questions)!=EXPECTED_QUESTIONS or answerable!=EXPECTED_ANSWERABLE:
+    if len(questions)!=qset['total'] or answerable!=qset['answerable']:
         raise SystemExit(f'question set changed: {len(questions)} total, {answerable} answerable')
     by_id={d['news_id']:d for d in docs}
     missing=[str(q['news_id']) for q in questions if q['answerable'] and str(q['news_id']) not in by_id]
@@ -207,13 +217,15 @@ def main():
         rows.append({'news_id':gold,'answerable':q['answerable'],'rank':rank,'same_company_top1':bool(same),
                      'top1_sim':float(scores[order[0]]),'top_ids':top,'model':args.model,'git_commit':commit})
 
-    out_path=f'data/retrieval_{slug(args.model)}.jsonl'
+    out_path=f'data/retrieval_{slug(args.model)}{qset["suffix"]}.jsonl'
+    if args.set=='c' and os.path.exists(out_path):
+        raise SystemExit(f'{out_path} exists: the held-out set is measured once')
     with open(out_path,'w',encoding='utf-8') as f:
         for r in rows:
             f.write(json.dumps(r)+'\n')
 
     s=summarize(rows)
-    print(f'model={args.model} commit={commit} docs={len(docs)} questions={len(questions)} seconds={time.time()-start:.0f}')
+    print(f'set={args.set} model={args.model} commit={commit} docs={len(docs)} questions={len(questions)} seconds={time.time()-start:.0f}')
     print(f'recall@1 {s["hit1"]}/{s["answerable"]} = {s["recall1"]:.3f}')
     print(f'recall@5 {s["hit5"]}/{s["answerable"]} = {s["recall5"]:.3f}')
     print(f'wrong_same_company {s["wrong_same_company"]}')

@@ -512,6 +512,20 @@ Findings:
   - 1/100 only says the rate is probably below about 5%. Texts are apitest data.
 - Ops terms: escape rate 1/100 (upper bound 4.7%), straight-through rate 89/100.
 - Story so far: Set A (dev) 0/100 → Set B (held-out, frozen v3) 4/100 FAIL → code checks from error analysis → Set C (held-out, combined system) 1/100 PASS.
+- Held-out retrieval (rule written before the run, follows `docs/set_c_plan.md`): `eval_retrieval.py --model ytu-ce-cosmos/turkish-e5-large --set c`, one run, model and prefixes unchanged. Expected counts fixed in code: 53 questions, 48 answerable; the script refuses to run with other counts or if the output file already exists. Reported: recall@5 and recall@1 (of 48), wrong-same-company, truncated docs, top-1 similarity of the 5 negatives. No pass limit, no model re-choice, no prefix or rerank change based on it. Compared with the dev number (0.864 / 0.729, optimistic because those questions picked the model).
+- Before the first retrieval run the guard stopped it: the question file had 52 / 47, the 14:29 backup 53 / 48. Exactly one question was missing (1 id only in the backup, 0 only in the file), most likely lost in a later `--redo`; Feyza does not remember removing it. Decision (before any retrieval output): treated as accidental and restored from the backup (copy of the 52-row file kept as `~/kap-backups/rag_questions_c_before_restore_20261108.jsonl`, new backup `rag_questions_c_20261108b.jsonl`). Now 53 / 48, 53 unique ids. Retrieval uses only the question and its news_id, so the evening relabel does not affect it.
+- **Result (run by Feyza, 2026-11-08 20:34, commit 07d0193, 1273 docs, cached doc vectors, 10 s):**
+
+| question set | recall@5 | recall@1 | wrong same-company | negatives top-1 min/median/max |
+|---|---|---|---|---|
+| dev (66 / 59, picked the model) | 51/59 = 0.864 | 43/59 = 0.729 | 16 | 0.545 / 0.647 / 0.742 |
+| **Set C held-out (53 / 48)** | **42/48 = 0.875** | **32/48 = 0.667** | 16 | 0.633 / 0.694 / 0.771 |
+
+- Approximate 95% intervals (Wilson, n=48): recall@5 0.75-0.94, recall@1 0.53-0.78. Both dev numbers fall inside them, so there is no evidence that the dev numbers were inflated, and none that they were not; 48 questions are too few to tell.
+- All 16 recall@1 misses have the right company at top 1 (16 of 16, same as dev). The weak point is still separating one company's disclosures, not finding the company. This supports the planned lexical/BM25 rerank, which would need its own rule and fresh questions to measure honestly (Set C questions are now used once).
+- Negatives: top-1 similarity of the 5 unanswerable questions (0.633 / 0.694 / 0.771) overlaps the answerable ones (0.658 / 0.713 / 0.799); 41 of 48 answerable questions score at or below the highest negative. A similarity threshold cannot tell "no such disclosure" apart (descriptive, 5 negatives only). The agent must not claim absence from similarity alone.
+- 8 docs truncated at 512 tokens (unchanged).
+- Lesson: `label_set_b.py --redo` can drop a case's RAG question. Check question counts after every redo (to fix in the tool later).
 - Process slip: the first paste was the `eval_vs_matriks.py` stdout, including its "amount mismatches" block (amounts). It was not used or repeated. Proposal: write that block to `/tmp` and keep only counts and ids on stdout.
 
 ## 2026-11-01: Matriks data access
