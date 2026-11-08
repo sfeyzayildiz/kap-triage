@@ -89,6 +89,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-09: Nightly run of 8 Nov OK (first after the lock fixes, first with prod `new_business`)
+- Alert: `2026-11-05..2026-11-08: +0 new_business, +5 disclosures`; `LastExitStatus` 0. kap-deploy pulled to 297b3cf afterwards.
+- Disclosures by day (counts run by Feyza): 4 Nov 2, 5 Nov 4, 6 Nov 1, 7-8 Nov 0 (weekend). The 5-6 Nov gap is filled by the 3-day lookback.
+- `new_business`: 5 Nov 2, 6 Nov 1, already written by the partial 7 Nov run, so +0 tonight is expected (INSERT OR REPLACE).
+- Matched since 5 Nov: 3 of 5 (archive rate 84%). Small n; a late Matriks record is still caught while the day is inside the 3-day lookback.
+
 ## 2026-11-08: Postmortem, nightly runs of 6-7 Nov failed (DB lock)
 - `LastExitStatus` 256. No disclosures after the 4 Nov fetch; `new_business` got +5 rows (last fetch 7 Nov 23:54), so a run got partway.
 - Log (error lines only, shown by Feyza): `Could not set lock ... Conflicting lock is held in .../Python (PID 13190) by user Feyza`. The run ended at 8 Nov 00:21 with an alert that showed only `^^^` markers.
