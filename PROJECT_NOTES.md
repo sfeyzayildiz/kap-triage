@@ -559,6 +559,24 @@ Findings:
 - Possible next steps, each needing its own rule: a cross-encoder reranker on the top 5 (targets the same-company confusion directly), or showing the top 3 instead of top 1 in the agent (recall@5 is already 0.95 on Set D, 0.875 on Set C).
 - `eval_retrieval.py`: Set D fixed at 20 / 20, each method once per held-out set (`ONCE_SETS`), per-kind recall printed, runs without negatives. 25 self-test checks.
 
+## 2026-11-08: Cross-encoder rerank, rule and code (nothing measured yet)
+- Rule `docs/rerank_rule.md`, committed before any number: embed top 20 → `BAAI/bge-reranker-v2-m3` (local, downloaded by Feyza), max_length 512, no prefix, no score mixing. Dev for bug catching; decision on Set D (second use, stated): adopt if recall@1 ≥ 17/20 and recall@5 ≥ 18/20. Also reports embed recall@20 (ceiling) and seconds per question.
+- `eval_retrieval.py --method rerank`; 28 self-test checks. Smoke check on two invented sentences only (model loads in about 6 s).
+- **Results (run by Feyza 2026-11-08, commit e05f1f8):**
+
+| set | method | recall@1 | recall@5 | wrong same-company | embed recall@20 | s / question (rerank) | vs embed @1 fixed / broken | @5 fixed / broken |
+|---|---|---|---|---|---|---|---|---|
+| dev (59) | embed | 43 | 51 | 16 | | | | |
+| dev (59) | rerank | 43 | 55 | 16 | 57 | 0.71 | 5 / 5 | 6 / 2 |
+| Set D (20) | embed | 15 | 19 | 5 | | | | |
+| Set D (20) | rerank | **17** | **20** | 3 | 20 | 0.65 | 2 / 0 | 1 / 0 |
+
+- Set D per kind: named @1 11 → 13 of 14, paraphrased 4 → 4 of 6.
+- **Decision (rule): PASS, rerank adopted** (recall@1 17 ≥ 17, recall@5 20 ≥ 18).
+- Honest reading: the bar is met exactly, on Set D's second use. On dev, rerank reorders a lot at rank 1 (5 fixed, 5 broken, net 0); dev picked the embedding model, which may favour embed, but that is not proven. The consistent gain is at top 5 (dev +4, Set D +1), which is what the agent's search shows. A fresh question set should confirm rank-1 later (stated in the rule).
+- Latency: about 0.7 s per question added (plus about 6 s model load once per process).
+- Wired in: `rag_index.search_question` (embed the question, top 20, rerank, top 5; texts for the 20 candidates from one short read-only DB read) and the agent's `search` tool. The agent used to embed the router's short topic; the evaluation always used the full question, so the agent now searches the full question (the topic is only shown in the header). The answer footer states the Set D numbers. `similar_earlier` (document to document, morning list) is unchanged: the rerank was measured only for questions.
+
 ## 2026-11-08: CI for self-tests
 - `scripts/run_self_tests.py` runs all 17 module self-tests (exit 1 on any failure); `.github/workflows/self-tests.yml` runs it on every PR and push to main. Python 3.12, only the packages the self-tests import (no torch / sentence-transformers: loaded lazily, several GB on Linux). No data, `.env` or Matriks/Ollama calls in CI.
 - Locally: 17/17 pass.

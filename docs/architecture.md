@@ -47,7 +47,7 @@ flowchart LR
     T1["morning<br/>day's ranked list"]:::code
     T2["company<br/>last 12 months"]:::code
     T3["why_moved<br/>abnormal move + disclosures"]:::code
-    T4["search<br/>top 5 by embedding"]:::code
+    T4["search<br/>embedding top 20, cross-encoder rerank, top 5"]:::code
     A(["Answer: numbers and KAP links from code"]):::out
 
     Q --> ROUTE --> VAL
@@ -67,7 +67,7 @@ The LLM only reads the question. It never writes a number or a link.
 | Contradiction checks, `needs_review` | no | Deterministic, unit-tested, cannot break other cases. |
 | Importance score | no | Rules written in `docs/importance_score.md` before use. |
 | Price reaction | no | Arithmetic on daily bars. |
-| Search | embedding model, no generation | Finds documents; the answer lists them with KAP links. |
+| Search | embedding + cross-encoder rerank, no generation | Finds documents; the answer lists them with KAP links. |
 | Agent routing | yes | Reads the question only; code checks the route and computes the answer. |
 
 This is the answer to "could it be solved without an LLM?": the LLM is used only where the input is free text.
@@ -77,7 +77,8 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 | Component | Result | Set |
 |---|---|---|
 | Extraction + code checks | silent errors 1/100 (95% upper bound 4.7%), flagged 11/100 | Set C, PASS |
-| Search | recall@5 42/48 = 0.875, recall@1 32/48 = 0.667 | Set C questions |
+| Search, embedding only | recall@5 42/48 = 0.875, recall@1 32/48 = 0.667 | Set C questions |
+| Search, + rerank (adopted) | recall@5 20/20, recall@1 17/20 (embedding 19/20, 15/20); +0.7 s per question | Set D questions (second use) |
 | Latency, extraction | median 14.6 s, p90 20.6 s, max 24.3 s per disclosure; 0 run errors | Set C run (100) |
 | Latency, all other stages | 0.0025 s per disclosure + 7.4 s index check once per run | demo day, 4 disclosures |
 | Busy day (8 disclosures) | about 3 min (computed from p90, not measured) | |
@@ -89,7 +90,7 @@ History: Set A (dev) 0/100 → Set B frozen v3 4/100 FAIL → code checks from t
 - Importance score: rules are judgment, not fitted; no accuracy number.
 - Agent routing: smoke test only; a router test set needs questions written by Feyza.
 - Document-to-document similarity ("similar earlier disclosures"): no measured quality.
-- Search ranks a same-company or same-region document above an exact proper-noun match; all 16 recall@1 misses on Set C were the right company. Next step: BM25 hybrid, measured on new questions.
+- Search ranks a same-company or same-region document above an exact proper-noun match; all 16 recall@1 misses on Set C were the right company. BM25 / hybrid did not clear the bar on Set D; a cross-encoder rerank did (17/20 at rank 1, exactly the bar). On dev it fixed and broke 5 each at rank 1, so rank-1 gains need a fresh question set to confirm.
 - Similarity cannot say "no such disclosure": negative and answerable questions overlap.
 - Disclosure texts come from apitest; `new_business` from prod.
 

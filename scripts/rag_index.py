@@ -100,6 +100,41 @@ def search(index,query_vector,symbol=None,before=None,exclude=None,k=5):
              'published_at':str(index['published_at'][i]),'score':float(scores[i])} for i in order]
 
 
+RERANK_K=20  # docs/rerank_rule.md: adopted 2026-11-08 for question search
+
+
+def doc_texts(news_ids):
+    '''Document text (same as the index input) for the given ids; one short read-only DB read.'''
+    wanted=set(news_ids)
+    return {str(nid):doc_text(sym,pub,upd,corr,head,text)
+            for nid,url,sym,pub,upd,corr,head,text in load_rows(DB_PATH) if str(nid) in wanted}
+
+
+@lru_cache(maxsize=1)
+def reranker():
+    from eval_retrieval import cross_encoder
+    return cross_encoder()
+
+
+def rerank_hits(question,hits,texts,score):
+    '''Reorder hits by score(question, text) (stable on ties); hits without text keep their place at the end.'''
+    with_text=[h for h in hits if h['news_id'] in texts]
+    rest=[h for h in hits if h['news_id'] not in texts]
+    if not with_text:
+        return hits
+    s=score([(question,texts[h['news_id']]) for h in with_text])
+    order=np.argsort(-np.asarray(s),kind='stable')
+    return [{**with_text[i],'rerank_score':float(s[i])} for i in order]+rest
+
+
+def search_question(index,question,symbol=None,k=5,score=None,texts=None):
+    '''Question search as measured: embed the question, top RERANK_K, cross-encoder rerank, top k.'''
+    hits=search(index,embed_query(question),symbol=symbol,k=RERANK_K)
+    texts=texts if texts is not None else doc_texts([h['news_id'] for h in hits])
+    score=score or (lambda pairs:reranker().predict(pairs,show_progress_bar=False))
+    return rerank_hits(question,hits,texts,score)[:k]
+
+
 def similar_earlier(index,news_id,k=3):
     '''The same company's earlier disclosures most similar to this one.'''
     hits=np.where(index['news_id']==str(news_id))[0]
@@ -128,7 +163,12 @@ def _self_test():
     assert similar_earlier(index,'0')==[] and similar_earlier(index,'99')==[]
     hits=search(index,index['vectors'][0],exclude='0',k=2)
     assert len(hits)==2 and '0' not in [h['news_id'] for h in hits]
-    print('self-test ok: 8 checks')
+    # rerank: score decides, ties keep the embedding order, hits without text go last
+    h=[{'news_id':'a'},{'news_id':'b'},{'news_id':'c'},{'news_id':'d'}]
+    out=rerank_hits('q',h,{'a':'x','b':'yy','c':'zz'},lambda pairs:[len(t) for _,t in pairs])
+    assert [x['news_id'] for x in out]==['b','c','a','d'] and out[0]['rerank_score']==2.0
+    assert rerank_hits('q',h,{},lambda pairs:[])==h
+    print('self-test ok: 10 checks')
 
 
 def main():

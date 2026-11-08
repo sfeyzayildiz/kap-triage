@@ -172,6 +172,23 @@ class BM25:
         return out
 
 
+RERANK_MODEL='BAAI/bge-reranker-v2-m3'  # docs/rerank_rule.md
+RERANK_K=20
+RERANK_MAX_LENGTH=512
+
+
+def rerank_order(order,ce_scores,k=RERANK_K):
+    '''Reorder the top k of order by cross-encoder score (stable: ties keep the embedding order); the rest keeps its place.'''
+    top=np.asarray(order[:k])
+    return np.concatenate([top[np.argsort(-np.asarray(ce_scores),kind='stable')],np.asarray(order[k:])])
+
+
+def cross_encoder():
+    import torch
+    from sentence_transformers import CrossEncoder
+    return CrossEncoder(RERANK_MODEL,max_length=RERANK_MAX_LENGTH,device='mps' if torch.backends.mps.is_available() else 'cpu')
+
+
 def rrf_order(embed_order,lex_order,k=RRF_K):
     '''Reciprocal rank fusion of two full rankings; ties keep the embedding order.'''
     n=len(embed_order)
@@ -261,7 +278,11 @@ def _self_test():
                {'answerable':True,'rank':3,'kind':'paraphrased'},{'answerable':False,'rank':None,'kind':'named'}])
     assert k=={'named':[2,1,1],'paraphrased':[1,0,1]}
     assert QUESTION_SETS['d']['total']==20 and ONCE_SETS=={'c','d'}
-    print('self-test ok: 25 checks')
+    # rerank: only the top k move, by cross-encoder score; ties keep embedding order; the tail is untouched
+    assert list(rerank_order([5,6,7,8,9],[0.1,0.9,0.5],k=3))==[6,7,5,8,9]
+    assert list(rerank_order([5,6,7,8],[0.5,0.5],k=2))==[5,6,7,8]
+    assert list(rerank_order([1,2],[0.2,0.3],k=20))==[2,1]
+    print('self-test ok: 28 checks')
 
 
 def timing(name,docs,count):
@@ -280,8 +301,8 @@ def main():
     parser.add_argument('--timing',type=int,metavar='N')
     parser.add_argument('--self-test',action='store_true')
     parser.add_argument('--set',choices=sorted(QUESTION_SETS),default='dev')
-    parser.add_argument('--method',choices=['embed','bm25','hybrid'],default='embed',
-                        help='embed = current system; bm25 / hybrid per docs/bm25_hybrid_rule.md')
+    parser.add_argument('--method',choices=['embed','bm25','hybrid','rerank'],default='embed',
+                        help='embed = current system; bm25 / hybrid per docs/bm25_hybrid_rule.md; rerank per docs/rerank_rule.md')
     args=parser.parse_args()
     if args.self_test:
         _self_test()
@@ -316,11 +337,19 @@ def main():
     truncated=count_truncated(args.model,docs)
     vectors=doc_vectors(args.model,docs)
     query_vectors=embed(args.model,[MODELS[args.model]['query'].format(q=q['question']) for q in questions])
-    bm25=BM25([tokenize(d['text']) for d in docs]) if args.method!='embed' else None
+    bm25=BM25([tokenize(d['text']) for d in docs]) if args.method in ('bm25','hybrid') else None
+    ce=cross_encoder() if args.method=='rerank' else None
+    rerank_seconds=0.0
 
     rows=[]
     for q,query_vector in zip(questions,query_vectors):
         order,scores=rank_docs(vectors,query_vector)
+        embed_top20=[docs[i]['news_id'] for i in order[:RERANK_K]]
+        if ce is not None:
+            t0=time.time()
+            ce_scores=ce.predict([(q['question'],docs[i]['text']) for i in order[:RERANK_K]],show_progress_bar=False)
+            rerank_seconds+=time.time()-t0
+            order=rerank_order(order,ce_scores)
         if bm25 is not None:
             lex_order=np.argsort(-bm25.scores(tokenize(q['question'])),kind='stable')
             order=lex_order if args.method=='bm25' else rrf_order(order,lex_order)
@@ -331,7 +360,8 @@ def main():
         # top1_sim stays the embedding cosine of whichever doc is ranked first
         rows.append({'news_id':gold,'answerable':q['answerable'],'rank':rank,'same_company_top1':bool(same),
                      'top1_sim':float(scores[order[0]]),'top_ids':top,'model':args.model,
-                     'method':args.method,'kind':q.get('kind'),'git_commit':commit})
+                     'method':args.method,'kind':q.get('kind'),'git_commit':commit,
+                     'embed_in_top20':q['answerable'] and gold in embed_top20})
     with open(out_path,'w',encoding='utf-8') as f:
         for r in rows:
             f.write(json.dumps(r)+'\n')
@@ -348,6 +378,9 @@ def main():
         print('negatives 0')
     for kind,(n,h1,h5) in sorted(by_kind(rows).items()):
         print(f'kind={kind} n={n} recall@1 {h1}/{n} recall@5 {h5}/{n}')
+    print(f'embed recall@{RERANK_K} (rerank ceiling) {sum(r["embed_in_top20"] for r in rows)}/{s["answerable"]}')
+    if ce is not None:
+        print(f'rerank seconds per question {rerank_seconds/len(questions):.2f}')
 
 
 if __name__=='__main__':

@@ -190,15 +190,15 @@ def tool_why_moved(state):
 
 
 def tool_search(state):
-    from rag_index import embed_query, load_index, search
+    # the full question is searched, as in the evaluation (docs/rerank_rule.md); the router's topic is only shown
+    from rag_index import load_index, search_question
     index=load_index()
-    hits=search(index,embed_query(state['query']),symbol=state.get('symbol'),k=5)
-    lines=[f'# Arama: {state["query"]}'+(f' ({state["symbol"]})' if state.get('symbol') else ''),'']
-    lines+=[f'- {h["published_at"][:10]} | {h["symbol"]} | benzerlik {h["score"]:.2f}'.replace('.',',',1)+f' | {h["kap_url"]}'
-            for h in hits]
+    hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5)
+    lines=[f'# Arama: {state.get("query") or state["question"]}'+(f' ({state["symbol"]})' if state.get('symbol') else ''),'']
+    lines+=[f'{i}. {h["published_at"][:10]} | {h["symbol"]} | {h["kap_url"]}' for i,h in enumerate(hits,1)]
     lines.append('')
-    lines.append('Anlam benzerliğine göre sıralandı; doğru bildirimi bulma oranı ilk 5\'te yaklaşık %86 '
-                 '(66 soruluk testte). KAP metnini okuyarak doğrulayın.')
+    lines.append('Anlam benzerliğiyle 20 aday bulundu, soru ve metni birlikte okuyan bir modelle yeniden sıralandı. '
+                 'Bağımsız 20 soruluk testte doğru bildirim ilk 5\'te 20/20, ilk sırada 17/20. KAP metnini okuyarak doğrulayın.')
     return '\n'.join(lines)+'\n'
 
 
