@@ -135,6 +135,9 @@ def main():
     after=retry_on_lock(counts)
     msg=f'{start}..{end}: +{after[0]-before[0]} new_business, +{after[1]-before[1]} disclosures'
     notify('KAP collector OK',msg)
+    # morning list after a good collection; it sends its own alert and never raises
+    from morning_job import list_day, run as run_morning
+    run_morning(list_day(datetime.now()),notify)
 
 
 if __name__=='__main__':

@@ -204,6 +204,7 @@ def main():
     ap.add_argument('--date',type=date.fromisoformat)
     ap.add_argument('--from-pipeline',help='reuse a pipeline output instead of running the LLM')
     ap.add_argument('--self-test',action='store_true')
+    ap.add_argument('--allow-window',action='store_true',help='only for morning_job.py, which runs right after the collection')
     args=ap.parse_args()
     if args.self_test:
         _self_test()
@@ -211,7 +212,7 @@ def main():
     if not args.date:
         ap.error('give --date or --self-test')
     now=datetime.now()
-    if now.hour==23 and 40<=now.minute<=50:
+    if now.hour==23 and 40<=now.minute<=50 and not args.allow_window:
         raise SystemExit('collection window, try after 23:50')
 
     if args.from_pipeline:
@@ -225,7 +226,9 @@ def main():
     items=enrich(results)
     out_path=save(args.date,items)
     look=sum(i['importance']['needs_review'] or i['importance']['level']=='high' for i in items)
-    print(f'disclosures={len(items)} look_first={look} flagged={sum(i["importance"]["needs_review"] for i in items)} -> {out_path}')
+    run_errors=sum('run_error' in (i.get('needs_review_reasons') or []) for i in items)
+    print(f'disclosures={len(items)} look_first={look} flagged={sum(i["importance"]["needs_review"] for i in items)} '
+          f'run_errors={run_errors} -> {out_path}')
 
 
 if __name__=='__main__':

@@ -32,6 +32,7 @@ TESTS={
     'sample_set_c':'--self-test',
     'label_set_b':'--self-test',
     'write_questions':'--self-test',
+    'morning_job':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',

@@ -89,6 +89,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-09: Morning list after the nightly collection
+- `scripts/morning_job.py`: after a good collection, `daily_collect.py` runs `morning.py --date D --allow-window` in a subprocess and sends a second alert with counts only (`D: N bildirim, önce bak X, kontrol et Y`, plus LLM errors if any). No symbols or amounts go to ntfy (external service). It never raises: a failed list sends `KAP morning FAILED` and the collection stays OK.
+- Day: today for the 23:43 run; yesterday if launchd runs after midnight and before noon (wake from sleep).
+- `morning.py`: `--allow-window` (only for this job; the 23:40-23:50 guard stays for manual runs), and the summary line now has `run_errors` (Ollama down → every item is flagged `run_error`, alert priority high).
+- 13 self-test checks in `morning_job.py`; `daily_collect.py` change is two lines (Claude does not run it; CI runs its self-test). Live from the first night after Feyza pulls kap-deploy.
+
 ## 2026-11-09: Nightly run of 8 Nov OK (first after the lock fixes, first with prod `new_business`)
 - Alert: `2026-11-05..2026-11-08: +0 new_business, +5 disclosures`; `LastExitStatus` 0. kap-deploy pulled to 297b3cf afterwards.
 - Disclosures by day (counts run by Feyza): 4 Nov 2, 5 Nov 4, 6 Nov 1, 7-8 Nov 0 (weekend). The 5-6 Nov gap is filled by the 3-day lookback.
