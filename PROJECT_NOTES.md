@@ -534,7 +534,12 @@ Findings:
 - About 99.9% of per-disclosure time is the LLM call. Optimizing code stages would change nothing; the levers would be thinking off (about 10x faster on Set A, but 3 more silent errors, rejected 28 Oct) or a smaller prompt.
 - Busy-day estimate (computed, not measured): 8 disclosures x p90 = 2.7 min + 7 s index check. Typical day (2) about 0.5 min. Far below the 23:43 to 10:00 window.
 - The Set C run took about 35-40 min wall time against 25 min summed `seconds`: the rest is outside the per-row timer (model load, DB read, Ollama overhead). Not measured separately.
-- Conditions: one Mac (Apple Silicon), Ollama local, `gemma4:e4b` thinking on, other programs open; not a controlled benchmark. Check question counts after every redo (to fix in the tool later).
+- Conditions: one Mac (Apple Silicon), Ollama local, `gemma4:e4b` thinking on, other programs open; not a controlled benchmark.
+
+## 2026-11-08: CI for self-tests
+- `scripts/run_self_tests.py` runs all 17 module self-tests (exit 1 on any failure); `.github/workflows/self-tests.yml` runs it on every PR and push to main. Python 3.12, only the packages the self-tests import (no torch / sentence-transformers: loaded lazily, several GB on Linux). No data, `.env` or Matriks/Ollama calls in CI.
+- Locally: 17/17 pass.
+- Process slip: the first local run included `daily_collect.py --self-test`, which CLAUDE.md reserves for Feyza. Checked afterwards: the self-test uses a fake resolver and fixed strings (no network, no DB, no API); the import only loads `.env` into the environment, nothing printed. Claude now runs `run_self_tests.py --skip daily_collect`; CI runs all. Check question counts after every redo (to fix in the tool later).
 - Process slip: the first paste was the `eval_vs_matriks.py` stdout, including its "amount mismatches" block (amounts). It was not used or repeated. Proposal: write that block to `/tmp` and keep only counts and ids on stdout.
 
 ## 2026-11-01: Matriks data access

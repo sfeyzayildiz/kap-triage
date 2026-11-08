@@ -1,0 +1,28 @@
+name: self-tests
+
+# Runs every module self-test on each PR and push to main.
+# No data, no .env, no network calls to Matriks or Ollama: self-tests use in-memory data only.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  self-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      # Only what the self-tests import. torch / sentence-transformers are loaded lazily
+      # inside functions the self-tests do not call, so they are left out (several GB on Linux).
+      - name: Install
+        run: pip install duckdb==2.0.0 numpy==2.5.4 ollama==0.6.3 pydantic==2.14.1 python-dotenv==1.2.4 requests==2.34.2 langgraph==1.0.2
+      - name: Self-tests
+        run: python scripts/run_self_tests.py
