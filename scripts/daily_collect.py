@@ -1,4 +1,5 @@
 import os
+import re
 import socket
 import time
 import subprocess
@@ -15,7 +16,7 @@ DB='data/kap.duckdb'
 # re-fetch the last few days: catches late disclosures,
 # INSERT OR REPLACE in collector.py keeps this idempotent
 LOOKBACK_DAYS=3
-LOCK_RETRIES=3
+LOCK_RETRIES=6
 LOCK_WAIT=int(os.environ.get('LOCK_WAIT','300'))   # seconds between attempts
 NTFY_URL=os.environ.get('NTFY_URL')
 API_HOSTS=('<MATRIKS_API_HOST>','<MATRIKS_API_HOST>')  # NB_API and NEWS_API hosts in collector.py
@@ -63,15 +64,26 @@ def wait_for_network(resolve=socket.getaddrinfo,sleep=time.sleep):
             if not last:
                 sleep(NET_WAIT)
     raise RuntimeError(f'no network after {NET_RETRIES} attempts')
+def lock_holder(message):
+    '''Command of the process that holds the DB lock, from the PID in DuckDB's error, for the log.'''
+    m=re.search(r'PID (\d+)',message or '')
+    if not m:
+        return 'unknown'
+    r=subprocess.run(['ps','-p',m.group(1),'-o','etime=,command='],capture_output=True,text=True)
+    return f'PID {m.group(1)}: '+(r.stdout.strip() or 'already gone')
+
+
 def retry_on_lock(fn):
     '''Call fn(); if it fails because another process holds the DB lock, wait and try again.'''
     for attempt in range(1,LOCK_RETRIES+1):
         try:
             return fn()
         except Exception as e:
-            if 'could not set lock' not in str(e).lower() or attempt==LOCK_RETRIES:
+            if 'could not set lock' not in str(e).lower():
                 raise
-            print(f'[{ts()}] DB locked (attempt {attempt}/{LOCK_RETRIES}), retrying in {LOCK_WAIT}s',flush=True)
+            print(f'[{ts()}] DB locked (attempt {attempt}/{LOCK_RETRIES}), held by {lock_holder(str(e))}',flush=True)
+            if attempt==LOCK_RETRIES:
+                raise
             time.sleep(LOCK_WAIT)
 
 

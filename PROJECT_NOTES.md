@@ -89,6 +89,13 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-08: Postmortem, nightly runs of 6-7 Nov failed (DB lock)
+- `LastExitStatus` 256. No disclosures after the 4 Nov fetch; `new_business` got +5 rows (last fetch 7 Nov 23:54), so a run got partway.
+- Log (error lines only, shown by Feyza): `Could not set lock ... Conflicting lock is held in .../Python (PID 13190) by user Feyza`. The run ended at 8 Nov 00:21 with an alert that showed only `^^^` markers.
+- PID 13190 was gone by 10:30 on 8 Nov, so the holder is unknown. It was a Python process from the framework Python the `.venv` uses. Not Claude's: no session was active that night.
+- Fixes: #42 logs the collector's own output and puts the real last error line in the alert; this PR logs the lock holder's command (`ps`) on every lock error and raises lock retries from 3 to 6 (30 minutes).
+- Missing days (5-7 Nov) come back through the 3-day lookback on the next good run; anything older can be filled with one manual `collector.py --start --end` run as that day's only pull.
+
 ## 2026-11-05: Prod API probe v2 (run by Feyza at about 00:40 on 5 Nov; nightly job paused for 5 Nov, so it is that day's only pull)
 - 30 days ending 4 Nov: 34 rows on both sides, 34 in common, none only on one side.
 - Same on all 34: `amount`, `cur`, `tcmb_ex_rt`. The deal records themselves agree.
