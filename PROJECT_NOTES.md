@@ -536,6 +536,29 @@ Findings:
 - The Set C run took about 35-40 min wall time against 25 min summed `seconds`: the rest is outside the per-row timer (model load, DB read, Ollama overhead). Not measured separately.
 - Conditions: one Mac (Apple Silicon), Ollama local, `gemma4:e4b` thinking on, other programs open; not a controlled benchmark.
 
+## 2026-11-08: BM25 hybrid, rule and code (nothing measured yet)
+- Rule: `docs/bm25_hybrid_rule.md`, committed before any BM25 or hybrid number. Fixed: tokenizer (Turkish lowercase, ASCII fold, apostrophe suffix dropped, 5-char prefixes), Okapi `k1=1.5`, `b=0.75`, RRF `k=60`. Dev questions only for bug catching; adoption is decided once on a new question set written by Feyza (`rag_questions_d.jsonl`): adopt if recall@1 +2 questions or more and recall@5 down by at most 1.
+- `eval_retrieval.py --method embed|bm25|hybrid` (embed unchanged and the default). Refuses non-embed methods on Set C questions. 22 self-test checks.
+- The self-test caught a tokenizer gap before any run: Turkish lowercasing makes `Irak` → `ırak`, so a question typed `irak` would not match. ASCII folding was added to the rule and code then (still before measuring).
+
+- Dev run (Feyza, commit f1b36f0, 59 answerable): embed 51 / 43 (recall@5 / recall@1), bm25 55 / 44, hybrid 55 / 43; wrong-same-company 16 / 14 / 16. No bug stop. Optimistic (dev questions), and they may share exact words with the texts.
+- Amendment 1 to the rule (after the dev numbers, before any new question): all three methods measured on the held-out questions; bm25 or hybrid qualifies with recall@1 +2 and recall@5 -1 at most; if both qualify, higher recall@1, within 1 → hybrid. Feyza decided the prototype should use the most defensible choice, since it will be shown to Matriks; questions are hand-written, not LLM-generated.
+- `scripts/write_questions.py`: shows index docs in a fixed order (seed 20261108), skips the 119 Set B/C question disclosures (pool 1154), records `kind` (named / paraphrased) for per-kind reporting. Output `data/rag_questions_d.jsonl`. The counts go into `eval_retrieval.QUESTION_SETS['d']` before the run.
+- Set D questions written by Feyza (2026-11-08 evening), before any system output for them: 20, all answerable (the tool stopped at the target before negatives were written), named 14 / paraphrased 6, 15 symbols, one symbol with 3 questions (guideline max 2 unless different deals; kept as written), 0 overlap with Set B/C question ids, all in the index. Deviations stated: the rule said about 30 (Claude suggested 20 for time); 6 paraphrased questions are too few for a per-kind conclusion. Negatives are not part of the decision.
+- **Set D result (run by Feyza 2026-11-08 22:19, commit 647d46a, 20 answerable, each method once):**
+
+| method | recall@1 | recall@5 | wrong same-company | named @1 / @5 (14) | paraphrased @1 / @5 (6) | vs embed @1 fixed / broken | @5 fixed / broken |
+|---|---|---|---|---|---|---|---|
+| embed | 15/20 | 19/20 | 5 | 11 / 14 | 4 / 5 | | |
+| bm25 | 16/20 | 20/20 | 4 | 12 / 14 | 4 / 6 | 1 / 0 | 1 / 0 |
+| hybrid | 15/20 | 20/20 | 5 | 11 / 14 | 4 / 6 | 0 / 0 | 1 / 0 |
+
+- **Decision (Amendment 1): neither candidate qualifies** (recall@1 +1 and +0, bar +2). **`embed` stays** in the morning list and the agent.
+- Reading: BM25 never made a question worse and fixed one at each cutoff, and on dev it was also ahead (+1 @1, +4 @5). The direction is consistent but the effect is small; 20 questions cannot separate it from noise. The weak point (right company, wrong disclosure: 5 of the 5 embed @1 misses) is not solved by lexical matching on this set.
+- The manual country query that motivated this is not in Set D; it stays an anecdote.
+- Possible next steps, each needing its own rule: a cross-encoder reranker on the top 5 (targets the same-company confusion directly), or showing the top 3 instead of top 1 in the agent (recall@5 is already 0.95 on Set D, 0.875 on Set C).
+- `eval_retrieval.py`: Set D fixed at 20 / 20, each method once per held-out set (`ONCE_SETS`), per-kind recall printed, runs without negatives. 25 self-test checks.
+
 ## 2026-11-08: CI for self-tests
 - `scripts/run_self_tests.py` runs all 17 module self-tests (exit 1 on any failure); `.github/workflows/self-tests.yml` runs it on every PR and push to main. Python 3.12, only the packages the self-tests import (no torch / sentence-transformers: loaded lazily, several GB on Linux). No data, `.env` or Matriks/Ollama calls in CI.
 - Locally: 17/17 pass.
