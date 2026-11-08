@@ -476,6 +476,44 @@ Findings:
 - No model runs on Set C until all 100 are labeled.
 - Labeling guide for Feyza: `docs/set_c_labeling_guide.xlsx` (fields, R1-R6, watch-outs, day tracker, RAG question type targets). No real data; examples are invented. Type targets are a suggestion. Formulas not recalculated here (no LibreOffice).
 
+## 2026-11-08: Set C labeling done, pre-run label check
+- 100/100 labeled by Feyza (guidelines v1.3), 100 unique ids, all in `test_set_c.jsonl`. RAG questions: 53 (48 answerable, 5 negative).
+- Checks run before any model run on Set C (so corrections are allowed), Claude seeing ids and counts only:
+  - `check_gold_amounts.py`: 0 problems (ok 70, ok_untagged 6, computed 1, null 23).
+  - Field consistency: no null amount with a currency, no amount without a currency, no `needs_review` without a note.
+  - `check_first20.py --gold ... --ids-only` (cruder regex): 10 "label not found", all found by `check_gold_amounts.py`, so regex gaps; 3 "null label but money in text".
+  - `check_vat_rule.py --gold ... --ids-only`: 11 VAT in text with rule not R2, 2 R2 with no VAT in text.
+- Feyza's review (guidelines v1.3; rule text checked by Claude, decisions by Feyza):
+  - Null label but money in text (3): 2 are a revenue estimate and a capital amount, not a contract value, so null is correct (same trap as Set B 5491869). The third is a mixed-currency revision with no written TL grand total: amount kept null, `needs_review` set to true (R6: no TL total means the case stays `needs_review`). One correction.
+  - R2 with no VAT wording (6102076, 6793547): reviewed, unchanged.
+  - VAT in text but R1/R3 chosen: deliberate, per the "rule that changes the meaning of the amount" line in R2. The 11 cases were not reopened one by one (Set B's 13 such flags were all deliberate).
+  - `rule` is not scored; only `amount`, `currency` and `needs_review` affect the Set C number.
+- Second look at the mixed-currency revision: Feyza confirmed it is one contract (R1), not separate orders (R3). R6 with no written TL total: `amount` = first part in the text, its currency, `needs_review=true`. Relabeled by Feyza.
+- Final gold: 100 rows, null 22, `needs_review` 5, rules R6 2 / R5 3, `check_gold_amounts.py` 0 problems (ok 71). Backup `~/kap-backups/gold_set_c_20261108b.jsonl`. Gold is now frozen for the run.
+- Process slip: one reply pasted disclosure details (names, amounts) into the Claude session. Not reused; requests now ask only for yes/no answers.
+- Feyza's observations while labeling (from the texts, before any model output; for the presentation, not for changing the frozen system): TL (USD) double-currency wording, cumulative totals and revised amounts, VAT included/excluded, and memoranda/letters of intent with no amount are the main traps.
+- Proposal to add a chain-of-thought step to the prompt: not done. `docs/set_c_plan.md` freezes the prompt until the Set C result is recorded; a prompt built from Set C texts would leak Set C.
+
+## 2026-11-08: Set C result (held-out, rule in `docs/set_c_plan.md`)
+- Run by Feyza after the gold was frozen (code at 7b5e3af): `eval_vs_matriks.py --ids data/test_set_c.jsonl --prompt v3`, 100/100 rows, 0 run errors. v3, `gemma4:e4b`, thinking default on.
+- Scored with `score_silent.py` against `data/gold_set_c.jsonl` (frozen gold, 5 `needs_review` rows):
+
+| level | silent | 95% upper bound | flagged | gold needs_review flagged |
+|---|---|---|---|---|
+| frozen (v3 + postprocess) | 1/100 (wrong_amount) | 4.7% | 9/100 | 2/5 |
+| + currency_unclear | 1/100 | 4.7% | 9/100 | 2/5 |
+| **+ projection + cumulative (decision level)** | **1/100** | **4.7%** | **11/100** | 3/5 |
+
+- **Decision: PASS** (silent <= 1, flag rate <= 15%). This is the first honest number for the combined system (`pipeline.py`). `score_silent.py` labels level 3 "post-hoc" because of Set B; on Set C it is the pre-registered decision level.
+- Silent error: 6060372 (wrong_amount), the same at all three levels. Error analysis is still open and goes one case at a time on the KAP page. The gold is not changed; if a typo turns up, it is reported separately as post-hoc.
+- Honest reading:
+  - The code checks did not catch the silent error. `currency_unclear` added 0 flags, and `amount_is_projection` / `cumulative_total` added 2 flags without changing the silent count. On Set C they cost 2 flags and prevented no error; their only evidence of catching errors is still Set B (leaked).
+  - 2 of the 5 gold `needs_review` rows were not flagged, but the model's answer matched the gold, so they are not silent errors.
+  - 1/100 only says the rate is probably below about 5%. Texts are apitest data.
+- Ops terms: escape rate 1/100 (upper bound 4.7%), straight-through rate 89/100.
+- Story so far: Set A (dev) 0/100 → Set B (held-out, frozen v3) 4/100 FAIL → code checks from error analysis → Set C (held-out, combined system) 1/100 PASS.
+- Process slip: the first paste was the `eval_vs_matriks.py` stdout, including its "amount mismatches" block (amounts). It was not used or repeated. Proposal: write that block to `/tmp` and keep only counts and ids on stdout.
+
 ## 2026-11-01: Matriks data access
 - Email thread (Oct 26-28): Feyza named company sector information and fundamental analysis data as possible supporting services; Matriks replied that the services can be used. Daily prices were not named, so they are not covered explicitly. Keep the thread for the license line in the presentation.
 - Fundamental analysis data, if available, is a second revenue source and could help with the `rt` / `shf_ret` difference.
