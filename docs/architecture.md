@@ -78,7 +78,9 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 |---|---|---|
 | Extraction + code checks | silent errors 1/100 (95% upper bound 4.7%), flagged 11/100 | Set C, PASS |
 | Search | recall@5 42/48 = 0.875, recall@1 32/48 = 0.667 | Set C questions |
-| Latency | to be reported (per disclosure, per stage) | Set C run |
+| Latency, extraction | median 14.6 s, p90 20.6 s, max 24.3 s per disclosure; 0 run errors | Set C run (100) |
+| Latency, all other stages | 0.0025 s per disclosure + 7.4 s index check once per run | demo day, 4 disclosures |
+| Busy day (8 disclosures) | about 3 min (computed from p90, not measured) | |
 
 History: Set A (dev) 0/100 → Set B frozen v3 4/100 FAIL → code checks from the error analysis → Set C 1/100 PASS.
 

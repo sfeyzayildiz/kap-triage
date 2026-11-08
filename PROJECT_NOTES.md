@@ -526,7 +526,15 @@ Findings:
 - Negatives: top-1 similarity of the 5 unanswerable questions (0.633 / 0.694 / 0.771) overlaps the answerable ones (0.658 / 0.713 / 0.799); 41 of 48 answerable questions score at or below the highest negative. A similarity threshold cannot tell "no such disclosure" apart (descriptive, 5 negatives only). The agent must not claim absence from similarity alone.
 - 8 docs truncated at 512 tokens (unchanged).
 - Anecdote (one manual agent query by Feyza, not a measurement): a search for projects in one named country put a same-region project from another company first; 3 of the top 5 were that company's docs, none mentioning the country. The archive has 7 docs naming that country (6 symbols, crude regex), the other 2 top-5 companies have such docs. Embedding finds the topic but does not rank an exact proper noun first: motivation for the BM25 hybrid step, to be measured with a rule and new questions by Feyza.
-- Lesson: `label_set_b.py --redo` can drop a case's RAG question. Check question counts after every redo (to fix in the tool later).
+- Lesson: `label_set_b.py --redo` can drop a case's RAG question.
+
+## 2026-11-08: Latency (rule in `docs/latency.md`, committed before computing; run by Feyza, commit 5278688)
+- Extraction (LLM + postprocess), Set C rows: n=100, run errors 0, median 14.6 s, p90 20.6 s, max 24.3 s, total 1518 s (25 min) per 100 disclosures.
+- Non-LLM stages, demo day 2026-09-17 (4 disclosures, 5 repeats, warm median per disclosure): code checks < 0.0001 s, importance 0.0011 s, price reaction 0.0008 s, history 0.0005 s, similar earlier < 0.0001 s; total 0.0025 s. Index check once per run 7.4 s (cold: loads the embedding model).
+- About 99.9% of per-disclosure time is the LLM call. Optimizing code stages would change nothing; the levers would be thinking off (about 10x faster on Set A, but 3 more silent errors, rejected 28 Oct) or a smaller prompt.
+- Busy-day estimate (computed, not measured): 8 disclosures x p90 = 2.7 min + 7 s index check. Typical day (2) about 0.5 min. Far below the 23:43 to 10:00 window.
+- The Set C run took about 35-40 min wall time against 25 min summed `seconds`: the rest is outside the per-row timer (model load, DB read, Ollama overhead). Not measured separately.
+- Conditions: one Mac (Apple Silicon), Ollama local, `gemma4:e4b` thinking on, other programs open; not a controlled benchmark. Check question counts after every redo (to fix in the tool later).
 - Process slip: the first paste was the `eval_vs_matriks.py` stdout, including its "amount mismatches" block (amounts). It was not used or repeated. Proposal: write that block to `/tmp` and keep only counts and ids on stdout.
 
 ## 2026-11-01: Matriks data access
