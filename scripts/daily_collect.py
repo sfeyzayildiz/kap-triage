@@ -75,14 +75,23 @@ def retry_on_lock(fn):
             time.sleep(LOCK_WAIT)
 
 
+def last_error_line(stderr):
+    '''Last meaningful line of the collector's stderr (the cause), skipping ^^^ marker lines.'''
+    lines=[l.strip() for l in (stderr or '').splitlines() if set(l.strip())-set('^~ ')]
+    return lines[-1][:300] if lines else 'no stderr'
+
+
 def run_collector(start,end):
     r=subprocess.run(
         [sys.executable,'scripts/collector.py','--start',start.isoformat(),'--end',end.isoformat()],
         capture_output=True,
         text=True,
     )
+    # the collector prints counts only; keep its output and traceback in daily.log
+    print(r.stdout,end='',flush=True)
     if r.returncode!=0:
-        raise RuntimeError(r.stderr[-500:] or 'no stderr')
+        print(r.stderr,end='',file=sys.stderr,flush=True)
+        raise RuntimeError(last_error_line(r.stderr))
 
 def _self_test():
     calls=[]
@@ -98,7 +107,11 @@ def _self_test():
         raise AssertionError('must raise')
     except RuntimeError:
         pass
-    print('self-test ok: 2 checks')
+    tb='Traceback (most recent call last):\n  File "x.py", line 1\n    f()\n    ^^^\nrequests.exceptions.ReadTimeout: read timed out\n          ^^^^^^^^\n'
+    assert last_error_line(tb)=='requests.exceptions.ReadTimeout: read timed out'
+    assert last_error_line('HTTP 401 on v2/news/search: bad token\n')=='HTTP 401 on v2/news/search: bad token'
+    assert last_error_line('')=='no stderr' and last_error_line('  ^^^^\n')=='no stderr'
+    print('self-test ok: 5 checks')
 
 
 def main():
@@ -119,5 +132,5 @@ if __name__=='__main__':
     try:
         main()
     except Exception as e:
-        notify('KAP collector FAILED',str(e)[-500:],'high')
+        notify('KAP collector FAILED',f'{type(e).__name__}: {str(e)[-300:]}','high')
         raise   # keep the traceback in daily.log and a non-zero exit code
