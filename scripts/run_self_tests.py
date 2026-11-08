@@ -30,6 +30,7 @@ TESTS={
     'corpus_stats':'--self-test',
     'demo_candidates':'--self-test',
     'sample_set_c':'--self-test',
+    'label_set_b':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
