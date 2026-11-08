@@ -34,6 +34,7 @@ TESTS={
     'write_questions':'--self-test',
     'morning_job':'--self-test',
     'clusters':'--self-test',
+    'sector_collect':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',

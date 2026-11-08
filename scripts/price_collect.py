@@ -93,6 +93,12 @@ def load_symbols():
     return syms+[INDEX],first-timedelta(days=LEAD_DAYS)
 
 
+def done_symbols(manifest,end):
+    '''Symbols already pulled OK up to this end date. A refresh with a later end pulls them again
+    (until 2026-11-09 any earlier OK counted, so a refresh would have pulled only the failed symbols).'''
+    return {m['symbol'] for m in manifest if m['status']=='ok' and m.get('end')==end.isoformat()}
+
+
 def read_manifest():
     if not os.path.exists(MANIFEST):
         return []
@@ -106,7 +112,7 @@ def pull(symbols,start,end):
     load_dotenv()
     headers={'Authorization':f'jwt {os.environ["KAP_TOKEN"]}'}
     os.makedirs(RAW_DIR,exist_ok=True)
-    done={m['symbol'] for m in read_manifest() if m['status']=='ok'}
+    done=done_symbols(read_manifest(),end)
     todo=[s for s in symbols if s not in done]
     print(f'symbols={len(symbols)} already_ok={len(done&set(symbols))} to_pull={len(todo)}')
     stats={'ok':0,'empty':0,'http_error':0,'bad_format':0,'truncated':0}
@@ -195,7 +201,11 @@ def _self_test():
     con.executemany('INSERT OR REPLACE INTO daily_bars VALUES (?,?,?,?,?,?,?,?,?,?)',rows+rows)
     assert con.execute('SELECT count(*) FROM daily_bars').fetchall()[0][0]==2
     con.close()
-    print('self-test ok: 9 checks')
+    man=[{'symbol':'A','status':'ok','end':'2026-11-01'},{'symbol':'B','status':'http_503','end':'2026-11-01'},
+         {'symbol':'C','status':'ok','end':'2026-11-11'}]
+    assert done_symbols(man,date(2026,11,11))=={'C'}   # a refresh re-pulls A (older end) and B (failed)
+    assert done_symbols(man,date(2026,11,1))=={'A'}    # a resumed pull with the same end skips A
+    print('self-test ok: 11 checks')
 
 
 def main():

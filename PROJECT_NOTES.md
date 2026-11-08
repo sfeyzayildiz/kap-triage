@@ -89,6 +89,11 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-09: Sector labels loader and a price refresh fix (no pull yet)
+- Docs read (public page "Meta Veriler", no API call): `GET /dumrul/v4/meta/symbols.gz` (filters such as `symbolType`; fields `sC` symbol, `seI` sector id, `seC` sector code, `sT` type, `d` deleted) and `GET /dumrul/v4/meta/sectors.gz` (`sI`, `sC`, `d` Turkish name, `de` English name).
+- `scripts/sector_collect.py`: `--plan`, `--pull --yes` (2 requests: stocks only, plus the sector list; raw JSON to `data/raw_meta/`), `--load` (no network: `symbol_sectors(symbol, sector_id, sector, sector_name, sector_name_en)` for symbols with disclosures; counts found / missing / no sector). Same host and token handling as `price_collect.py`. 4 self-test checks. Run in the same session as the price refresh (one pull session that day).
+- Bug fixed before it bit: `price_collect.py --pull` skipped every symbol that had ever been pulled OK, so the planned ~12 Nov refresh would have pulled only EFORC. "Done" now means OK with the same end date; a later end re-pulls all symbols (149 requests, same pattern as the approved first pull). 11 self-test checks.
+
 ## 2026-11-09: Clustering, rule and code (nothing measured yet)
 - Rule `docs/clustering_rule.md`, committed before the sector labels exist. Routing to desks will use Matriks sector labels directly; clusters are for weekly themes. Evaluation question: do embeddings group same-sector companies beyond chance?
 - Method: header-free normalized text (no symbol), `turkish-e5-large`, spherical k-means (k-means++, 10 restarts, seed 20261109), k = number of sectors among companies. Theme names: 5 most distinctive words per cluster, written to `data/clusters.json`, never printed.
