@@ -33,6 +33,7 @@ TESTS={
     'label_set_b':'--self-test',
     'write_questions':'--self-test',
     'morning_job':'--self-test',
+    'clusters':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',

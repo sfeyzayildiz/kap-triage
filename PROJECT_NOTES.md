@@ -89,6 +89,15 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 **Next:** `extract_v3` with R1–R5 in the prompt, evaluated on Set A and a second set.
 
+## 2026-11-09: Clustering, rule and code (nothing measured yet)
+- Rule `docs/clustering_rule.md`, committed before the sector labels exist. Routing to desks will use Matriks sector labels directly; clusters are for weekly themes. Evaluation question: do embeddings group same-sector companies beyond chance?
+- Method: header-free normalized text (no symbol), `turkish-e5-large`, spherical k-means (k-means++, 10 restarts, seed 20261109), k = number of sectors among companies. Theme names: 5 most distinctive words per cluster, written to `data/clusters.json`, never printed.
+- Decision: company-level ARI (each company's most frequent cluster vs. its sector) above the 99th percentile of 1000 shuffles → "clusters reflect sector". Doc-level ARI / NMI / purity and ARI vs. company reported alongside.
+- `scripts/clusters.py` (`--build --k`, `--evaluate`, `--week`), own numpy k-means and metrics (no new dependency), 12 self-test checks. A provisional k=12 build is for development only and is not evaluated.
+- Provisional build (Feyza, k=12, development only): sizes 14-221 docs; four broad clusters span 35-70 companies, two clusters are a single company each and four more have 3-6 companies; doc-level ARI vs. company 0.181. Feyza's reading of the theme words (words not shared here): mixed; 3 clusters are real themes, 3 broad ones are generic boilerplate, some narrow ones carry company names (template effect).
+- Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
+- Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
+
 ## 2026-11-09: Morning list after the nightly collection
 - `scripts/morning_job.py`: after a good collection, `daily_collect.py` runs `morning.py --date D --allow-window` in a subprocess and sends a second alert with counts only (`D: N bildirim, önce bak X, kontrol et Y`, plus LLM errors if any). No symbols or amounts go to ntfy (external service). It never raises: a failed list sends `KAP morning FAILED` and the collection stays OK.
 - Day: today for the 23:43 run; yesterday if launchd runs after midnight and before noon (wake from sleep).
