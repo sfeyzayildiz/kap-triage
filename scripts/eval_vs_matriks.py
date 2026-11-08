@@ -23,6 +23,7 @@ GIT_COMMIT=git_commit()
 
 DB='data/kap.duckdb'
 OUT=Path('data/eval_llm_vs_matriks.jsonl')
+MISMATCH_REPORT=Path('/tmp/eval_vs_matriks_mismatches.txt')  # contains amounts: never paste or read
 AMOUNT_FIELD='amount'      
 CURRENCY_FIELD='currency'  # TODO: check name in Disclosure class
 N_WITH=70     # regex finds an amount in text
@@ -209,8 +210,9 @@ def summarize(out):
         errs=sum(r['error'] is not None for r in sub)
         print(f'{g:11} n={n:3}  amount={a}/{n}  currency={c}/{n}  both={both}/{n}  llm_null={nulls}  errors={errs}')
 
-    # unit mistakes (thousand / million) show up as round ratios
-    print('\n== amount mismatches (llm / matriks ratio) ==')
+    # unit mistakes (thousand / million) show up as round ratios.
+    # Amounts are Matriks-licensed data: they go to a /tmp report, stdout gets ids only.
+    lines=[]
     for r in recs:
         if r['amount_ok'] or r['llm_amount'] is None or not r['matriks_amount']:
             continue
@@ -218,7 +220,11 @@ def summarize(out):
             ratio=float(r['llm_amount'])/r['matriks_amount']
         except (TypeError,ValueError):
             ratio=None
-        print(r['news_id'],r['group'],r['llm_amount'],r['matriks_amount'],ratio)
+        lines.append((r['news_id'],r['group'],r['llm_amount'],r['matriks_amount'],ratio))
+    MISMATCH_REPORT.write_text(''.join(f'{a} {b} {c} {d} {e}\n' for a,b,c,d,e in lines),encoding='utf-8')
+    print(f'\n== amount mismatches: {len(lines)} (details with amounts in {MISMATCH_REPORT}, do not paste) ==')
+    if lines:
+        print('ids:',' '.join(str(x[0]) for x in lines))
 
 
 if __name__=='__main__':
