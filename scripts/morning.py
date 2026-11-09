@@ -32,6 +32,9 @@ REVIEW_TR={
     'amount_unclear':'hangi rakamın tutar olduğu belirsiz','unknown_currency_code':'bilinmeyen para birimi',
     'revision_without_previous':'revizyon ama eski tutar yok','total_lt_amount':'toplam, paydan küçük',
     'try_stated_but_currency_try':'TL karşılığı ile döviz karışmış olabilir','run_error':'çıkarım başarısız',
+    'amount_vs_matriks':'tutar Matriks kaydından 2 kattan fazla farklı',
+    'amount_not_in_text':'tutar metinde geçmiyor','amount_from_instruction':'tutar talimat gibi bir cümleden geliyor',
+    'judge_error':'kaynak cümle kontrolü yapılamadı',
 }
 LEVEL_TR={'high':'yüksek','medium':'orta','low':'düşük'}
 
@@ -156,10 +159,13 @@ def _self_test():
 
 def extract_day(day):
     '''Run extraction v3 + code checks on every disclosure of day.'''
-    from pipeline import analyze, load_rows
+    from pipeline import analyze, defence_context, judge_pass, load_rows
+    rows=load_rows(str(day),None)
+    matriks,judge=defence_context([r[0] for r in rows])
+    found=judge_pass([analyze(r[4],matriks=matriks.get(str(r[0]))) for r in rows],[r[4] for r in rows],judge)
     results=[]
-    for news_id,url,symbol,published_at,text in load_rows(str(day),None):
-        results.append({**analyze(text),'news_id':str(news_id),'kap_url':url,'symbol':symbol,
+    for (news_id,url,symbol,published_at,text),res in zip(rows,found):
+        results.append({**res,'news_id':str(news_id),'kap_url':url,'symbol':symbol,
                         'published_at':str(published_at)})
     return results
 

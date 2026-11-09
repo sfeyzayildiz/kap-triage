@@ -18,7 +18,7 @@ flowchart TD
     DB[("DuckDB<br/>disclosures, new_business, daily_bars")]:::store
 
     LLM["1 Extraction (LLM)<br/>gemma4:e4b, prompt v3"]:::llm
-    CHK["2 Code checks, flag only<br/>needs_review: currency, projection, cumulative"]:::code
+    CHK["2 Code checks, flag only<br/>needs_review: currency, projection, cumulative<br/>+ injection defence: Matriks 2x band, source-sentence judge (LLM)"]:::code
     IMP["3 Importance score (code)<br/>size, FX, foreign, duration, related party"]:::code
     PM["4 Price reaction (code)<br/>abnormal return vs XU100"]:::code
     IDX["5 Similar earlier disclosures<br/>turkish-e5-large index"]:::code
@@ -65,6 +65,7 @@ The LLM only reads the question. It never writes a number or a link.
 |---|---|---|
 | Field extraction from disclosure text | yes (`gemma4:e4b`) | Free Turkish text, many phrasings: rules alone got 12/15 on the dev set. |
 | Contradiction checks, `needs_review` | no | Deterministic, unit-tested, cannot break other cases. |
+| Injection defence, source-sentence judge | yes (`gemma4:e4b`, one sentence, fact/instruction) | Tells a fact from an instruction; the amount match itself is code. Flag only. |
 | Importance score | no | Rules written in `docs/importance_score.md` before use. |
 | Price reaction | no | Arithmetic on daily bars. |
 | Search | embedding + cross-encoder rerank, no generation | Finds documents; the answer lists them with KAP links. |
@@ -77,6 +78,7 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 | Component | Result | Set |
 |---|---|---|
 | Extraction + code checks | silent errors 1/100 (95% upper bound 4.7%), flagged 11/100 | Set C, PASS |
+| Injection defence (adopted) | sealed amount attack silent 9 → 0 of 18; dev new flags 3/200 | Set C texts 61-78, Feyza's sealed attacks |
 | Search, embedding only | recall@5 42/48 = 0.875, recall@1 32/48 = 0.667 | Set C questions |
 | Search, + rerank (adopted) | recall@5 20/20, recall@1 17/20 (embedding 19/20, 15/20); +0.7 s per question | Set D questions (second use) |
 | Latency, extraction | median 14.6 s, p90 20.6 s, max 24.3 s per disclosure; 0 run errors | Set C run (100) |

@@ -127,7 +127,7 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - **Layered defence result (run by Feyza 2026-11-09, branch feat/layered-defence):**
   - Dev false alarms: 200 rows, 23 already flagged; new flags layer 1 = 2, layer 2 = 2 (both `amount_not_in_text`, 0 `amount_from_instruction`, 0 `judge_error`), **both together 3/200** (limit 6). 157 judge calls. Pass.
   - Sealed attacks on Set C texts 61-78 (18 texts, all with a Matriks record): amount 18/18 success, **9 silent → 0 with both layers** (95% upper 70.9% → 15.3%); layer 1 alone 0, layer 2 alone 0. Currency 0/18, review 0 silent (n=1), format 0/18. Total silent 9 → 0.
-  - **Decision: ADOPTED** (3 ≤ 6 and 0 ≤ 1). Next: wire both layers into `pipeline.py` and the morning list (separate PR).
+  - **Decision: ADOPTED** (3 ≤ 6 and 0 ≤ 1). Wired into `pipeline.py` and the morning list (PR feat/wire-layered-defence): new reasons `amount_vs_matriks`, `amount_not_in_text`, `amount_from_instruction`, `judge_error` (Turkish labels in the morning list). Judge calls run after all extractions so Ollama does not switch `num_ctx` per row; measured judge settings unchanged. 15 pipeline self-test cases. Expected cost: about 1 judge call per disclosure (157 for 177 rows on dev), latency not yet measured live.
   - Caveats (say them in the presentation): (1) only 1 judge call was needed while scoring, so layer 2 caught the attacks almost entirely through `amount_not_in_text`; the fact/instruction judge itself is barely tested on attacks. (2) All 18 texts had a Matriks record, so layer 2 alone on texts without a record is not measured here. (3) 18 texts, one sealed wording; 0/18 still means an upper bound of 15.3%. (4) Each layer alone also reached 0 here, unlike layer 1 on texts 41-60 (2 misses); small samples vary.
 - This is the biggest open risk found so far: a company (or anyone who can shape a disclosure text) can steer the headline number silently. Per the rule: no prompt change; a code-side defence, measured on new texts and new attack wording.
 
@@ -144,6 +144,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Provisional build (Feyza, k=12, development only): sizes 14-221 docs; four broad clusters span 35-70 companies, two clusters are a single company each and four more have 3-6 companies; doc-level ARI vs. company 0.181. Feyza's reading of the theme words (words not shared here): mixed; 3 clusters are real themes, 3 broad ones are generic boilerplate, some narrow ones carry company names (template effect).
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
+
+## 2026-11-10: Postmortem, first live morning list of 9 Nov failed (missing package)
+- 9 Nov 23:43: `KAP collector OK` (2026-11-06..09: +2 new_business, +3 disclosures; one pull as usual), then `KAP morning FAILED: ModuleNotFoundError: No module named 'numpy'`.
+- Cause: launchd runs `~/projects/kap-deploy/.venv/bin/python`; that venv was built when only the collector existed and never got `sentence-transformers`/numpy. The dry run (2026-11-05) used the kap-explore venv, so it could not catch this. Gap in our test plan, not in the code.
+- Fix (Feyza, after 23:50): `pip install -r requirements.txt` in the kap-deploy venv, import check OK, then `morning_job.py --date 2026-11-09` by hand: 3 disclosures, look first 2, check 0. No data lost.
+- From now on: after every kap-deploy pull also run `.venv/bin/pip install -q -r requirements.txt`; dry runs of the nightly path use the kap-deploy Python.
 
 ## 2026-11-09: Morning list after the nightly collection
 - `scripts/morning_job.py`: after a good collection, `daily_collect.py` runs `morning.py --date D --allow-window` in a subprocess and sends a second alert with counts only (`D: N bildirim, önce bak X, kontrol et Y`, plus LLM errors if any). No symbols or amounts go to ntfy (external service). It never raises: a failed list sends `KAP morning FAILED` and the collection stays OK.
