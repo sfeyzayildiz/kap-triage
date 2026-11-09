@@ -145,6 +145,13 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Desk panel (`scripts/panel.py`)
+- Smoke test of the wired defence first (kap-deploy at 58e8f3e, kap-deploy Python, `morning_job.py --date 2026-11-09`): 3 disclosures, look first 2, check 0, same as before the wiring.
+- Panel: local web page (stdlib `http.server`, binds 127.0.0.1:8765, no network, no LLM). Reads the saved `data/morning_<day>.jsonl`; groups items by sector desk (Matriks sector from `symbol_sectors`, optional grouping in `DESKS` inside `panel.py` (all `*.json` are git-ignored), else "Atanmamış"; until the ~12 Nov sector load, everything is "Atanmamış"). Desks with the most look-first items come first; inside a desk the morning-list order.
+- Human confirm step: flagged items show the reasons and two buttons, "Doğru (KAP metniyle kontrol ettim)" / "Yanlış (çıkarım hatalı)", plus an optional note. Decisions are appended to `data/review_log.jsonl`, not the DB (no lock the nightly job could hit); latest decision per disclosure wins. `--stats` prints counts only. Over time this gives a real-use number: how many flags were real errors.
+- Safety: every text HTML-escaped and a strict Content-Security-Policy (no scripts) because KAP text is external input; KAP links shown only for kap.org.tr; POST only for a flagged item of that day, foreign Origin rejected. 15 self-test checks; status-code smoke test (200/404/400/403) run by Claude.
+- Desk grouping (`DESKS`, empty now) is filled after the sector load, when the sector names are known.
+
 ## 2026-11-10: Postmortem, first live morning list of 9 Nov failed (missing package)
 - 9 Nov 23:43: `KAP collector OK` (2026-11-06..09: +2 new_business, +3 disclosures; one pull as usual), then `KAP morning FAILED: ModuleNotFoundError: No module named 'numpy'`.
 - Cause: launchd runs `~/projects/kap-deploy/.venv/bin/python`; that venv was built when only the collector existed and never got `sentence-transformers`/numpy. The dry run (2026-11-05) used the kap-explore venv, so it could not catch this. Gap in our test plan, not in the code.

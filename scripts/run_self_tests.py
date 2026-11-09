@@ -39,6 +39,7 @@ TESTS={
     'injection_checks':'--self-test',
     'matriks_crosscheck':'--self-test',
     'source_check':'--self-test',
+    'panel':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
