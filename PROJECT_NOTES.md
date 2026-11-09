@@ -145,6 +145,16 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Cited answers for the agent's search tool, rule and code (not run yet)
+- Rule `docs/cited_answer_rule.md` (ecb880a, before code). The LLM writes ≤ 4 Turkish sentences from the reranked top 5, each citing `[K1]`..`[K5]`; code checks JSON, citations, and that every number in a sentence appears in a cited source (value within 0.5% or same digit string). Failed check → no answer, plain list as today. `answerable=false` → "sources do not answer" + list.
+- Decision on the 66 dev questions: A shown ≥ 0.80 (answerable, gold in top 5), B cites gold ≥ 0.90, C negatives not answered ≥ 5/7, D Feyza's yes/no on 10 shown answers (seed 20261110) ≥ 9/10, E median ≤ 30 s. If adopted, Set C questions once, report only.
+- `scripts/answer.py` (15 checks), `scripts/eval_answers.py` (`--run`, `--score`, `--review`; 12 checks). Not wired into `agent.py` until the decision.
+- **Result (run by Feyza 2026-11-10, dev 66):** gold in top 5 for 54/59 answerable. Statuses: ok 51, invalid_output 11, bad_length 4, **abstain 0**. A shown 45/54 = 0.83 (pass), B cites gold 44/45 = 0.98 (pass), **C negatives 4/7 (bar 5/7, fail)**, D not run (not needed), E median 3.4 s (pass).
+  - **Decision: NOT adopted.** Agent keeps the plain list. Kept in the repo as a record.
+  - Reading: the model never said "the sources do not answer" (0 abstentions in 66). The 4 negatives without an answer were check failures (invalid output or bad length), not abstentions; 3 negatives got an answer that passed the number check, i.e. a confident answer to a question the data cannot answer. This is exactly what the number check cannot see (stated limit). 15/66 invalid or bad-length outputs is also high for structured output with thinking off.
+  - When an answer was shown, it nearly always cited the right disclosure (44/45) and was fast (3.4 s). The weak point is knowing when not to answer.
+  - A v2 (e.g. thinking on, a separate "do the sources answer this?" check) needs its own rule and questions not used here (dev is now spent for this step).
+
 ## 2026-11-10: Desk panel (`scripts/panel.py`)
 - Smoke test of the wired defence first (kap-deploy at 58e8f3e, kap-deploy Python, `morning_job.py --date 2026-11-09`): 3 disclosures, look first 2, check 0, same as before the wiring.
 - Panel: local web page (stdlib `http.server`, binds 127.0.0.1:8765, no network, no LLM). Reads the saved `data/morning_<day>.jsonl`; groups items by sector desk (Matriks sector from `symbol_sectors`, optional grouping in `DESKS` inside `panel.py` (all `*.json` are git-ignored), else "Atanmamış"; until the ~12 Nov sector load, everything is "Atanmamış"). Desks with the most look-first items come first; inside a desk the morning-list order.
