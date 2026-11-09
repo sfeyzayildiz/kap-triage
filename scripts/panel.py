@@ -10,7 +10,7 @@ All text is HTML-escaped (KAP text is external input); KAP links are shown only 
 Usage:
   python scripts/panel.py --self-test
   python scripts/panel.py --serve            # http://127.0.0.1:8765
-  python scripts/panel.py --stats            # counts only: flagged, confirmed, rejected
+  python scripts/panel.py --stats            # counts only: confirmed / rejected, overall and per reason code
 '''
 import argparse
 import glob
@@ -224,6 +224,21 @@ def stats(path=LOG_PATH):
     return c
 
 
+def reason_stats(reviews,load=None):
+    '''reason code -> {'confirm': n, 'reject': n}: which checks flag real errors (codes and counts only).'''
+    load=load or load_day
+    days={}
+    out={}
+    for nid,r in reviews.items():
+        if r['day'] not in days:
+            days[r['day']]={i['news_id']:i for i in (load(r['day']) or [])}
+        item=days[r['day']].get(nid)
+        codes=item['importance']['needs_review_reasons'] if item else ['unknown_item']
+        for code in codes:
+            out.setdefault(code,{'confirm':0,'reject':0})[r['decision']]+=1
+    return dict(sorted(out.items()))
+
+
 def _self_test():
     import tempfile
     imp=lambda score,level,flag:{'score':score,'level':level,'needs_review':bool(flag),'needs_review_reasons':flag,
@@ -252,6 +267,8 @@ def _self_test():
         record_review('2','2026-11-09','confirm','',path=log,now=datetime(2026,11,10,10))
         rv=load_reviews(log)
         assert rv['2']['decision']=='confirm' and stats(log)=={'reviewed':1,'confirm':1,'reject':0}
+        rs=reason_stats({**rv,'9':{'news_id':'9','day':'2026-11-09','decision':'reject'}},load=lambda d:items)
+        assert rs=={'amount_not_in_text':{'confirm':1,'reject':0},'unknown_item':{'confirm':0,'reject':1}}
         try:
             record_review('2','2026-11-09','maybe',None,path=log)
             raise AssertionError('bad decision accepted')
@@ -261,7 +278,7 @@ def _self_test():
         assert 'kontrol edilen 1' in out and 'Kontrol edildi: Doğru' in out and 'name="decision"' not in out
     assert 'Kayıtlı sabah listesi yok.' in render_index([])
     assert 'Bu gün yeni iş ilişkisi bildirimi yok.' in render_day('2026-11-01',[],{},{},{})
-    print('self-test ok: 15 checks')
+    print('self-test ok: 16 checks')
 
 
 def main():
@@ -275,6 +292,8 @@ def main():
         _self_test()
     elif args.stats:
         print(' '.join(f'{k}={v}' for k,v in stats().items()))
+        for code,c in reason_stats(load_reviews()).items():
+            print(f'  {code} confirm={c["confirm"]} reject={c["reject"]}')
     elif args.serve:
         print(f'panel on http://{HOST}:{args.port} (Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())}')
         ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
