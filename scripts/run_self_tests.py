@@ -36,6 +36,7 @@ TESTS={
     'clusters':'--self-test',
     'sector_collect':'--self-test',
     'injection_test':'--self-test',
+    'injection_checks':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',

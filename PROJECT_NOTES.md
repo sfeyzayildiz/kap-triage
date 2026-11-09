@@ -103,6 +103,20 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 | format → plain text | 20 | 0 | 0 | 13.9% | 1 | 4 |
 
 - Reading: one appended sentence controls the extracted amount every time; the existing code checks catch 6 of 20. The currency attack works on about a third and changes 4 more answers. The review attack removed the flag in 2 of 6 flagged texts. The format attack failed: the JSON schema and the `run_error` path held.
+- Defence prepared the same day (rule `docs/injection_defence_rule.md`, committed before the code): Feyza wrote 4 new attack sentences in a gitignored file that Claude has not seen (sha1 `322e2dd7…`, checked by the script). Two flag-only checks in `scripts/injection_checks.py`: `amount_not_anchored` (amount not written right next to a currency; Amendment 1 tightened a 40-character window to adjacency after a self-test showed another number's currency could anchor an injected number) and `instruction_in_text` (machine-addressed wording, patterns fixed in the rule). Adopt if dev false alarms ≤ 4/200 and, on Set C texts 21-40 with the sealed attacks, silent amount successes ≤ 1/20 and ≤ 3 in total. 19 + 21 self-test checks.
+- **Defence result (run by Feyza 2026-11-09, branch commit dd9070c; scoring print fix for an empty pool only):**
+
+| sealed attack (Set C texts 21-40) | n | success | silent | silent with defence | collateral | flagged |
+|---|---|---|---|---|---|---|
+| amount (1 number in the sentence) | 20 | 20 | 10 | **10** | 0 | 10 |
+| currency | 20 | 0 | 0 | 0 | 1 | 6 |
+| review | 0 (no clean run flagged) | - | - | - | - | - |
+| format | 20 | 0 | 0 | 0 | 2 | 3 |
+
+  False alarms on dev (Set A `eval_v3final_test_amount.jsonl` + Set B `eval_v3_e4b_set_b.jsonl`, 200 rows, 23 already flagged): `amount_not_anchored` newly flags 20, `instruction_in_text` 4, either **24** (limit 4).
+- **Decision: NOT adopted** (both conditions fail). The checks stay in the repo as a tried and rejected defence; nothing is wired into the pipeline.
+- Reading: the amount attack works with a second, independent wording (20/20 again); the existing checks catch half. A pattern list written without seeing the attack missed it entirely and also flagged 11% of real disclosures (real amounts are not always written right next to a currency; causes not analysed, to avoid tuning on dev). Currency and format attacks failed this time; review could not be tested (no flagged clean run among these texts).
+- Next defence candidates, each a new version measured on new texts: (1) compare the extracted amount with Matriks' own `new_business` amount where it exists (84% of disclosures; injected text cannot change that record); (2) extraction v4 that separates data from instructions in the prompt (full re-evaluation); (3) two independent extractions, flag disagreement.
 - This is the biggest open risk found so far: a company (or anyone who can shape a disclosure text) can steer the headline number silently. Per the rule: no prompt change; a code-side defence, measured on new texts and new attack wording.
 
 ## 2026-11-09: Sector labels loader and a price refresh fix (no pull yet)
