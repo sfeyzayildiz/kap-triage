@@ -145,6 +145,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Chat page (instructor asked for an app-like interface)
+- `scripts/chat.py`, served by `panel.py --serve` as the start page `/` (morning lists moved to `/days`). One question box plus example questions; each question runs the same LangGraph agent as `agent.py` (route -> validate -> one tool), so numbers and links still come from code. No new model, no measurement change.
+- Safety unchanged from the panel: 127.0.0.1 only, no JavaScript (strict CSP), every text escaped, only kap.org.tr links clickable, foreign Origin rejected. History only in memory (max 50, cleared on restart, never on disk); one question at a time; refuses 23:40-23:50; an Ollama or DB error shows the error type instead of crashing. Stdout prints intent, seconds and error flag only.
+- 10 self-test checks (`run_self_tests.py`, 34 pass). Smoke test by Claude with a fake agent (no DB, no Ollama): GET / and /days 200, POST /chat 303 and the answer is shown, empty 400, foreign origin 403, clear 303.
+- Not measured: answer quality is the agent's (router 17/20, search Set D Hit@3 20/20); the page adds only the form.
+
 ## 2026-11-10: Agent dogfooding (Feyza)
 - Three free questions: search and company routed and answered as expected. **Bug:** "Bugün neye bakmalıyım?" on a day not collected yet answered "no new disclosures today", which is wrong (collection runs at 23:43). Fix: `validate` now shows the last collected day with a note ("henüz toplanmadı"); 2 new self-test checks (15). Also hid third-party import notices (LangChain, torch, progress bars) for a clean demo output. Checked with `--quiet`: the today question routes to 2026-11-09.
 - Process slip: the pasted agent output contained Matriks amounts (company tool). Agreed again: only short observations come back to the session. (Happened a second time the same day with five more questions.)

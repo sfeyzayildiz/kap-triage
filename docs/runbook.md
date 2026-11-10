@@ -57,7 +57,7 @@ Then (Claude's commands): rebuild clusters with k = number of sectors, `clusters
 ## Daily use
 ```
 cd ~/projects/kap-explore
-.venv/bin/python scripts/panel.py --serve      # http://127.0.0.1:8765; Ctrl+C to stop (holds no DB lock while idle)
+.venv/bin/python scripts/panel.py --serve      # http://127.0.0.1:8765 = chat, /days = morning lists; Ctrl+C to stop (holds no DB lock while idle)
 .venv/bin/python scripts/panel.py --stats      # review decisions per flag type
 .venv/bin/python scripts/agent.py "Bugün neye bakmalıyım?"
 ```

@@ -1,4 +1,5 @@
-'''Desk panel: the morning list per sector desk, with a human confirm step for flagged items.
+'''Desk panel: chat with the agent (start page) and the morning list per sector desk, with a human
+confirm step for flagged items.
 
 Local only (binds 127.0.0.1). Reads the saved morning list data/morning_<day>.jsonl (no LLM,
 no network). Desk = Matriks sector of the symbol (table symbol_sectors), optionally grouped by
@@ -9,7 +10,7 @@ All text is HTML-escaped (KAP text is external input); KAP links are shown only 
 
 Usage:
   python scripts/panel.py --self-test
-  python scripts/panel.py --serve            # http://127.0.0.1:8765
+  python scripts/panel.py --serve            # http://127.0.0.1:8765 (chat), /days (morning lists)
   python scripts/panel.py --stats            # counts only: confirmed / rejected, overall and per reason code
 '''
 import argparse
@@ -21,6 +22,8 @@ import re
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
+
+import chat
 
 DB_PATH='data/kap.duckdb'
 DESKS={}  # sector name -> desk name; empty until the sector names are known
@@ -106,7 +109,7 @@ h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:28px;border-bottom:1px solid 
 .muted{color:#666;font-size:.9rem}.review{background:#fff4f4;padding:8px;border-radius:4px;margin-top:6px}
 .done{background:#eef7ee}button{margin-right:6px}input[type=text]{width:60%}
 @media (prefers-color-scheme: dark){body{background:#151515;color:#e6e6e6}.card{background:#1f1f1f;border-color:#333}
-.review{background:#3a1f1f}.done{background:#1f331f}.muted{color:#aaa}a{color:#8ab4f8}}'''
+.review{background:#3a1f1f}.done{background:#1f331f}.muted{color:#aaa}a{color:#8ab4f8}}'''+chat.CSS
 
 
 def page(title,body):
@@ -149,7 +152,7 @@ def render_day(day,items,sectors,desks,reviews):
     groups=by_desk(items,sectors,desks)
     flagged=[i for i in items if i['importance']['needs_review']]
     done=sum(i['news_id'] in reviews for i in flagged)
-    body=[f'<p><a href="/">← günler</a></p><h1>Sabah listesi: {e(day)}</h1>',
+    body=[f'<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a></nav><h1>Sabah listesi: {e(day)}</h1>',
           f'<p>{len(items)} bildirim, {len(groups)} masa; kontrol gereken {len(flagged)}, kontrol edilen {done}.</p>']
     if not items:
         body.append('<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
@@ -163,7 +166,8 @@ def render_day(day,items,sectors,desks,reviews):
 
 def render_index(days):
     links=''.join(f'<li><a href="/day/{e(d)}">{e(d)}</a></li>' for d in days) or '<li>Kayıtlı sabah listesi yok.</li>'
-    return page('Masa paneli',f'<h1>Masa paneli</h1><ul>{links}</ul>')
+    return page('Masa paneli','<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a></nav>'
+                f'<h1>Sabah listeleri</h1><ul>{links}</ul>')
 
 
 def load_day(day):
@@ -189,6 +193,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path=urlparse(self.path).path
         if path=='/':
+            return self.send(200,page('KAP asistanı',chat.render_body(chat.HISTORY)))
+        if path=='/days':
             return self.send(200,render_index(available_days()))
         m=re.match(r'^/day/(\d{4}-\d{2}-\d{2})$',path)
         if m:
@@ -202,10 +208,21 @@ class Handler(BaseHTTPRequestHandler):
         origin=self.headers.get('Origin')
         if origin and urlparse(origin).hostname not in (HOST,'localhost'):
             return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
-        if urlparse(self.path).path!='/review':
+        path=urlparse(self.path).path
+        if path not in ('/review','/chat','/chat/clear'):
             return self.send(404,page('Yok','<p>Sayfa yok.</p>'))
         n=min(int(self.headers.get('Content-Length') or 0),4096)
         form={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8')).items()}
+        if path=='/chat/clear':
+            chat.HISTORY.clear()
+            return self.send(303,'',location='/')
+        if path=='/chat':
+            q=(form.get('q') or '').strip()
+            if not q or len(q)>chat.MAX_QUESTION:
+                return self.send(400,page('Hata','<p>Soru boş ya da çok uzun.</p>'))
+            rec=chat.ask(q)
+            print(f'chat: intent={rec["intent"]} seconds={rec["seconds"]} error={rec["error"]}',flush=True)  # no text
+            return self.send(303,'',location='/#son')
         day=form.get('day','')
         if not DAY_RE.match(day) or form.get('decision') not in DECISIONS or not form.get('news_id'):
             return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
@@ -276,7 +293,7 @@ def _self_test():
             pass
         out=render_day('2026-11-09',items,sectors,{},rv)
         assert 'kontrol edilen 1' in out and 'Kontrol edildi: Doğru' in out and 'name="decision"' not in out
-    assert 'Kayıtlı sabah listesi yok.' in render_index([])
+    assert 'Kayıtlı sabah listesi yok.' in render_index([]) and 'href="/days"' in render_index([])
     assert 'Bu gün yeni iş ilişkisi bildirimi yok.' in render_day('2026-11-01',[],{},{},{})
     print('self-test ok: 16 checks')
 

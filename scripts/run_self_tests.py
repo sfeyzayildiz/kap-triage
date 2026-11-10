@@ -40,6 +40,7 @@ TESTS={
     'matriks_crosscheck':'--self-test',
     'source_check':'--self-test',
     'panel':'--self-test',
+    'chat':'--self-test',
     'answer':'--self-test',
     'eval_answers':'--self-test',
     'write_negatives':'--self-test',
