@@ -37,3 +37,9 @@ Date: 2026-11-10. Committed **before** the code, before the name table is filled
 - The name table is hand-made for the companies in our data; a new listing needs a new row.
 - "First mentioned company" is a simple rule; a question naming the counterparty first gets the counterparty, with the note.
 - The date filter uses the publish date; "around 9 Nov" is not supported.
+
+## Amendment 2: name table v1.1 (2026-11-10, after the v2 decision; post-hoc)
+- Feyza's use of the chat page after the decision showed full names without a short alias failing (e.g. a 4-word title asked with 2 words ends in the help text). The decision above (ADOPT_V2, measured with table v1, sha1 `a08c14e8…`) is not changed or re-scored.
+- v1.1 may only **add** a short name to rows that have none (typically the first two words of the title); no row loses a name, no generic single word.
+- Accepted if, with the old table kept as `data/company_names_v1.txt`, the code-only check `v2_eval.py --names-regression` (no LLM) finds **0** questions whose first mentioned company changes to a wrong one, on the 20 v2 questions and the 20 routing questions. Counts reported: changed to right, changed to wrong, other changes.
+- The new sha1 replaces `NAMES_SHA1`; the v1 sha1 stays recorded here and in PROJECT_NOTES.
