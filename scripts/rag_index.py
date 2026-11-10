@@ -85,11 +85,13 @@ def update(path=INDEX_PATH):
     return index,n
 
 
-def search(index,query_vector,symbol=None,before=None,exclude=None,k=5):
-    '''Top k by cosine similarity, optionally only one symbol and only before a timestamp string.'''
+def search(index,query_vector,symbol=None,before=None,exclude=None,k=5,on_day=None):
+    '''Top k by cosine similarity, optionally only one symbol, only before a timestamp string, only one publish day.'''
     mask=np.ones(len(index['news_id']),dtype=bool)
     if symbol:
         mask&=index['symbol']==symbol
+    if on_day:
+        mask&=np.char.startswith(index['published_at'].astype(str),str(on_day))
     if before:
         mask&=index['published_at']<before
     if exclude:
@@ -127,9 +129,9 @@ def rerank_hits(question,hits,texts,score):
     return [{**with_text[i],'rerank_score':float(s[i])} for i in order]+rest
 
 
-def search_question(index,question,symbol=None,k=5,score=None,texts=None):
+def search_question(index,question,symbol=None,k=5,score=None,texts=None,on_day=None):
     '''Question search as measured: embed the question, top RERANK_K, cross-encoder rerank, top k.'''
-    hits=search(index,embed_query(question),symbol=symbol,k=RERANK_K)
+    hits=search(index,embed_query(question),symbol=symbol,k=RERANK_K,on_day=on_day)
     texts=texts if texts is not None else doc_texts([h['news_id'] for h in hits])
     score=score or (lambda pairs:reranker().predict(pairs,show_progress_bar=False))
     return rerank_hits(question,hits,texts,score)[:k]
@@ -168,7 +170,14 @@ def _self_test():
     out=rerank_hits('q',h,{'a':'x','b':'yy','c':'zz'},lambda pairs:[len(t) for _,t in pairs])
     assert [x['news_id'] for x in out]==['b','c','a','d'] and out[0]['rerank_score']==2.0
     assert rerank_hits('q',h,{},lambda pairs:[])==h
-    print('self-test ok: 10 checks')
+    idx={'news_id':np.array(['1','2','3']),'symbol':np.array(['A','A','B']),
+         'published_at':np.array(['2026-11-09 10:00:00','2026-11-08 18:00:00','2026-11-09 19:30:00']),
+         'kap_url':np.array(['u1','u2','u3']),'vectors':np.eye(3,dtype=np.float32)}
+    q=np.array([0.5,0.9,0.4],dtype=np.float32)
+    assert [h['news_id'] for h in search(idx,q,on_day='2026-11-09')]==['1','3']      # day filter
+    assert [h['news_id'] for h in search(idx,q,symbol='A',on_day='2026-11-09')]==['1']
+    assert search(idx,q,on_day='2026-11-07')==[]
+    print('self-test ok: 13 checks')
 
 
 def main():

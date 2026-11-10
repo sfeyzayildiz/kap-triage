@@ -48,6 +48,8 @@ TESTS={
     'deploy_check':'--self-test',
     'route_eval':'--self-test',
     'card_eval':'--self-test',
+    'names':'--self-test',
+    'v2_eval':'--self-test',
     'write_route_questions':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',

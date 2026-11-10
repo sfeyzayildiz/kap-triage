@@ -47,7 +47,8 @@ DETAIL_RE=re.compile(r'\b(kaç|kac|ne kadar|ne zaman|süres|sures|kim|karşı ta
 CARD=True  # docs/detail_card_rule.md: False shows the ticker-filtered search with links only
 # docs/detail_card_rule.md result 2026-11-10: REMOVE_SWITCH (routed 5/10, right disclosure 3/10; 0/10 questions
 # wrote a ticker). The switch and the detail tool stay in the code as a record; the graph does not use them.
-DETAIL_SWITCH=False
+DETAIL_SWITCH=True  # docs/router_v2_rule.md: on for the v2 measurement (card part decided by its C bar)
+V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter in search, detail switch
 
 ROUTER_PROMPT='''You route a Turkish equity analyst's question to exactly one tool. Return JSON only.
 intent:
@@ -76,6 +77,7 @@ class State(TypedDict,total=False):
     day: Optional[str]
     query: Optional[str]
     note: Optional[str]
+    date_filter: bool
     answer: str
 
 
@@ -98,24 +100,35 @@ def load_context():
         last_bar=con.execute("SELECT max(date) FROM daily_bars WHERE symbol='XU100'").fetchall()[0][0]
     finally:
         con.close()
-    return {'symbols':symbols,'last_disclosure':last_disc,'last_bar':last_bar,'today':date.today()}
+    from names import load_names
+    return {'symbols':symbols,'last_disclosure':last_disc,'last_bar':last_bar,'today':date.today(),'names':load_names()}
 
 
-def validate(route,question,ctx):
-    '''Code checks on the LLM route: known ticker, real date, sensible defaults.'''
+def validate(route,question,ctx,names=None):
+    '''Code checks on the LLM route: known ticker, real date, sensible defaults.
+    names (router v2): companies found in the question by code (ticker or name table) decide the ticker.'''
     intent=route.get('intent') if route.get('intent') in INTENTS else 'unknown'
     symbol=(route.get('symbol') or '').strip().upper() or None
-    if symbol not in ctx['symbols']:
-        # the model may miss or invent a ticker: trust only tickers written in the question
-        written=[t for t in TICKER_RE.findall(question) if t in ctx['symbols']]
-        symbol=written[0] if written else None
+    found=None
+    if names is not None:
+        from names import mentions
+        found=mentions(question,ctx['symbols'],names) or None
+    note=None
+    if found:
+        symbol=found[0]
+        if len(found)>1:
+            note=f'Soruda birden fazla şirket geçiyor ({", ".join(found)}); {symbol} için cevap verildi. Yanlışsa yalnızca istediğiniz şirketi yazın.'
+    else:
+        if symbol not in ctx['symbols']:
+            # the model may miss or invent a ticker: trust only tickers written in the question
+            written=[t for t in TICKER_RE.findall(question) if t in ctx['symbols']]
+            symbol=written[0] if written else None
+        if symbol and symbol not in TICKER_RE.findall(question.upper()):
+            note=f'Hisse kodu şirket adından çıkarıldı: {symbol}. Yanlışsa soruda kodu yazın.'
     try:
         day=date.fromisoformat(route['date']) if route.get('date') else None
     except ValueError:
         day=None
-    note=None
-    if symbol and symbol not in TICKER_RE.findall(question.upper()):
-        note=f'Hisse kodu şirket adından çıkarıldı: {symbol}. Yanlışsa soruda kodu yazın.'
     if intent=='morning' and day is None:
         day=ctx['last_disclosure']
         note=f'Tarih verilmedi; veritabanındaki son bildirim günü kullanıldı ({day}).'
@@ -131,6 +144,22 @@ def validate(route,question,ctx):
         intent,note='unknown','Soruda veritabanında olan bir hisse kodu bulamadım (ör. ASELS).'
     query=route.get('query') or question
     return {'intent':intent,'symbol':symbol,'day':str(day) if day else None,'query':query,'note':note}
+
+
+def route_question(route,question,ctx,v2=None):
+    '''Validated route; v2 (docs/router_v2_rule.md) adds names, the date filter flag and the detail switch.'''
+    v2=V2 if v2 is None else v2
+    if v2 and not route.get('date'):
+        from route_eval import word_date
+        written=word_date(question,ctx['today'])  # Amendment 1: the router sometimes misses a written date
+        if written:
+            route={**route,'date':str(written)}
+    v=validate(route,question,ctx,names=ctx.get('names',[]) if v2 else None)
+    if v2:
+        v['date_filter']=True
+        if DETAIL_SWITCH:
+            v=detail_switch(v,question)
+    return v
 
 
 def detail_switch(v,question):
@@ -224,8 +253,13 @@ def tool_search(state):
     # the full question is searched, as in the evaluation (docs/rerank_rule.md); the router's topic is only shown
     from rag_index import load_index, search_question
     index=load_index()
-    hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5)
-    lines=[f'# Arama: {state.get("query") or state["question"]}'+(f' ({state["symbol"]})' if state.get('symbol') else ''),'']
+    day=state.get('day') if state.get('date_filter') else None
+    hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5,on_day=day)
+    head=f'# Arama: {state.get("query") or state["question"]}'+(f' ({state["symbol"]})' if state.get('symbol') else '')
+    lines=[head+(f', {day}' if day and hits else ''),'']
+    if day and not hits:
+        lines.append(f'{day} tarihinde uygun bildirim bulunamadı; tüm tarihlerde arandı.')
+        hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5)
     lines+=[f'{i}. {h["published_at"][:10]} | {h["symbol"]} | {h["kap_url"]}' for i,h in enumerate(hits,1)]
     lines.append('')
     lines.append('Anlam benzerliğiyle 20 aday bulundu, soru ve metni birlikte okuyan bir modelle yeniden sıralandı. '
@@ -278,13 +312,14 @@ def card_lines(hit,data):
     return lines
 
 
-def detail_answer(question,symbol=None,search=None,extract=None,card=None):
+def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day=None):
     '''Top hit of the measured search (ticker-filtered) as a card, the other hits as links.'''
     card=CARD if card is None else card
     if search is None:
         from rag_index import load_index, search_question
         index=load_index()
-        search=lambda q,sym:search_question(index,q,symbol=sym,k=5)
+        search=lambda q,sym:search_question(index,q,symbol=sym,k=5,on_day=on_day) or \
+            (search_question(index,q,symbol=sym,k=5) if on_day else [])
     hits=search(question,symbol)
     if not hits:
         return {'hits':[],'data':None,'text':'Bu soruya uygun bildirim bulunamadı.\n'}
@@ -305,7 +340,8 @@ def detail_answer(question,symbol=None,search=None,extract=None,card=None):
 
 
 def tool_detail(state):
-    return detail_answer(state['question'],state.get('symbol'))['text']
+    day=state.get('day') if state.get('date_filter') else None
+    return detail_answer(state['question'],state.get('symbol'),on_day=day)['text']
 
 
 def tool_help(state):
@@ -323,8 +359,7 @@ TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,
 def build_graph(router,tools,ctx):
     def _route(state):
         r=router(state['question'],ctx['today'])
-        v=validate(r,state['question'],ctx)
-        return detail_switch(v,state['question']) if DETAIL_SWITCH else v
+        return route_question(r,state['question'],ctx)
 
     def tool_node(name):
         def run(state):
@@ -405,7 +440,28 @@ def _self_test():
     err=card_lines(hit(1),{'needs_review':True,'needs_review_reasons':['run_error']})
     assert any('çıkarılamadı' in l for l in err)
     assert detail_answer('q',search=lambda q,sym:[])['text'].startswith('Bu soruya uygun bildirim bulunamadı')
-    print('self-test ok: 27 checks')
+
+    # router v2 (docs/router_v2_rule.md): names decide the ticker, two companies get a note
+    from names import parse_names
+    nm,_=parse_names('ASELS: Aselsan\nTHYAO: Türk Hava Yolları; THY\nKONTR: Kontrolmatik\n')
+    v=validate({'intent':'company','symbol':None,'date':None,'query':None},'Aselsan son işleri',ctx,names=nm)
+    assert v['intent']=='company' and v['symbol']=='ASELS' and v['note'] is None   # was unknown without names
+    v=validate({'intent':'company','symbol':'THYAO','date':None,'query':None},'Aselsan son işleri',ctx,names=nm)
+    assert v['symbol']=='ASELS'                                                     # code match beats the model's guess
+    v=validate({'intent':'company','symbol':'KONTR','date':None,'query':None},'Aselsan ile KONTR sözleşmesi',ctx,names=nm)
+    assert v['symbol']=='ASELS' and 'birden fazla' in v['note'] and 'ASELS, KONTR' in v['note']
+    v=validate({'intent':'company','symbol':None,'date':None,'query':None},'Aselsan son işleri',ctx)
+    assert v['intent']=='unknown'                                                   # v1 unchanged
+    r={'intent':'company','symbol':None,'date':'2026-10-28','query':None}
+    c2={**ctx,'names':nm}
+    v=route_question(r,'Aselsan\'ın sözleşmesinin süresi kaç ay?',c2,v2=True)
+    assert v['intent']=='detail' and v['date_filter'] and v['symbol']=='ASELS'
+    v=route_question(r,'Aselsan\'ın sözleşmesinin süresi kaç ay?',c2,v2=False)
+    assert v['intent']=='unknown' and not v.get('date_filter')
+    r0={'intent':'search','symbol':None,'date':None,'query':None}
+    assert route_question(r0,'28 Ekim savunma bildirimleri',c2,v2=True)['day']=='2026-10-28'   # date read by code
+    assert route_question(r0,'28 Ekim savunma bildirimleri',c2,v2=False)['day'] is None
+    print('self-test ok: 35 checks')
 
 
 def main():
