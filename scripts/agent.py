@@ -1,6 +1,7 @@
 '''Triage agent (LangGraph): route an analyst's question to one tool and answer from data.
 
 Graph: route (LLM, structured output) -> validate (code) -> one tool (code) -> END.
+(A detail switch + card tool exists but is off: docs/detail_card_rule.md, not adopted 2026-11-10.)
 The LLM only reads the question: intent, symbol, date, topic. Every number and link in
 the answer comes from the database through code, so the model cannot invent them.
 Tracing to LangSmith is switched off; nothing leaves the machine.
@@ -40,6 +41,13 @@ from pydantic import BaseModel, ValidationError
 DB_PATH='data/kap.duckdb'
 INTENTS=('morning','company','why_moved','search','unknown')
 TICKER_RE=re.compile(r'\b[A-ZÇĞİÖŞÜ0-9]{3,6}\b')
+# docs/detail_card_rule.md (fixed before any question): a question about one disclosure's detail
+DETAIL_RE=re.compile(r'\b(kaç|kac|ne kadar|ne zaman|süres|sures|kim|karşı taraf|karsi taraf|tutar|bedel|teslim|'
+                     r'hangi (ülke|ulke|şirket|sirket|firma|müşteri|musteri|kurum|para birimi|döviz|doviz)|nerede|nereye|nereden)',re.I)
+CARD=True  # docs/detail_card_rule.md: False shows the ticker-filtered search with links only
+# docs/detail_card_rule.md result 2026-11-10: REMOVE_SWITCH (routed 5/10, right disclosure 3/10; 0/10 questions
+# wrote a ticker). The switch and the detail tool stay in the code as a record; the graph does not use them.
+DETAIL_SWITCH=False
 
 ROUTER_PROMPT='''You route a Turkish equity analyst's question to exactly one tool. Return JSON only.
 intent:
@@ -123,6 +131,13 @@ def validate(route,question,ctx):
         intent,note='unknown','Soruda veritabanında olan bir hisse kodu bulamadım (ör. ASELS).'
     query=route.get('query') or question
     return {'intent':intent,'symbol':symbol,'day':str(day) if day else None,'query':query,'note':note}
+
+
+def detail_switch(v,question):
+    '''Code rule after validate: a detail question about one disclosure goes to the detail tool.'''
+    if v['intent'] in ('company','search') and DETAIL_RE.search(question):
+        return {**v,'intent':'detail'}
+    return v
 
 
 def tr_pct(x):
@@ -218,6 +233,81 @@ def tool_search(state):
     return '\n'.join(lines)+'\n'
 
 
+EVENT_TR={'order':'sipariş','contract':'sözleşme','tender':'ihale','other':'diğer'}
+ORIGIN_TR={'domestic':'yurt içi','foreign':'yurt dışı','unknown':'belirtilmemiş'}
+_CARDS={}  # news_id -> extraction, this process only (a repeated question is instant)
+
+
+def extract_card(news_id):
+    '''Production extraction of one disclosure (pipeline.analyze: v3 + code checks + layered defence).'''
+    if news_id not in _CARDS:
+        from pipeline import analyze, defence_context, judge_pass, load_rows
+        rows=load_rows(None,[news_id])
+        if not rows:
+            return None
+        text=rows[0][4]
+        matriks,judge=defence_context([news_id])
+        data=analyze(text,matriks=matriks.get(str(news_id)))
+        _CARDS[news_id]=judge_pass([data],[text],judge)[0]
+    return _CARDS[news_id]
+
+
+def card_lines(hit,data):
+    '''Card text from the extracted fields; every value comes from code, never written by the model.'''
+    from morning import REVIEW_TR, tr_num
+    lines=[f'# Bildirim kartı: {hit["symbol"]}, {hit["published_at"][:10]}',f'Kaynak: {hit["kap_url"]}']
+    if data is None or 'run_error' in data.get('needs_review_reasons',[]):
+        return lines+['Bu bildirimden alan çıkarılamadı; KAP metnini okuyun.']
+    v=lambda x:x if x not in (None,'') else 'belirtilmemiş'
+    lines.append(f'Konu: {v(data.get("subject"))}')
+    lines.append(f'Tür: {EVENT_TR.get(data.get("event_type"),v(data.get("event_type")))}')
+    lines.append(f'Karşı taraf: {v(data.get("counterparty_name"))} ({ORIGIN_TR.get(data.get("counterparty_origin"),"belirtilmemiş")})')
+    lines.append(f'Süre / teslim: {v(data.get("duration"))}')
+    if data.get('amount') is not None:
+        amt=f'Tutar: {tr_num(data["amount"],0)} {data.get("currency") or ""}'.rstrip()
+        lines.append(amt+(' (KDV dahil)' if data.get('vat_included') else ''))
+    else:
+        lines.append('Tutar: metinde belirtilmemiş')
+    if data.get('is_revision'):
+        prev=data.get('previous_amount')
+        lines.append('Revizyon: evet'+(f', önceki tutar {tr_num(prev,0)}' if prev is not None else ''))
+    rp=data.get('related_party')
+    lines.append(f'İlişkili taraf: {"evet" if rp is True else "hayır" if rp is False else "belirtilmemiş"}')
+    if data.get('needs_review'):
+        lines.append('KONTROL ET: '+'; '.join(REVIEW_TR.get(c,c) for c in data['needs_review_reasons']))
+    return lines
+
+
+def detail_answer(question,symbol=None,search=None,extract=None,card=None):
+    '''Top hit of the measured search (ticker-filtered) as a card, the other hits as links.'''
+    card=CARD if card is None else card
+    if search is None:
+        from rag_index import load_index, search_question
+        index=load_index()
+        search=lambda q,sym:search_question(index,q,symbol=sym,k=5)
+    hits=search(question,symbol)
+    if not hits:
+        return {'hits':[],'data':None,'text':'Bu soruya uygun bildirim bulunamadı.\n'}
+    data=(extract or extract_card)(hits[0]['news_id']) if card else None
+    lines=card_lines(hits[0],data) if card else [f'# Arama: {question}',f'1. {hits[0]["published_at"][:10]} | {hits[0]["symbol"]} | {hits[0]["kap_url"]}']
+    rest=hits[1:]
+    if rest:
+        lines+=['',('Başka bildirim olabilir:' if card else '')]
+        lines+=[f'{i}. {h["published_at"][:10]} | {h["symbol"]} | {h["kap_url"]}' for i,h in enumerate(rest,2)]
+    lines.append('')
+    if card:
+        lines.append('Alanlar yerel modelin bu bildirimden çıkardığı değerlerdir; cümleyi model yazmaz. Tutar ve para birimi '
+                     'ölçüldü (bağımsız 100 bildirimde 1 sessiz hata), diğer alanlar ölçülmedi. Kart ilk sıradaki bildirime aittir; '
+                     'KAP metnini okuyarak doğrulayın.')
+    else:
+        lines.append('Arama ilk 5\'te doğru bildirimi bağımsız testte 20/20 buldu. KAP metnini okuyarak doğrulayın.')
+    return {'hits':hits,'data':data,'text':'\n'.join(l for l in lines if l is not None)+'\n'}
+
+
+def tool_detail(state):
+    return detail_answer(state['question'],state.get('symbol'))['text']
+
+
 def tool_help(state):
     return ('Şunları sorabilirsiniz:\n'
             '- "Bugün neye bakmalıyım?" veya "30 Ekim\'deki bildirimler"\n'
@@ -226,13 +316,15 @@ def tool_help(state):
             '- "Irak\'taki projelerle ilgili bildirimler"\n')
 
 
-TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,'search':tool_search,'unknown':tool_help}
+TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,'search':tool_search,'detail':tool_detail,
+       'unknown':tool_help}
 
 
 def build_graph(router,tools,ctx):
     def _route(state):
         r=router(state['question'],ctx['today'])
-        return validate(r,state['question'],ctx)
+        v=validate(r,state['question'],ctx)
+        return detail_switch(v,state['question']) if DETAIL_SWITCH else v
 
     def tool_node(name):
         def run(state):
@@ -288,7 +380,32 @@ def _self_test():
     assert out['answer'].endswith('answer why_moved') and calls[-1]==('why_moved','THYAO','2026-10-29')
     assert graph.invoke({'question':'q3'})['answer']=='answer search'
     assert tr_pct(0.0213)=='+2,1%' and tr_pct(-0.05)=='-5,0%'
-    print('self-test ok: 15 checks')
+
+    # detail switch (docs/detail_card_rule.md)
+    base={'intent':'company','symbol':'ASELS','day':None,'query':'q','note':None}
+    assert detail_switch(base,'ASELS\'in Irak sözleşmesinin süresi kaç ay?')['intent']=='detail'
+    assert detail_switch(base,'ASELS son bir yılda hangi işleri aldı?')['intent']=='company'
+    assert detail_switch({**base,'intent':'search','symbol':None},'Hangi ülkeye ihracat sözleşmesi?')['intent']=='detail'
+    assert detail_switch({**base,'intent':'why_moved'},'ASELS ne zaman düştü?')['intent']=='why_moved'
+    assert detail_switch({**base,'intent':'search'},'savunma ihracat sözleşmeleri')['intent']=='search'
+    routes['q4']={'intent':'company','symbol':'ASELS','date':None,'query':None}
+    assert graph.invoke({'question':'q4'})['answer'].endswith('answer company')  # no detail word -> unchanged
+    hit=lambda n:{'news_id':str(n),'symbol':'ASELS','published_at':'2026-09-17 10:00:00','kap_url':f'https://www.kap.org.tr/tr/Bildirim/{n}'}
+    data={'subject':'radar','event_type':'contract','counterparty_name':None,'counterparty_origin':'foreign','duration':'36 ay',
+          'amount':1500000.0,'currency':'USD','vat_included':False,'is_revision':False,'related_party':None,
+          'needs_review':True,'needs_review_reasons':['currency_unclear']}
+    seen=[]
+    out=detail_answer('q',symbol='ASELS',search=lambda q,sym:seen.append(sym) or [hit(1),hit(2)],extract=lambda n:data,card=True)
+    t=out['text']
+    assert seen==['ASELS'] and 'Süre / teslim: 36 ay' in t and 'Tutar: 1.500.000 USD' in t and 'sözleşme' in t
+    assert 'Karşı taraf: belirtilmemiş (yurt dışı)' in t and 'KONTROL ET: para birimi belirsiz' in t
+    assert 'Başka bildirim olabilir:' in t and 'Bildirim/2' in t and t.index('Bildirim/1')<t.index('Bildirim/2')
+    off=detail_answer('q',search=lambda q,sym:[hit(1)],extract=lambda n:1/0,card=False)['text']
+    assert 'Süre' not in off and 'Bildirim/1' in off                                    # card off: links only, no extraction
+    err=card_lines(hit(1),{'needs_review':True,'needs_review_reasons':['run_error']})
+    assert any('çıkarılamadı' in l for l in err)
+    assert detail_answer('q',search=lambda q,sym:[])['text'].startswith('Bu soruya uygun bildirim bulunamadı')
+    print('self-test ok: 27 checks')
 
 
 def main():

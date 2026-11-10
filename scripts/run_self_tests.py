@@ -47,6 +47,7 @@ TESTS={
     'revenue_check':'--self-test',
     'deploy_check':'--self-test',
     'route_eval':'--self-test',
+    'card_eval':'--self-test',
     'write_route_questions':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
