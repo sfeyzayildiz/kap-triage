@@ -17,7 +17,8 @@ from datetime import date, timedelta
 import duckdb
 
 DB_PATH='data/kap.duckdb'
-USE_REVENUE=False  # rt / shf_ret stay off until the prod/apitest difference is explained
+USE_REVENUE=False  # docs/revenue_ratio_rule.md: on only after the three gates pass on the refreshed prod table
+EXTREME_RATIO=5.0
 RATE_DAYS=10
 MIN_HISTORY=3
 TRY_CODES=('TRY','TL')
@@ -56,6 +57,27 @@ def company_baseline(con,symbol,day):
     return rows[0]
 
 
+def revenue_base(con,kap_url,symbol,day):
+    '''(revenue, source): own record if shf_ret > 0, else the company's latest December period on or before day.'''
+    rows=con.execute('SELECT shf_ret FROM new_business WHERE url=? AND shf_ret>0',[kap_url]).fetchall()
+    if rows:
+        return rows[0][0],'own'
+    rows=con.execute('''SELECT shf_ret FROM new_business WHERE sym=? AND per%100=12 AND shf_ret>0 AND date<=?
+        ORDER BY date DESC, per DESC LIMIT 1''',[symbol,day]).fetchall()
+    return (rows[0][0],'december') if rows else (None,None)
+
+
+def revenue_points(amount_try,revenue,source):
+    if not revenue or amount_try is None or amount_try<=0:
+        return 0,None
+    ratio=amount_try/revenue
+    points=3 if ratio>=0.10 else 2 if ratio>=0.03 else 1 if ratio>=0.01 else 0
+    reason={'code':'size_vs_revenue','ratio':round(ratio,4),'source':source}
+    if ratio>EXTREME_RATIO:
+        reason['extreme']=True
+    return points,reason
+
+
 def size_points(amount_try,baseline,n_history):
     if amount_try is None or amount_try<=0:
         return 0,None
@@ -67,8 +89,9 @@ def size_points(amount_try,baseline,n_history):
     return points,{'code':'size_absolute','n_history':n_history}
 
 
-def score(result,rate,baseline,n_history):
-    '''Points and reasons for one pipeline result. rate is TRY per unit of its currency.'''
+def score(result,rate,baseline,n_history,revenue=None,revenue_source=None):
+    '''Points and reasons for one pipeline result. rate is TRY per unit of its currency.
+    revenue is used only when USE_REVENUE (or a test) passes one; size = max(history, revenue) points.'''
     reasons,total=[],0
     amount,currency=result.get('amount'),result.get('currency')
     kind='revision' if result.get('is_revision') else 'new'
@@ -82,12 +105,16 @@ def score(result,rate,baseline,n_history):
         reasons.append({'code':'no_rate','currency':currency,'points':0})
     else:
         points,reason=size_points(amount*rate,baseline,n_history)
+        rpoints,rreason=revenue_points(amount*rate,revenue,revenue_source)
         if reason:
-            reason['points']=points
+            reason['points']=points if points>=rpoints or not rreason else 0
             reasons.append(reason)
         else:
             reasons.append({'code':'no_increase','points':0})
-        total+=points
+        if rreason:
+            rreason['points']=rpoints if rpoints>points else 0
+            reasons.append(rreason)
+        total+=max(points,rpoints) if rreason else points
     if currency and currency not in TRY_CODES:
         reasons.append({'code':'foreign_currency','currency':currency,'points':1})
         total+=1
@@ -112,7 +139,8 @@ def score_result(con,result):
     currency=result.get('currency')
     rate=fx_rate(con,currency,day) if currency else None
     baseline,n_history=company_baseline(con,result.get('symbol'),day)
-    return score(result,rate,baseline,n_history)
+    revenue,source=revenue_base(con,result.get('kap_url'),result.get('symbol'),day) if USE_REVENUE else (None,None)
+    return score(result,rate,baseline,n_history,revenue,source)
 
 
 def _self_test():
@@ -152,7 +180,26 @@ def _self_test():
     out=score({**base,'needs_review':True,'needs_review_reasons':['currency_unclear']},1.0,200.0,3)
     assert out['score']==3 and out['needs_review'] and out['needs_review_reasons']==['currency_unclear']
     con.close()
-    print('self-test ok: 20 checks')
+
+    out=score(base,1.0,200.0,3,revenue=1000.0,revenue_source='own')            # history 3.5x -> 3, revenue 0.7 -> 3
+    assert out['score']==3 and [r['points'] for r in out['reasons'][:2]]==[3,0] and out['reasons'][1]['ratio']==0.7
+    out=score({**base,'amount':50.0},1.0,200.0,3,revenue=1000.0,revenue_source='december')  # history 0, revenue 5% -> 2
+    assert out['score']==2 and out['reasons'][0]['points']==0 and out['reasons'][1]=={'code':'size_vs_revenue','ratio':0.05,'source':'december','points':2}
+    out=score({**base,'amount':6000.0},1.0,None,0,revenue=1000.0,revenue_source='own')
+    assert out['reasons'][1].get('extreme') is True and not out['needs_review']
+    assert score(base,1.0,200.0,3,revenue=None)['reasons'][0]['points']==3 and len(score(base,1.0,200.0,3)['reasons'])==1
+    con=duckdb.connect()
+    con.execute('CREATE TABLE new_business (url VARCHAR, sym VARCHAR, date DATE, per INTEGER, shf_ret DOUBLE)')
+    con.executemany('INSERT INTO new_business VALUES (?,?,?,?,?)',[
+        ('u1','AAA',date(2026,5,1),202603,-50.0),('u0','AAA',date(2026,3,1),202512,800.0),
+        ('u9','AAA',date(2026,9,1),202606,900.0),('u8','AAA',date(2026,11,1),202612,999.0),
+        ('u2','AAA',date(2026,6,1),202603,700.0)])
+    assert revenue_base(con,'u2','AAA',date(2026,6,1))==(700.0,'own')
+    assert revenue_base(con,'u1','AAA',date(2026,5,1))==(800.0,'december')       # own negative -> December fallback
+    assert revenue_base(con,'none','AAA',date(2026,10,1))==(800.0,'december')    # later December not used
+    assert revenue_base(con,'none','BBB',date(2026,10,1))==(None,None)
+    con.close()
+    print('self-test ok: 28 checks')
 
 
 def main():

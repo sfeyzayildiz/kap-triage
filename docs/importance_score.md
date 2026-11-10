@@ -22,7 +22,7 @@ Date: 2026-11-02. The LLM extracts facts; this score is computed in code from th
 - `needs_review` does not change the score. It is shown next to it as a reliability flag, and flagged items are always listed.
 
 ## Not used yet
-- Revenue ratio (`rt`, `shf_ret`) and market value ratio (`mar_val_rt`): off until the prod/apitest difference is explained (`scripts/prod_probe.py` v2). The code has the switch `USE_REVENUE=False`.
+- Revenue ratio: coded (our TRY amount / prod `shf_ret`, December fallback; size = max of history and revenue points), switched off until the gates in `docs/revenue_ratio_rule.md` pass on the refreshed prod table (`scripts/revenue_check.py`). Matriks `rt` and the market value ratio (`mar_val_rt`) are not used.
 - Price reaction: not used as input.
 
 ## Honest limits

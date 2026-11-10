@@ -145,6 +145,11 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Revenue ratio, rule and code before the prod refresh (switch off)
+- Rule `docs/revenue_ratio_rule.md` (a275707), committed before `prod_refresh.py --run`. Revenue base = own prod `shf_ret` > 0, else the company's latest December-period `shf_ret` > 0 on or before the date. Ratio = our TRY amount / base; ≥ 10% → 3, ≥ 3% → 2, ≥ 1% → 1; size = max(history, revenue) points; ratio > 5 shown as unusual, no new `needs_review`.
+- Gates (`scripts/revenue_check.py`, counts only, Feyza runs after the refresh): semantics on prod ≥ 90% (rt = TRY amount / shf_ret within 5%), coverage ≥ 60% of disclosures, scale (> 5x revenue) ≤ 2%. All pass → `USE_REVENUE=True` in its own PR.
+- `importance.py` 28 checks (switch still False), `revenue_check.py` 5 checks, morning reason text. Demo script updated with panel, injection defence and the cited-answer result.
+
 ## 2026-11-10: Cited answers for the agent's search tool, rule and code (not run yet)
 - Rule `docs/cited_answer_rule.md` (ecb880a, before code). The LLM writes ≤ 4 Turkish sentences from the reranked top 5, each citing `[K1]`..`[K5]`; code checks JSON, citations, and that every number in a sentence appears in a cited source (value within 0.5% or same digit string). Failed check → no answer, plain list as today. `answerable=false` → "sources do not answer" + list.
 - Decision on the 66 dev questions: A shown ≥ 0.80 (answerable, gold in top 5), B cites gold ≥ 0.90, C negatives not answered ≥ 5/7, D Feyza's yes/no on 10 shown answers (seed 20261110) ≥ 9/10, E median ≤ 30 s. If adopted, Set C questions once, report only.

@@ -48,6 +48,10 @@ def reason_text(r):
     code=r['code']
     if code=='size_vs_history':
         return f'şirketin önceki işlerinin medyanının {tr_num(r["ratio"],1)} katı ({r["n_history"]} iş)'
+    if code=='size_vs_revenue':
+        src='ilgili bilanço' if r.get('source')=='own' else 'son yıl sonu bilançosu'
+        text=f'tutar / şirketin yıllık geliri: %{tr_num(r["ratio"]*100,1)} ({src})'
+        return text+(' - olağandışı oran, tutarı kontrol edin' if r.get('extreme') else '')
     if code=='size_absolute':
         return f'TL karşılığına göre büyüklük (şirketin önceki iş sayısı az: {r["n_history"]})'
     return {

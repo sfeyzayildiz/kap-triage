@@ -43,6 +43,7 @@ TESTS={
     'answer':'--self-test',
     'eval_answers':'--self-test',
     'write_negatives':'--self-test',
+    'revenue_check':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
