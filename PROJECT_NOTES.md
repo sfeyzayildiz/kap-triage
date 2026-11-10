@@ -145,6 +145,10 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Agent dogfooding (Feyza)
+- Three free questions: search and company routed and answered as expected. **Bug:** "Bugün neye bakmalıyım?" on a day not collected yet answered "no new disclosures today", which is wrong (collection runs at 23:43). Fix: `validate` now shows the last collected day with a note ("henüz toplanmadı"); 2 new self-test checks (15). Also hid third-party import notices (LangChain, torch, progress bars) for a clean demo output. Checked with `--quiet`: the today question routes to 2026-11-09.
+- Process slip: the pasted agent output contained Matriks amounts (company tool). Agreed again: only short observations come back to the session.
+
 ## 2026-11-10: Prod archive refresh done; revenue ratio switched on
 - Run by Feyza at about 13:30 (nightly job paused first: this is the day's only pull; resume next morning). 36 requests (35 months 2024-01..2026-11 + 1 news count). Prod `new_business` rows fetched 1646.
 - **Compare (prod vs apitest snapshot):** in both 1584, only prod 8, only apitest 0; amount or currency differs **0**. Balance-sheet period: prod earlier on **981**, same 547, later 56. `shf_ret` differs on 1028, but only **16** of them with the same period. Negative `shf_ret`: apitest 267, prod 265.

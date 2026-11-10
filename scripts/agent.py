@@ -14,6 +14,16 @@ import os
 
 os.environ['LANGSMITH_TRACING']='false'
 os.environ['LANGCHAIN_TRACING_V2']='false'
+os.environ.setdefault('TRANSFORMERS_VERBOSITY','error')
+os.environ.setdefault('TORCH_CPP_LOG_LEVEL','ERROR')
+os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS','1')
+
+import logging
+
+logging.getLogger('torch.distributed.elastic.multiprocessing.redirects').setLevel(logging.ERROR)
+
+import warnings
+
 
 import argparse
 import json
@@ -22,7 +32,9 @@ from datetime import date, datetime, timedelta
 from typing import Literal, Optional, TypedDict
 
 import duckdb
-from langgraph.graph import END, START, StateGraph
+_show,warnings.showwarning=warnings.showwarning,lambda *a,**k:None  # LangChain forces a deprecation notice at import; not ours
+from langgraph.graph import END, START, StateGraph  # noqa: E402
+warnings.showwarning=_show
 from pydantic import BaseModel, ValidationError
 
 DB_PATH='data/kap.duckdb'
@@ -99,6 +111,10 @@ def validate(route,question,ctx):
     if intent=='morning' and day is None:
         day=ctx['last_disclosure']
         note=f'Tarih verilmedi; veritabanındaki son bildirim günü kullanıldı ({day}).'
+    elif intent=='morning' and ctx['last_disclosure'] and day>ctx['last_disclosure']:
+        note=(f'{day} günün bildirimleri henüz toplanmadı (toplama her gece 23:43). '
+              f'Son toplanan gün gösteriliyor: {ctx["last_disclosure"]}.')
+        day=ctx['last_disclosure']
     if intent=='why_moved':
         if day is None or day>ctx['last_bar']:
             note=' '.join(filter(None,[note,f'Fiyat verisi {ctx["last_bar"]} tarihinde bitiyor; o gün kullanıldı.']))
@@ -256,6 +272,10 @@ def _self_test():
     assert v['symbol']=='ASELS' and 'şirket adından' in v['note'] and 'Fiyat verisi' in v['note']
     v=validate({'intent':'company','symbol':'ASELS','date':None,'query':None},'ASELS işleri',ctx)
     assert v['note'] is None
+    v=validate({'intent':'morning','symbol':None,'date':'2026-11-02','query':None},'Bugün neye bakmalıyım?',ctx)
+    assert v['day']=='2026-10-30' and 'henüz toplanmadı' in v['note']
+    v=validate({'intent':'morning','symbol':None,'date':'2026-10-28','query':None},'28 Ekim',ctx)
+    assert v['day']=='2026-10-28' and v['note'] is None
 
     calls=[]
     tools={k:(lambda name:(lambda s:calls.append((name,s.get('symbol'),s.get('day'))) or f'answer {name}'))(k) for k in TOOLS}
@@ -268,7 +288,7 @@ def _self_test():
     assert out['answer'].endswith('answer why_moved') and calls[-1]==('why_moved','THYAO','2026-10-29')
     assert graph.invoke({'question':'q3'})['answer']=='answer search'
     assert tr_pct(0.0213)=='+2,1%' and tr_pct(-0.05)=='-5,0%'
-    print('self-test ok: 13 checks')
+    print('self-test ok: 15 checks')
 
 
 def main():
