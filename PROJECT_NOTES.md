@@ -147,7 +147,9 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 
 ## 2026-11-10: Agent dogfooding (Feyza)
 - Three free questions: search and company routed and answered as expected. **Bug:** "Bugün neye bakmalıyım?" on a day not collected yet answered "no new disclosures today", which is wrong (collection runs at 23:43). Fix: `validate` now shows the last collected day with a note ("henüz toplanmadı"); 2 new self-test checks (15). Also hid third-party import notices (LangChain, torch, progress bars) for a clean demo output. Checked with `--quiet`: the today question routes to 2026-11-09.
-- Process slip: the pasted agent output contained Matriks amounts (company tool). Agreed again: only short observations come back to the session.
+- Process slip: the pasted agent output contained Matriks amounts (company tool). Agreed again: only short observations come back to the session. (Happened a second time the same day with five more questions.)
+- Second round (5 questions, all routed right): two topic searches looked on topic; the company name "Aselsan" mapped to ASELS with the note; a why-moved question gave a +9.9% day with z 2.2 (below the threshold 3 for that volatile stock) and "no new-business disclosure in the 4 days before"; an out-of-scope question got the help text.
+- Observation for later (no change now): one topic search returned the same company in all 5 places. A per-company cap in the top 5 (e.g. max 2) would show more companies, but it changes the measured search; it needs its own rule and questions.
 
 ## 2026-11-10: Prod archive refresh done; revenue ratio switched on
 - Run by Feyza at about 13:30 (nightly job paused first: this is the day's only pull; resume next morning). 36 requests (35 months 2024-01..2026-11 + 1 news count). Prod `new_business` rows fetched 1646.
