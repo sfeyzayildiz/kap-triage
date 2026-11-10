@@ -71,10 +71,10 @@ Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also
 ## Limits
 - Scope is only "Yeni İş İlişkisi" disclosures.
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
-- The revenue ratio is coded but switched off until its data-quality gates pass on the refreshed prod data (`docs/revenue_ratio_rule.md`).
+- The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.
 - `MONEY_RE` in the amount checks misses "ABD Doları" (10 of 81 Set B amounts).
 - Test sets are small (100 / 48 / 20 / 18 items), so the bounds are wide. The injection test used one attack wording.
-- Disclosure texts come from the Matriks test environment; new-business amounts from prod.
+- Disclosure texts come from the Matriks test environment (same counts as prod); new-business data from prod.
 - This is a working prototype, not a product.
 
 Development log and all decisions: `PROJECT_NOTES.md`.

@@ -17,7 +17,7 @@ from datetime import date, timedelta
 import duckdb
 
 DB_PATH='data/kap.duckdb'
-USE_REVENUE=False  # docs/revenue_ratio_rule.md: on only after the three gates pass on the refreshed prod table
+USE_REVENUE=True  # gates passed on refreshed prod data 2026-11-10 (docs/revenue_ratio_rule.md, PROJECT_NOTES)
 EXTREME_RATIO=5.0
 RATE_DAYS=10
 MIN_HISTORY=3

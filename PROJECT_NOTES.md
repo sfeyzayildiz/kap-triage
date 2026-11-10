@@ -145,6 +145,15 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Prod archive refresh done; revenue ratio switched on
+- Run by Feyza at about 13:30 (nightly job paused first: this is the day's only pull; resume next morning). 36 requests (35 months 2024-01..2026-11 + 1 news count). Prod `new_business` rows fetched 1646.
+- **Compare (prod vs apitest snapshot):** in both 1584, only prod 8, only apitest 0; amount or currency differs **0**. Balance-sheet period: prod earlier on **981**, same 547, later 56. `shf_ret` differs on 1028, but only **16** of them with the same period. Negative `shf_ret`: apitest 267, prod 265.
+  - Reading: the revenue difference is almost entirely a **period choice**: prod mostly uses an earlier balance sheet than apitest. Plausible explanation (not confirmed by Matriks): prod uses the balance sheet published at disclosure time, apitest a later one. For an analyst at disclosure time, prod's choice is the one without look-ahead. The "shifted revenue" question to Matriks is narrowed to this.
+- **News on prod:** last 30 days prod messageCount 43 = local 43. No count difference; switching news to prod is optional (one environment would be simpler). Not done; separate decision.
+- **Revenue gates** (`revenue_check.py`, rule a275707 written before the refresh): gate 1 semantics 1305/1315 = 99.2% (bar 90%) pass; gate 2 coverage 1085/1288 = 84% (own 897, December fallback 188; bar 60%) pass; gate 3 scale > 5x revenue 6/1011 = 0.6% (bar 2%) pass → **SWITCH_ON**. `USE_REVENUE=True` (this PR). The score itself stays unmeasured (judgment weights).
+- Smoke test (Claude, counts only, the 37 items of the 11 saved morning lists rescored): revenue reason present on 27, it set the size points on 10, 0 extreme, level changed on 9, score up on 11 (size = max, so it can only go up).
+- To do: kap-deploy pull + `deploy_check`, resume the nightly job next morning; demo reports rebuilt after the ~12 Nov price refresh (they will now show the revenue line).
+
 ## 2026-11-10: Agent routing measured: LLM router vs. keyword router
 - Rule `docs/route_rule.md` and the keyword router (`route_eval.rule_route`) committed (7e77058) before Feyza wrote the questions. 20 questions by Feyza (4 per intent, `write_route_questions.py`), run once by Feyza.
 - **Result:** LLM router intent **17/20**, keyword router 9/20 → **decision: KEEP_LLM** (margin 8 ≥ 2; LLM not below 16). Per intent (LLM / rules): morning 4/4 vs 2/4, why_moved 4/4 vs 1/4, search 4/4 vs 4/4, unknown 3/4 vs 0/4, company 2/4 vs 2/4. Ticker on company / why_moved: LLM 4/8, rules 3/8. Median routing time 3.2 s vs 0.0 s.
