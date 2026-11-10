@@ -145,6 +145,13 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Agent routing measured: LLM router vs. keyword router
+- Rule `docs/route_rule.md` and the keyword router (`route_eval.rule_route`) committed (7e77058) before Feyza wrote the questions. 20 questions by Feyza (4 per intent, `write_route_questions.py`), run once by Feyza.
+- **Result:** LLM router intent **17/20**, keyword router 9/20 → **decision: KEEP_LLM** (margin 8 ≥ 2; LLM not below 16). Per intent (LLM / rules): morning 4/4 vs 2/4, why_moved 4/4 vs 1/4, search 4/4 vs 4/4, unknown 3/4 vs 0/4, company 2/4 vs 2/4. Ticker on company / why_moved: LLM 4/8, rules 3/8. Median routing time 3.2 s vs 0.0 s.
+- LLM misses (counts only): 2 company questions became `unknown` with no ticker (by design: the router prompt says not to guess a ticker from a company name, and `validate` then asks for the ticker); 1 unknown question routed to search. **2 wrong tickers** (1 company, 1 why_moved): the model mapped a name to another existing ticker; `validate` shows a "ticker inferred from the name" note, but the answer is about the wrong company. This is the routing risk to state.
+- Next (after the ~12 Nov symbol metadata pull, own rule and new questions): a code name→ticker lookup from Matriks symbol names instead of the model's guess.
+- Answer to "could it be done without an LLM?" for the agent: measured no; keywords miss date-only, why-moved and out-of-scope questions.
+
 ## 2026-11-10: Revenue ratio, rule and code before the prod refresh (switch off)
 - Rule `docs/revenue_ratio_rule.md` (a275707), committed before `prod_refresh.py --run`. Revenue base = own prod `shf_ret` > 0, else the company's latest December-period `shf_ret` > 0 on or before the date. Ratio = our TRY amount / base; ≥ 10% → 3, ≥ 3% → 2, ≥ 1% → 1; size = max(history, revenue) points; ratio > 5 shown as unusual, no new `needs_review`.
 - Gates (`scripts/revenue_check.py`, counts only, Feyza runs after the refresh): semantics on prod ≥ 90% (rt = TRY amount / shf_ret within 5%), coverage ≥ 60% of disclosures, scale (> 5x revenue) ≤ 2%. All pass → `USE_REVENUE=True` in its own PR.
