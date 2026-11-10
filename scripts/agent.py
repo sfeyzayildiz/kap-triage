@@ -347,7 +347,8 @@ def tool_detail(state):
 def tool_help(state):
     return ('Şunları sorabilirsiniz:\n'
             '- "Bugün neye bakmalıyım?" veya "30 Ekim\'deki bildirimler"\n'
-            '- "ASELS son bir yılda hangi işleri aldı?"\n'
+            '- "Aselsan son bir yılda hangi işleri aldı?" (şirket adı ya da kodu)\n'
+            '- "Fonet\'in Aydın sözleşmesinin süresi kaç ay?" (ayrıntı: bildirim kartı)\n'
             '- "THYAO dün neden düştü?"\n'
             '- "Irak\'taki projelerle ilgili bildirimler"\n')
 

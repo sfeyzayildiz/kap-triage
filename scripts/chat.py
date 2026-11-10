@@ -21,8 +21,11 @@ MAX_QUESTION=500
 MAX_HISTORY=50
 URL_RE=re.compile(r'https?://[^\s|<>"]+')
 KAP_RE=re.compile(r'^https://(www\.)?kap\.org\.tr/')
-EXAMPLES=['Bugün neye bakmalıyım?','17 Eylül 2026 bildirimleri','ASELS son bir yılda hangi işleri aldı?',
-          'KONTR 28 Ekim\'de neden yükseldi?','Irak\'taki projelerle ilgili bildirimler']
+EXAMPLES=['Bugün neye bakmalıyım?','17 Eylül 2026 bildirimleri','Aselsan son bir yılda hangi işleri aldı?',
+          'Fonet\'in Aydın sözleşmesinin süresi kaç ay?','KONTR 28 Ekim\'de neden yükseldi?',
+          'Irak\'taki projelerle ilgili bildirimler']
+HINT=('Şirket adı ya da hisse kodu, bir tarih ve sorduğunuz ayrıntıyı (süre, tutar, karşı taraf, ülke) yazabilirsiniz. '
+      'Ayrıntı sorularında cevap, bildirimden çıkarılan alanlarla bir kart olarak gelir.')
 HISTORY=[]
 LOCK=threading.Lock()  # one question at a time: Ollama runs one model call at once anyway
 
@@ -113,6 +116,7 @@ def render_body(history):
                'placeholder="Sorunuzu yazın, ör. Bugün neye bakmalıyım?"></textarea>'
                '<button>Sor</button> <span class="muted">Cevap birkaç saniye sürer; ilk arama modelleri yüklediği için daha uzun.</span>'
                '</form>')
+    out.append(f'<p class="muted">{e(HINT)}</p>')
     if not history:
         out.append('<p class="muted">Örnek sorular:</p>')
     out+= [f'<form class="ex" method="post" action="/chat"><input type="hidden" name="q" value="{e(q)}">'
@@ -148,7 +152,8 @@ def _self_test():
     assert 'Sohbeti temizle' in body and 'Örnek sorular' not in body
     empty=render_body([])
     assert 'Örnek sorular' in empty and empty.count('action="/chat"')==1+len(EXAMPLES)
-    print('self-test ok: 10 checks')
+    assert 'kart olarak' in empty and 'Fonet' in empty
+    print('self-test ok: 11 checks')
 
 
 if __name__=='__main__':
