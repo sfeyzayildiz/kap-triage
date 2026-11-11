@@ -30,10 +30,12 @@ cd ~/projects/kap-deploy && git pull -q && .venv/bin/pip install -q -r requireme
 `-> OK` is required. `-> FIX` lists the package or import to fix. Dry runs of the nightly path always use this Python, not the kap-explore one.
 
 ## One-off pulls (each is that day's only pull; job paused; 18:00-23:30)
+**Code guard (`scripts/pull_guard.py`, since 12 Nov):** every pull script writes `data/last_pull.txt` before its first request, and refuses when a pull already happened that day (the price pull may resume itself; sectors may follow prices). The nightly job sends `KAP collector SKIPPED` instead of pulling. Pausing the job is still the clean way; the guard is the net under it. Override only knowingly: delete the marker. `python scripts/pull_guard.py` shows the last pull.
+
 Pause / resume the nightly job:
 ```
 launchctl bootout gui/$(id -u)/com.feyza.kap-daily                                   # pause
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.feyza.kap-daily.plist    # resume (next morning)
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.feyza.kap-daily.plist    # resume (next morning, ALONE: never inside a block of other commands)
 launchctl list com.feyza.kap-daily                                                    # paused = "Could not find service"
 ```
 

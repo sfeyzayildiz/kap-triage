@@ -23,6 +23,7 @@ import requests
 from dotenv import load_dotenv
 
 from parse_form import parse_form
+from pull_guard import AlreadyPulled, claim
 
 # new_business comes from prod (probe v2, 2026-11-05: same deals, newer revenue periods);
 # news is not tested on prod yet, so it stays on apitest
@@ -135,6 +136,11 @@ def main():
 
     con=duckdb.connect(DB_PATH)
     con.execute(open(SCHEMA_PATH,encoding='utf-8').read())
+    try:
+        claim('collector')   # one pull per day; after the DB lock, right before the first request
+    except AlreadyPulled as e:
+        con.close()
+        sys.exit(str(e))
 
     for s,e in month_ranges(args.start,args.end):
         print(f'{s} -> {e}')

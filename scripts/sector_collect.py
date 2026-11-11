@@ -75,6 +75,11 @@ def pull():
     from dotenv import load_dotenv
     load_dotenv()
     headers={'Authorization':f'jwt {os.environ["KAP_TOKEN"]}'}
+    from pull_guard import AlreadyPulled, claim
+    try:
+        claim('sectors',after=('prices',))   # one pull per day; sectors follow the price pull in the same session
+    except AlreadyPulled as e:
+        sys.exit(str(e))
     os.makedirs(RAW_DIR,exist_ok=True)
     for name,(path,params) in REQUESTS.items():
         time.sleep(MIN_INTERVAL)

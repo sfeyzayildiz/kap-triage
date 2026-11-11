@@ -10,6 +10,8 @@ import duckdb
 import requests
 from dotenv import load_dotenv
 
+from pull_guard import pulled_today
+
 load_dotenv()
 
 DB='data/kap.duckdb'
@@ -123,12 +125,22 @@ def _self_test():
     assert last_error_line(tb)=='requests.exceptions.ReadTimeout: read timed out'
     assert last_error_line('HTTP 401 on v2/news/search: bad token\n')=='HTTP 401 on v2/news/search: bad token'
     assert last_error_line('')=='no stderr' and last_error_line('  ^^^^\n')=='no stderr'
-    print('self-test ok: 5 checks')
+    assert skip_message('prices',date(2026,11,11)).startswith('2026-11-11: already pulled today (prices)')
+    print('self-test ok: 6 checks')
+
+
+def skip_message(kind,day):
+    '''Alert text when a pull already happened today (one pull per day, pull_guard).'''
+    return f'{day}: already pulled today ({kind}); no second pull, no morning list. Next night fills the gap.'
 
 
 def main():
     end=date.today()
     start=end-timedelta(days=LOOKBACK_DAYS)
+    kind=pulled_today()
+    if kind:
+        notify('KAP collector SKIPPED',skip_message(kind,end))
+        return
     wait_for_network()
     before=retry_on_lock(counts)
     retry_on_lock(lambda:run_collector(start,end))

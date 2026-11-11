@@ -112,6 +112,11 @@ def pull(symbols,start,end):
     load_dotenv()
     headers={'Authorization':f'jwt {os.environ["KAP_TOKEN"]}'}
     os.makedirs(RAW_DIR,exist_ok=True)
+    from pull_guard import AlreadyPulled, claim
+    try:
+        claim('prices',resume=True)   # one pull per day; a re-run after a failure resumes the same session
+    except AlreadyPulled as e:
+        raise StopPull(str(e))
     done=done_symbols(read_manifest(),end)
     todo=[s for s in symbols if s not in done]
     print(f'symbols={len(symbols)} already_ok={len(done&set(symbols))} to_pull={len(todo)}')

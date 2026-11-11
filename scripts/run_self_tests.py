@@ -35,6 +35,7 @@ TESTS={
     'morning_job':'--self-test',
     'clusters':'--self-test',
     'sector_collect':'--self-test',
+    'pull_guard':'--self-test',
     'injection_test':'--self-test',
     'injection_checks':'--self-test',
     'matriks_crosscheck':'--self-test',
