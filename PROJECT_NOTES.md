@@ -145,6 +145,16 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-11: Price refresh + sector labels pulled; clustering evaluated (once)
+- Pull (Feyza, ~13:00, job paused, that day's only pull): prices 151 requests (150 symbols + XU100), ok 150, http_error 1 (**EFORC**, again), `daily_bars` 150 symbols, 75,720 rows, 2024-09-02..2026-11-10 (end = yesterday by design), dropped 0, jumps over 30% 5 (likely splits/bonus issues; check before using a demo day near one). Sectors: 2 requests, 758 symbols, 43 sectors; 149 of 150 disclosure symbols found (missing **EFORC**: no price and no sector, so its 12 disclosures go to "Atanmamış"), **27 sectors** among them.
+- **Clustering (rule docs/clustering_rule.md, k = 27 sectors, `--evaluate` once):** company-level ARI vs sector **0.144**; shuffled p99 0.032, max of 1000 0.047 → **decision: clusters reflect sector** (beyond chance). Doc-level ARI 0.214, NMI 0.494, purity 0.626 (1276 docs with a sector); ARI vs company 0.298.
+  - Reading: above chance by a wide margin, but weak in absolute terms. Clusters follow the company (0.298) more than the sector (0.214): companies reuse their own disclosure templates, and 7 of 27 clusters hold a single company. So: desk routing uses Matriks' sector label directly (as the rule planned); clusters are only for weekly themes, with the template effect stated as a limit.
+
+## 2026-11-11: Process slip, two pulls on 10 Nov
+- The nightly job was booted out before the 10 Nov prod refresh (~13:30) but was loaded again the same day, so it also ran at 23:43 (alerts: `KAP collector OK`, 2026-11-07..10 +0 new_business +0 disclosures; morning list "yeni bildirim yok"). That is two pulls on 10 Nov, against Matriks' one-pull-per-day rule. Small (the nightly run is a few requests), but stated.
+- Also explains the DB: no 10 Nov rows because 10 Nov had no disclosure, not because the job failed.
+- From now on: after a one-off pull, check `launchctl list com.feyza.kap-daily` says "Could not find service" until the next morning. 11 Nov: checked before the price + sector pull (paused, kap-deploy updated, deploy_check OK).
+
 ## 2026-11-10: Card quantities, rule and code (review not done yet)
 - Feyza's chat use: the card shows money only, not "20 adet" or "505 MWm". Not via the frozen v3 prompt (Set C PASS) but by code: `scripts/quantities.py: find_quantities` (number + fixed unit list, Turkish suffixes only from a fixed list, max 6). Card line "Metinde geçen miktarlar (kodla bulundu)"; extraction, amount and flags unchanged. Rule `docs/card_quantities_rule.md` (0561bb3, before code).
 - Counts-only corpus check: 158/1288 disclosures with a quantity, 239 items (adet 101, ton 34, MW 27, MWh 22, MWp 19, GWh 10). Amendment 1 (before any review): the 15 review texts are drawn from disclosures with a found quantity, else the check would be mostly empty lists.
