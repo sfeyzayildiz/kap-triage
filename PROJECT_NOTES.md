@@ -145,6 +145,15 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-10: Card quantities, rule and code (review not done yet)
+- Feyza's chat use: the card shows money only, not "20 adet" or "505 MWm". Not via the frozen v3 prompt (Set C PASS) but by code: `scripts/quantities.py: find_quantities` (number + fixed unit list, Turkish suffixes only from a fixed list, max 6). Card line "Metinde geçen miktarlar (kodla bulundu)"; extraction, amount and flags unchanged. Rule `docs/card_quantities_rule.md` (0561bb3, before code).
+- Counts-only corpus check: 158/1288 disclosures with a quantity, 239 items (adet 101, ton 34, MW 27, MWh 22, MWp 19, GWh 10). Amendment 1 (before any review): the 15 review texts are drawn from disclosures with a found quantity, else the check would be mostly empty lists.
+- Decision pending: Feyza's `--review` (15 texts), show if every listed item is right on ≥ 14/15. `SHOW_QUANTITIES` decides. 9 + 37 self-test checks, 38 modules pass.
+- **Result (Feyza's review, 2026-11-11, branch commit 934e923, once):** list correct **10/15** (bar 14); 15/15 with a quantity, 18 items found, 1 missed (units in the list). **Decision: QUANTITIES_OFF**, `SHOW_QUANTITIES=False`; code kept as a record.
+  - Feyza's reading (no case details here): unit matching works (adet, MW, ton, m²), but the wrong lists hold numbers that are not this deal's commitment: estimates, capacities, the overall size of a project. So the finder answers "which numbers have a unit", not "which number is this deal's quantity", which is a meaning question.
+  - Her proposed v2: drop numbers in sentences with "yaklaşık, tahmin, kapasite, hedef". Not built now: it comes from these 15 texts, so it must be measured on 15 new ones with its own rule. Open point for that rule: in energy deals the plant capacity (MW) is often the deal's real size, so "kapasite" cannot be a blanket filter.
+  - Limits: 15 texts, one reviewer.
+
 ## 2026-11-10: Router v2, rule and code (name table and questions not written yet)
 - Feyza's exploration in the chat page (questions not reused): topic search and ticker / out-of-scope routing work; problems: (1) a full company name ends in the help text, (2) a detail question gets the 12-month list, (3) a date in a search is ignored, (4) a counterparty's ticker is taken as the company.
 - No issuer name in our data: the KAP form has only the counterparty name (all 1288 disclosures); the Matriks symbol metadata documents no name field (raw keys to be checked after the 11 Nov pull). So a hand-made name table.

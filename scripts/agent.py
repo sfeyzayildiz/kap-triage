@@ -48,6 +48,7 @@ CARD=True  # docs/detail_card_rule.md: False shows the ticker-filtered search wi
 # docs/detail_card_rule.md result 2026-11-10: REMOVE_SWITCH (routed 5/10, right disclosure 3/10; 0/10 questions
 # wrote a ticker). The switch and the detail tool stay in the code as a record; the graph does not use them.
 DETAIL_SWITCH=True  # docs/router_v2_rule.md: on for the v2 measurement (card part decided by its C bar)
+SHOW_QUANTITIES=False  # docs/card_quantities_rule.md: QUANTITIES_OFF (Feyza review 2026-11-11, 10/15, bar 14)
 V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter in search, detail switch
 
 ROUTER_PROMPT='''You route a Turkish equity analyst's question to exactly one tool. Return JSON only.
@@ -281,8 +282,11 @@ def extract_card(news_id):
             return None
         text=rows[0][4]
         matriks,judge=defence_context([news_id])
+        from quantities import find_quantities
         data=analyze(text,matriks=matriks.get(str(news_id)))
-        _CARDS[news_id]=judge_pass([data],[text],judge)[0]
+        data=judge_pass([data],[text],judge)[0]
+        data['quantities']=find_quantities(text)  # code, not the model; the extraction is unchanged
+        _CARDS[news_id]=data
     return _CARDS[news_id]
 
 
@@ -305,6 +309,8 @@ def card_lines(hit,data):
     if data.get('is_revision'):
         prev=data.get('previous_amount')
         lines.append('Revizyon: evet'+(f', önceki tutar {tr_num(prev,0)}' if prev is not None else ''))
+    if SHOW_QUANTITIES and data.get('quantities'):
+        lines.append('Metinde geçen miktarlar (kodla bulundu): '+'; '.join(data['quantities']))
     rp=data.get('related_party')
     lines.append(f'İlişkili taraf: {"evet" if rp is True else "hayır" if rp is False else "belirtilmemiş"}')
     if data.get('needs_review'):
@@ -435,6 +441,14 @@ def _self_test():
     t=out['text']
     assert seen==['ASELS'] and 'Süre / teslim: 36 ay' in t and 'Tutar: 1.500.000 USD' in t and 'sözleşme' in t
     assert 'Karşı taraf: belirtilmemiş (yurt dışı)' in t and 'KONTROL ET: para birimi belirsiz' in t
+    assert 'miktarlar' not in t                                                   # no quantities -> no line
+    global SHOW_QUANTITIES
+    saved,qd=SHOW_QUANTITIES,{**data,'quantities':['20 adet','505 MWm']}
+    SHOW_QUANTITIES=False
+    assert 'miktarlar' not in card_lines(hit(1),qd)                               # switch off -> no line
+    SHOW_QUANTITIES=True
+    assert 'Metinde geçen miktarlar (kodla bulundu): 20 adet; 505 MWm' in card_lines(hit(1),qd)
+    SHOW_QUANTITIES=saved
     assert 'Başka bildirim olabilir:' in t and 'Bildirim/2' in t and t.index('Bildirim/1')<t.index('Bildirim/2')
     off=detail_answer('q',search=lambda q,sym:[hit(1)],extract=lambda n:1/0,card=False)['text']
     assert 'Süre' not in off and 'Bildirim/1' in off                                    # card off: links only, no extraction
@@ -462,7 +476,7 @@ def _self_test():
     r0={'intent':'search','symbol':None,'date':None,'query':None}
     assert route_question(r0,'28 Ekim savunma bildirimleri',c2,v2=True)['day']=='2026-10-28'   # date read by code
     assert route_question(r0,'28 Ekim savunma bildirimleri',c2,v2=False)['day'] is None
-    print('self-test ok: 35 checks')
+    print('self-test ok: 37 checks')
 
 
 def main():
