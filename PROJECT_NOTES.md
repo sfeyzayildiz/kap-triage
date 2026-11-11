@@ -145,6 +145,24 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - Amendment 1 (before any sector label): theme words must span at least 3 companies, so company names drop out of names. Clustering unchanged; boilerplate clusters are a stated limit. 15 self-test checks.
 - Still needed before the evaluation: a loader for `v4/meta/symbols.gz` into table `symbol_sectors(symbol, sector)`, pulled with the ~12 Nov price refresh.
 
+## 2026-11-11: Cited answers v4 (gemma4:26b): rule, code, dev result (not adopted)
+- Feyza wants the RAG answer part before the demo. Rule `docs/cited_answer_v4_rule.md` (4fd516d, before code and runs): only the model changes, `gemma4:26b` (installed, 32 GB Mac), **thinking off everywhere** (26b with thinking on timed out on extraction in October). v3 prompts, schema and code checks unchanged. Gates recorded per question: `none`, `g1n` (yes/no), `g2` (evidence-first), `g2q` (with the quote check). Dev choice as in v3; **new: held-out only if the chosen variant reaches A >= 0.80 and C >= 6/7 on dev**. Held-out (63 unused questions, 15 negative) once, v3 bars (A 0.80, B 0.90, C 0.80, D 9/10, E 30 s).
+- Code: `answer.py` (model per version, gate settings; 33 checks), `eval_answers.py` (`--version v4`, variants and `CHOSEN` per version, dev gate printed, held-out only for v4; 32 checks). 38 self-tests pass.
+- Speed check (Claude, synthetic source, no data): writer 11.6 s cold (model load), then 1.4 s; gates 0.3-0.6 s warm.
+- **Dev result (run by Feyza 2026-11-11, branch commit 2641d72, 66 questions):** writer statuses ok 58, abstain 5, invalid 3 (all `not_json/length`).
+
+| variant | A shown | B cites gold | C negatives | E median |
+|---|---|---|---|---|
+| none | 51/54 | 51/51 | 5/7 | 4.1 s |
+| g1n | 46/54 | 46/46 | 5/7 | 6.5 s |
+| g2 | 48/54 | 48/48 | 5/7 | 7.1 s |
+| g2q | 48/54 | 48/48 | 5/7 | 7.1 s |
+
+  - Chosen on dev: `none`. **Dev gate FAIL (C 5/7 < 6/7) → v4 not adopted; held-out stays unused** (`CHOSEN['v4']` stays None, so the script refuses the held-out run). The agent keeps the plain list.
+  - Reading (dev numbers, used for iteration five times): the larger model fixes most of what e4b got wrong. Shown answers 51/54 (e4b v1 45/54), every shown answer cites the gold disclosure, the model now abstains on its own (5 abstentions vs 0 for e4b v1), loops 3/66 (e4b 11-12), 4.1 s median. What is left is the same weak point: 2 of 7 unanswerable questions still get an answer, and no gate fixes that (all variants 5/7; gates only remove answerable ones).
+  - Observation, not a decision: C 5/7 equals the v1 bar, so under the v1 rule these dev numbers would have passed A, B, C and E. The v4 rule set 6/7 before the run; it stands.
+  - Next (only with its own rule, after the demo): look at what the 2 answered negatives have in common without tuning on them (e.g. hard negatives where a related sentence exists, as seen in v3), or a product change where an answer is always shown together with its sources and a "check the source" line. The held-out set is still unused.
+
 ## 2026-11-11: Price refresh + sector labels pulled; clustering evaluated (once)
 - Pull (Feyza, ~13:00, job paused, that day's only pull): prices 151 requests (150 symbols + XU100), ok 150, http_error 1 (**EFORC**, again), `daily_bars` 150 symbols, 75,720 rows, 2024-09-02..2026-11-10 (end = yesterday by design), dropped 0, jumps over 30% 5 (likely splits/bonus issues; check before using a demo day near one). Sectors: 2 requests, 758 symbols, 43 sectors; 149 of 150 disclosure symbols found (missing **EFORC**: no price and no sector, so its 12 disclosures go to "Atanmamış"), **27 sectors** among them.
 - **Clustering (rule docs/clustering_rule.md, k = 27 sectors, `--evaluate` once):** company-level ARI vs sector **0.144**; shuffled p99 0.032, max of 1000 0.047 → **decision: clusters reflect sector** (beyond chance). Doc-level ARI 0.214, NMI 0.494, purity 0.626 (1276 docs with a sector); ARI vs company 0.298.
