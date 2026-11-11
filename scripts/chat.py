@@ -22,7 +22,7 @@ MAX_HISTORY=50
 URL_RE=re.compile(r'https?://[^\s|<>"]+')
 KAP_RE=re.compile(r'^https://(www\.)?kap\.org\.tr/')
 EXAMPLES=['Bugün neye bakmalıyım?','17 Eylül 2026 bildirimleri','Aselsan son bir yılda hangi işleri aldı?',
-          'Fonet\'in Aydın sözleşmesinin süresi kaç ay?','KONTR 28 Ekim\'de neden yükseldi?',
+          'Fonet\'in Aydın sözleşmesinin süresi kaç ay?','KONTR 28 Ekim\'de neden yükseldi?','Şa-Ra Enerji\'ye bir bak',
           'Irak\'taki projelerle ilgili bildirimler']
 HINT=('Şirket adı ya da hisse kodu, bir tarih ve sorduğunuz ayrıntıyı (süre, tutar, karşı taraf, ülke) yazabilirsiniz. '
       'Ayrıntı sorularında cevap, bildirimden çıkarılan alanlarla bir kart olarak gelir.')

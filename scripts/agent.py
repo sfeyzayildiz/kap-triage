@@ -29,6 +29,7 @@ import warnings
 import argparse
 import json
 import re
+import time
 from datetime import date, datetime, timedelta
 from typing import Literal, Optional, TypedDict
 
@@ -49,6 +50,9 @@ CARD=True  # docs/detail_card_rule.md: False shows the ticker-filtered search wi
 # wrote a ticker). The switch and the detail tool stay in the code as a record; the graph does not use them.
 DETAIL_SWITCH=True  # docs/router_v2_rule.md: on for the v2 measurement (card part decided by its C bar)
 SHOW_QUANTITIES=False  # docs/card_quantities_rule.md: QUANTITIES_OFF (Feyza review 2026-11-11, 10/15, bar 14)
+BRIEF_RE=re.compile(r'\b(bak|bakalım|bakalim|özet|ozet|özetle|ozetle|değerlendir|degerlendir|genel durum|ne durumda|durumu|brief)\b',re.I)
+BRIEF_SWITCH=True  # docs/brief_rule.md: on for the measurement; decided by Feyza's 10 questions
+BRIEF_HISTORY_LINKS=8
 V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter in search, detail switch
 
 ROUTER_PROMPT='''You route a Turkish equity analyst's question to exactly one tool. Return JSON only.
@@ -80,6 +84,8 @@ class State(TypedDict,total=False):
     note: Optional[str]
     date_filter: bool
     answer: str
+    brief: dict
+    steps: dict
 
 
 def llm_route(question,today):
@@ -160,6 +166,8 @@ def route_question(route,question,ctx,v2=None):
         v['date_filter']=True
         if DETAIL_SWITCH:
             v=detail_switch(v,question)
+        if BRIEF_SWITCH:
+            v=brief_switch(v,question)
     return v
 
 
@@ -167,6 +175,13 @@ def detail_switch(v,question):
     '''Code rule after validate: a detail question about one disclosure goes to the detail tool.'''
     if v['intent'] in ('company','search') and DETAIL_RE.search(question):
         return {**v,'intent':'detail'}
+    return v
+
+
+def brief_switch(v,question):
+    '''Code rule after validate (docs/brief_rule.md): a "look at X" question with a ticker runs the multi-step brief.'''
+    if v['intent']=='company' and v.get('symbol') and BRIEF_RE.search(question):
+        return {**v,'intent':'brief'}
     return v
 
 
@@ -356,14 +371,133 @@ def tool_help(state):
             '- "Aselsan son bir yılda hangi işleri aldı?" (şirket adı ya da kodu)\n'
             '- "Fonet\'in Aydın sözleşmesinin süresi kaç ay?" (ayrıntı: bildirim kartı)\n'
             '- "THYAO dün neden düştü?"\n'
+            '- "Aselsan\'a bir bak" (şirket özeti: son bildirim, fiyat, 12 ay, benzerleri)\n'
             '- "Irak\'taki projelerle ilgili bildirimler"\n')
+
+
+# --- company brief: multi-step flow, docs/brief_rule.md (every value from code; the model writes no sentence) ---
+def _timed(name,fn):
+    def run(state):
+        t=time.time()
+        brief=dict(state.get('brief') or {})
+        try:
+            brief[name]=fn(state,brief)
+        except Exception as e:
+            brief[name]={'error':type(e).__name__}
+        steps=dict(state.get('steps') or {})
+        steps[name]=round(time.time()-t,1)
+        return {'brief':brief,'steps':steps}
+    return run
+
+
+def step_latest(state,brief):
+    from importance import score_result
+    day=state.get('day') or str(date.today())
+    con=duckdb.connect(DB_PATH,read_only=True)
+    try:
+        rows=con.execute('''SELECT news_id,kap_url,symbol,published_at FROM disclosures
+            WHERE symbol=? AND CAST(published_at AS DATE)<=? ORDER BY published_at DESC LIMIT 1''',[state['symbol'],day]).fetchall()
+        if not rows:
+            return None
+        nid,url,sym,pub=rows[0]
+        hit={'news_id':str(nid),'kap_url':url,'symbol':sym,'published_at':str(pub)}
+        data=extract_card(hit['news_id'])
+        imp=score_result(con,{**(data or {}),**hit}) if data else None
+    finally:
+        con.close()
+    return {'hit':hit,'data':data,'importance':imp}
+
+
+def step_history(state,brief):
+    latest=brief.get('latest') or {}
+    end=latest['hit']['published_at'][:10] if latest.get('hit') else (state.get('day') or str(date.today()))
+    day=date.fromisoformat(end)
+    con=duckdb.connect(DB_PATH,read_only=True)
+    try:
+        rows=con.execute('''SELECT d.published_at,d.is_update OR d.is_correction,n.amount,trim(n.cur),d.kap_url
+            FROM disclosures d LEFT JOIN new_business n ON n.url=d.kap_url
+            WHERE d.symbol=? AND CAST(d.published_at AS DATE)<=? AND CAST(d.published_at AS DATE)>?
+            ORDER BY d.published_at DESC''',[state['symbol'],day,day-timedelta(days=365)]).fetchall()
+    finally:
+        con.close()
+    return [{'published_at':str(p)[:10],'update':bool(u),'amount':a,'currency':c,'kap_url':k} for p,u,a,c,k in rows]
+
+
+def step_reaction(state,brief):
+    from morning import reaction
+    latest=brief.get('latest') or {}
+    if not latest.get('hit'):
+        return None
+    con=duckdb.connect(DB_PATH,read_only=True)
+    try:
+        return reaction(con,state['symbol'],datetime.fromisoformat(latest['hit']['published_at']))
+    finally:
+        con.close()
+
+
+def step_similar(state,brief):
+    from rag_index import load_index, similar_earlier
+    latest=brief.get('latest') or {}
+    if not latest.get('hit'):
+        return []
+    return similar_earlier(load_index(),latest['hit']['news_id'],k=3)
+
+
+def compose_brief(symbol,brief):
+    '''Brief text from the four steps; a failed or empty step becomes one line, the rest still shows.'''
+    from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
+    lines=[f'# {symbol}: şirket özeti (4 adım, hepsi kodla)','','## 1. Son bildirim']
+    latest=brief.get('latest')
+    if not latest or latest.get('error') or not latest.get('hit'):
+        lines.append('Son bildirim çıkarılamadı (hata).' if latest and latest.get('error') else 'Son bildirim bulunamadı.')
+    else:
+        lines+=card_lines(latest['hit'],latest['data'])[1:]
+        imp=latest.get('importance')
+        if imp:
+            lines.append(f'Önem: {LEVEL_TR[imp["level"]]} (skor {imp["score"]})'+
+                         ('; '+'; '.join(reason_text(r) for r in imp['reasons']) if imp['reasons'] else ''))
+    lines+=['','## 2. Fiyat tepkisi']
+    rx=brief.get('reaction')
+    lines.append('Hesaplanamadı.' if rx is None or rx.get('error') or 'status' not in rx else reaction_text(rx)+
+                 (f'; olağandışı mı: {"evet" if abs(rx["z0"])>=3 else "hayır"} (eşik z 3)' if rx.get('z0') is not None else ''))
+    lines+=['','## 3. Son 12 ay']
+    hist=brief.get('history')
+    if hist is None or isinstance(hist,dict):
+        lines.append('Hesaplanamadı.')
+    else:
+        n_amt=sum(1 for h in hist if h['amount'])
+        lines.append(f'{len(hist)} bildirim, {sum(h["update"] for h in hist)} güncelleme/düzeltme, {n_amt} Matriks tutar kaydı.')
+        for h in hist[:BRIEF_HISTORY_LINKS]:
+            amt=f'{tr_num(h["amount"],0)} {h["currency"]}' if h['amount'] else 'tutar kaydı yok'
+            lines.append(f'- {h["published_at"]} | {"güncelleme" if h["update"] else "yeni"} | {amt} | {h["kap_url"]}')
+        if len(hist)>BRIEF_HISTORY_LINKS:
+            lines.append(f'- ... {len(hist)-BRIEF_HISTORY_LINKS} bildirim daha')
+    lines+=['','## 4. Benzer eski bildirimler']
+    sim=brief.get('similar')
+    if sim is None or isinstance(sim,dict):
+        lines.append('Hesaplanamadı.')
+    elif not sim:
+        lines.append('Yok.')
+    else:
+        lines+=[f'- {x["published_at"][:10]} (benzerlik {tr_num(x["score"],2)}) {x["kap_url"]}' for x in sim]
+    lines+=['','Tutar ve para birimi ölçüldü (bağımsız 100 bildirimde 1 sessiz hata); diğer alanlar ölçülmedi. '
+            'Önem skoru kurallı bir sıralamadır, tahmin değildir. Karar öncesi KAP metnini okuyun.']
+    return '\n'.join(lines)+'\n'
+
+
+def step_compose(state):
+    return {'answer':(state['note']+'\n\n' if state.get('note') else '')+compose_brief(state['symbol'],state.get('brief') or {})}
+
+
+BRIEF_STEPS=(('latest',step_latest),('history',step_history),('reaction',step_reaction),('similar',step_similar))
 
 
 TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,'search':tool_search,'detail':tool_detail,
        'unknown':tool_help}
 
 
-def build_graph(router,tools,ctx):
+def build_graph(router,tools,ctx,steps=BRIEF_STEPS):
+    '''route -> one tool -> END; intent brief -> the step chain -> compose -> END (docs/brief_rule.md).'''
     def _route(state):
         r=router(state['question'],ctx['today'])
         return route_question(r,state['question'],ctx)
@@ -381,7 +515,17 @@ def build_graph(router,tools,ctx):
     for name in tools:
         g.add_node(name,tool_node(name))
     g.add_edge(START,'route')
-    g.add_conditional_edges('route',lambda s:s['intent'],{name:name for name in tools})
+    targets={name:name for name in tools}
+    if steps:
+        names=[n for n,_ in steps]
+        for n,fn in steps:
+            g.add_node(n,_timed(n,fn))
+        g.add_node('compose',step_compose)
+        for a,b in zip(names,names[1:]+['compose']):
+            g.add_edge(a,b)
+        g.add_edge('compose',END)
+        targets['brief']=names[0]
+    g.add_conditional_edges('route',lambda s:s['intent'],targets)
     for name in tools:
         g.add_edge(name,END)
     return g.compile()
@@ -476,7 +620,39 @@ def _self_test():
     r0={'intent':'search','symbol':None,'date':None,'query':None}
     assert route_question(r0,'28 Ekim savunma bildirimleri',c2,v2=True)['day']=='2026-10-28'   # date read by code
     assert route_question(r0,'28 Ekim savunma bildirimleri',c2,v2=False)['day'] is None
-    print('self-test ok: 37 checks')
+    # brief (docs/brief_rule.md): switch, step chain in the graph, compose from code
+    bq='Aselsan\'a bir bak'
+    assert brief_switch({'intent':'company','symbol':'ASELS'},bq)['intent']=='brief'
+    assert brief_switch({'intent':'company','symbol':None},bq)['intent']=='company'
+    assert brief_switch({'intent':'search','symbol':'ASELS'},bq)['intent']=='search'
+    assert brief_switch({'intent':'company','symbol':'ASELS'},'ASELS son işleri')['intent']=='company'
+    assert route_question({'intent':'company','symbol':'ASELS','date':None,'query':None},'ASELS genel durum',ctx,v2=True)['intent']=='brief'
+    order=[]
+    fake=tuple((n,(lambda name:(lambda st,br:order.append(name) or {'x':name}))(n)) for n,_ in BRIEF_STEPS)
+    g2=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=fake)
+    out=g2.invoke({'question':bq})
+    assert order==['latest','history','reaction','similar'] and set(out['steps'])==set(order)
+    assert '# ASELS: şirket özeti' in out['answer'] and '## 4.' in out['answer']   # a validate note may precede it
+    def boom(st,br):
+        raise ValueError
+    g3=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=(('latest',boom),)+fake[1:])
+    o3=g3.invoke({'question':bq})
+    assert o3['brief']['latest']=={'error':'ValueError'} and 'çıkarılamadı' in o3['answer'] and '## 3.' in o3['answer']
+    assert 'Hesaplanamadı.' in o3['answer']                                    # odd step output -> one line, no crash
+    hitb={'news_id':'9','kap_url':'https://www.kap.org.tr/tr/Bildirim/9','symbol':'ASELS','published_at':'2026-10-01 10:00:00'}
+    br={'latest':{'hit':hitb,'data':{'subject':'radar','event_type':'order','counterparty_origin':'foreign','duration':'2 yıl',
+                  'amount':1500000.0,'currency':'USD','related_party':False,'needs_review':False,'needs_review_reasons':[]},
+                  'importance':{'level':'high','score':5,'reasons':[{'code':'foreign_currency','currency':'USD'}]}},
+        'reaction':{'status':'ok','t0':'2026-10-02','ar0':0.041,'z0':1.2},
+        'history':[{'published_at':'2026-10-01','update':False,'amount':1500000.0,'currency':'USD','kap_url':'u1'}]+
+                  [{'published_at':'2026-0%d-01'%i,'update':True,'amount':None,'currency':None,'kap_url':'u'} for i in range(1,10)],
+        'similar':[{'published_at':'2025-05-05 09:00:00','score':0.91,'kap_url':'u2'}]}
+    t=compose_brief('ASELS',br)
+    assert 'Tutar: 1.500.000 USD' in t and 'Önem: yüksek (skor 5); döviz (USD)' in t and 'tepki günü 2026-10-02' in t
+    assert 'olağandışı mı: hayır' in t and '10 bildirim, 9 güncelleme/düzeltme, 1 Matriks tutar kaydı' in t
+    assert '... 2 bildirim daha' in t and '(benzerlik 0,91) u2' in t and t.count('\n- ')==BRIEF_HISTORY_LINKS+2   # 8 history + '... daha' + 1 similar
+    assert 'Yok.' in compose_brief('X',{'latest':None,'history':[],'reaction':None,'similar':[]})
+    print('self-test ok: 55 checks')
 
 
 def main():

@@ -22,7 +22,7 @@ For each day's disclosures:
 7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
 8. **Desk panel.** A local web page with the list per sector desk and a confirm / reject step for flagged items; decisions are logged and counted per flag type.
 
-An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?" and "Disclosures about projects in Iraq". The LLM only reads the question. Every number and link in the answer comes from the database through code.
+An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq" and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code.
 
 ## Measured reliability
 | what | result | notes |
