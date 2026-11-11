@@ -43,6 +43,8 @@ TESTS={
     'chat':'--self-test',
     'answer':'--self-test',
     'eval_answers':'--self-test',
+    'regex_baseline':'--self-test',
+    'build_chunks':'--self-test',
     'write_negatives':'--self-test',
     'revenue_check':'--self-test',
     'deploy_check':'--self-test',

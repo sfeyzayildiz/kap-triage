@@ -22,6 +22,8 @@ import time
 import numpy as np
 
 DOCS_PATH='data/rag_docs.jsonl'
+DOCS={'docs':{'path':DOCS_PATH,'tag':''},'chunks':{'path':'data/rag_docs_chunks.jsonl','tag':'_chunks'}}  # docs/chunking_rule.md
+RERANK_KS=(10,20,50)  # docs/rerank_depth_rule.md: ablation values; 20 is the live system
 # question sets: path, expected total, expected answerable, output suffix.
 # 'dev' picked the model (Set B questions); 'c' is the held-out set, measured once (docs/set_c_plan.md).
 QUESTION_SETS={
@@ -95,9 +97,9 @@ def unit(matrix):
     return matrix/norms
 
 
-def doc_vectors(name,docs):
+def doc_vectors(name,docs,tag=''):
     '''Embed all docs once; the cache is reused only for identical texts.'''
-    path=f'data/emb_{slug(name)}.npz'
+    path=f'data/emb_{slug(name)}{tag}.npz'
     key=hashlib.sha1('\n'.join(d['news_id']+d['text'] for d in docs).encode('utf-8')).hexdigest()
     if os.path.exists(path):
         cached=np.load(path)
@@ -124,6 +126,18 @@ def rank_docs(vectors,query_vector):
     scores=vectors@query_vector
     order=np.argsort(-scores,kind='stable')
     return order,scores
+
+
+def collapse(order,ids):
+    '''Chunk ranking -> document ranking: keep the first (best) chunk of every news_id, in rank order.'''
+    seen=set()
+    out=[]
+    for i in order:
+        nid=ids[i]
+        if nid not in seen:
+            seen.add(nid)
+            out.append(i)
+    return np.asarray(out)
 
 
 # --- lexical side (rules in docs/bm25_hybrid_rule.md; parameters fixed there) ---
@@ -205,9 +219,10 @@ def summarize(rows):
     answerable=[r for r in rows if r['answerable']]
     negatives=[r['top1_sim'] for r in rows if not r['answerable']]
     hit1=sum(1 for r in answerable if r['rank']==1)
+    hit3=sum(1 for r in answerable if r['rank'] is not None and r['rank']<=3)
     hit5=sum(1 for r in answerable if r['rank'] is not None and r['rank']<=5)
     out={
-        'answerable':len(answerable),'hit1':hit1,'hit5':hit5,
+        'answerable':len(answerable),'hit1':hit1,'hit3':hit3,'hit5':hit5,
         'recall1':hit1/len(answerable),'recall5':hit5/len(answerable),
         'wrong_same_company':sum(1 for r in answerable if r['rank']!=1 and r['same_company_top1']),
         'negatives':len(negatives),
@@ -248,7 +263,7 @@ def _self_test():
         {'answerable':False,'rank':None,'same_company_top1':False,'top1_sim':0.6},
     ]
     out=summarize(rows)
-    assert (out['hit1'],out['hit5'],out['wrong_same_company'])==(1,2,1)
+    assert (out['hit1'],out['hit3'],out['hit5'],out['wrong_same_company'])==(1,2,2,1)
     assert out['neg_min']==0.4 and out['neg_max']==0.6
     # dev output path unchanged (old results stay valid); held-out set writes its own file
     assert QUESTION_SETS['dev']['suffix']=='' and QUESTION_SETS['c']['suffix']=='_set_c'
@@ -282,7 +297,11 @@ def _self_test():
     assert list(rerank_order([5,6,7,8,9],[0.1,0.9,0.5],k=3))==[6,7,5,8,9]
     assert list(rerank_order([5,6,7,8],[0.5,0.5],k=2))==[5,6,7,8]
     assert list(rerank_order([1,2],[0.2,0.3],k=20))==[2,1]
-    print('self-test ok: 28 checks')
+    # chunk ranking -> doc ranking: best chunk wins, duplicates dropped, order kept
+    assert list(collapse(np.array([3,0,2,1,4]),['a','b','a','c','b']))==[3,0,1]
+    assert list(collapse(np.array([0,1]),['x','y']))==[0,1]
+    assert RERANK_KS==(10,20,50) and RERANK_K in RERANK_KS and DOCS['chunks']['tag']=='_chunks' and DOCS['docs']['path']==DOCS_PATH
+    print('self-test ok: 31 checks')
 
 
 def timing(name,docs,count):
@@ -303,6 +322,8 @@ def main():
     parser.add_argument('--set',choices=sorted(QUESTION_SETS),default='dev')
     parser.add_argument('--method',choices=['embed','bm25','hybrid','rerank'],default='embed',
                         help='embed = current system; bm25 / hybrid per docs/bm25_hybrid_rule.md; rerank per docs/rerank_rule.md')
+    parser.add_argument('--rerank-k',type=int,choices=RERANK_KS,default=RERANK_K,help='docs/rerank_depth_rule.md: dev only unless 20')
+    parser.add_argument('--docs',choices=sorted(DOCS),default='docs',help='chunks = docs/chunking_rule.md ablation, dev only')
     args=parser.parse_args()
     if args.self_test:
         _self_test()
@@ -310,7 +331,8 @@ def main():
     if not args.model:
         parser.error('--model is required')
 
-    docs=load_jsonl(DOCS_PATH)
+    docs=load_jsonl(DOCS[args.docs]['path'])
+    chunked=args.docs=='chunks'
     if args.timing:
         timing(args.model,docs,args.timing)
         return
@@ -327,15 +349,25 @@ def main():
 
     if args.set=='c' and args.method!='embed':
         raise SystemExit('Set C questions were measured once with embed; they are not reused (docs/bm25_hybrid_rule.md)')
+    if args.set!='dev' and (args.rerank_k!=RERANK_K or chunked):
+        raise SystemExit('rerank depth and chunking ablations run on dev only (their rules)')
+    if args.method!='rerank' and args.rerank_k!=RERANK_K:
+        parser.error('--rerank-k needs --method rerank')
+    if chunked and args.method not in ('embed','rerank'):
+        parser.error('--docs chunks runs with embed or rerank only')
+    rk=args.rerank_k
     method_tag='' if args.method=='embed' else f'_{args.method}'
-    out_path=f'data/retrieval_{slug(args.model)}{method_tag}{qset["suffix"]}.jsonl'
+    if args.method=='rerank' and rk!=RERANK_K:
+        method_tag+=f'{rk}'
+    out_path=f'data/retrieval_{slug(args.model)}{method_tag}{DOCS[args.docs]["tag"]}{qset["suffix"]}.jsonl'
     if args.set in ONCE_SETS and os.path.exists(out_path):
         raise SystemExit(f'{out_path} exists: the held-out set is measured once')
 
     commit=subprocess.run(['git','rev-parse','--short','HEAD'],capture_output=True,text=True).stdout.strip()
     start=time.time()
     truncated=count_truncated(args.model,docs)
-    vectors=doc_vectors(args.model,docs)
+    vectors=doc_vectors(args.model,docs,DOCS[args.docs]['tag'])
+    doc_ids=[d['news_id'] for d in docs]
     query_vectors=embed(args.model,[MODELS[args.model]['query'].format(q=q['question']) for q in questions])
     bm25=BM25([tokenize(d['text']) for d in docs]) if args.method in ('bm25','hybrid') else None
     ce=cross_encoder() if args.method=='rerank' else None
@@ -344,12 +376,14 @@ def main():
     rows=[]
     for q,query_vector in zip(questions,query_vectors):
         order,scores=rank_docs(vectors,query_vector)
-        embed_top20=[docs[i]['news_id'] for i in order[:RERANK_K]]
+        if chunked:
+            order=collapse(order,doc_ids)
+        embed_top20=[docs[i]['news_id'] for i in order[:rk]]
         if ce is not None:
             t0=time.time()
-            ce_scores=ce.predict([(q['question'],docs[i]['text']) for i in order[:RERANK_K]],show_progress_bar=False)
+            ce_scores=ce.predict([(q['question'],docs[i]['text']) for i in order[:rk]],show_progress_bar=False)
             rerank_seconds+=time.time()-t0
-            order=rerank_order(order,ce_scores)
+            order=rerank_order(order,ce_scores,k=rk)
         if bm25 is not None:
             lex_order=np.argsort(-bm25.scores(tokenize(q['question'])),kind='stable')
             order=lex_order if args.method=='bm25' else rrf_order(order,lex_order)
@@ -360,15 +394,16 @@ def main():
         # top1_sim stays the embedding cosine of whichever doc is ranked first
         rows.append({'news_id':gold,'answerable':q['answerable'],'rank':rank,'same_company_top1':bool(same),
                      'top1_sim':float(scores[order[0]]),'top_ids':top,'model':args.model,
-                     'method':args.method,'kind':q.get('kind'),'git_commit':commit,
+                     'method':args.method,'kind':q.get('kind'),'git_commit':commit,'rerank_k':rk,'docs':args.docs,
                      'embed_in_top20':q['answerable'] and gold in embed_top20})
     with open(out_path,'w',encoding='utf-8') as f:
         for r in rows:
             f.write(json.dumps(r)+'\n')
 
     s=summarize(rows)
-    print(f'set={args.set} method={args.method} model={args.model} commit={commit} docs={len(docs)} questions={len(questions)} seconds={time.time()-start:.0f}')
+    print(f'set={args.set} method={args.method} rerank_k={rk} docs={args.docs} model={args.model} commit={commit} units={len(docs)} questions={len(questions)} seconds={time.time()-start:.0f}')
     print(f'recall@1 {s["hit1"]}/{s["answerable"]} = {s["recall1"]:.3f}')
+    print(f'recall@3 {s["hit3"]}/{s["answerable"]} = {s["hit3"]/s["answerable"]:.3f}')
     print(f'recall@5 {s["hit5"]}/{s["answerable"]} = {s["recall5"]:.3f}')
     print(f'wrong_same_company {s["wrong_same_company"]}')
     print(f'truncated_docs {truncated}')
@@ -378,7 +413,7 @@ def main():
         print('negatives 0')
     for kind,(n,h1,h5) in sorted(by_kind(rows).items()):
         print(f'kind={kind} n={n} recall@1 {h1}/{n} recall@5 {h5}/{n}')
-    print(f'embed recall@{RERANK_K} (rerank ceiling) {sum(r["embed_in_top20"] for r in rows)}/{s["answerable"]}')
+    print(f'embed recall@{rk} (rerank ceiling) {sum(r["embed_in_top20"] for r in rows)}/{s["answerable"]}')
     if ce is not None:
         print(f'rerank seconds per question {rerank_seconds/len(questions):.2f}')
 

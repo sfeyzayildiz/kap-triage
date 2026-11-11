@@ -13,15 +13,19 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 | e5-large, embedding only | Set D, 20 | 15/20 | 19/20 | 19/20 |
 | BM25 only / hybrid (RRF) | Set D, 20 | 16 / 15 | 17 / 17 | 20 / 20 |
 | bge-m3 / qwen3-embedding-0.6b (embedding only) | dev, 59 | 40 / 39 | 51 / 46 | 53 / 50 |
+| rerank depth K=10 / 20 / 50 (ablation, same session) | dev, 59 | 43 / 43 / 43 | 52 / 52 / 52 | 54 / 55 / 55 (0.31 / 0.72 / 1.79 s) |
+| course-style chunks 420/80, embedding only / + rerank | dev, 59 | 39 / 42 | 48 / 51 | 53 / 53 |
 
 - Hit@3 was computed afterwards from the stored ranks of these runs (no new run); the decisions used @1 and @5.
 - Rerank on Set C was not run (Set C was measured once, before the rerank existed).
 - Typical miss: right company, wrong disclosure.
+- Why K=20: K does not change @1/@3; 10→20 gains 1 at @5; 50 only costs time. Why no chunking: chunks lose 1-4 at rank 1 and the same-company confusion grows (16→20); texts are short (median 52 words).
 - Pipeline: embedding top 20 → cross-encoder rerank → top 5; +0.7 s per question.
 
 ## Extraction (the core)
 - Held-out Set C (100): **1 silent error** (wrong amount/currency, not flagged), 95% upper bound **4.7%**; 11/100 sent to a human. PASS.
 - History: dev 0/100 → held-out Set B 4/100 (FAIL) → error analysis → code checks → Set C 1/100.
+- **Without an LLM (same Set C, same gold):** best regex 25/100 silent errors (63/100 found an amount at all); regex + all code checks still 23/100 silent. The LLM system: 1/100. Earlier small number: regex 12/15 vs LLM 15/15 (dev).
 - Ops terms: escape rate 1%, straight-through rate 89%.
 
 ## Agent routing
