@@ -60,6 +60,37 @@ def load_names(path=NAMES_PATH):
         return parse_names(f.read())[0]
 
 
+_DISPLAY={}  # symbol -> short display name, loaded once per process
+
+
+def display_names(path=NAMES_PATH):
+    '''symbol -> the first (short) name of each row of the frozen name table.'''
+    out={}
+    if not os.path.exists(path):
+        return out
+    with open(path,encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('#') or ':' not in line:
+                continue
+            sym,_,rest=line.partition(':')
+            names=[n.strip() for n in rest.split(';') if n.strip()]
+            if names:
+                out[sym.strip().upper()]=names[0]
+    return out
+
+
+def company_label(sym,short=False):
+    '''"Aselsan (ASELS)" for headings, "Aselsan" for lists; the ticker itself when no name is known.'''
+    if not sym:
+        return sym
+    if not _DISPLAY:
+        _DISPLAY.update(display_names() or {'':''})
+    name=_DISPLAY.get(sym)
+    if not name:
+        return sym
+    return name if short else f'{name} ({sym})'
+
+
 def file_sha1(path=NAMES_PATH):
     with open(path,'rb') as f:
         return hashlib.sha1(f.read()).hexdigest()
@@ -139,7 +170,14 @@ def _self_test():
     assert mentions('enerji sözleşmeleri',syms,names)==[]                           # a later word alone does not match
     assert mentions('Fonetik bir soru',syms,[(('fon',),'FONET')])==[]               # short name: no suffix match
     assert fold('İSTANBUL')=='istanbul' and fold('IĞDIR')=='igdir'
-    print('self-test ok: 13 checks')
+    saved=dict(_DISPLAY)
+    _DISPLAY.clear()
+    _DISPLAY.update({'ASELS':'Aselsan'})
+    assert company_label('ASELS')=='Aselsan (ASELS)' and company_label('ASELS',short=True)=='Aselsan'
+    assert company_label('ZZZZ')=='ZZZZ' and company_label(None) is None
+    _DISPLAY.clear()
+    _DISPLAY.update(saved)
+    print('self-test ok: 15 checks')
 
 
 def main():

@@ -27,17 +27,18 @@ EXAMPLES=['Bugün neye bakmalıyım?','17 Eylül 2026 bildirimleri','Aselsan son
 HINT=('Şirket adı ya da hisse kodu, bir tarih ve sorduğunuz ayrıntıyı (süre, tutar, karşı taraf, ülke) yazabilirsiniz. '
       'Ayrıntı sorularında cevap, bildirimden çıkarılan alanlarla bir kart olarak gelir.')
 HISTORY=[]
+INTENT_TR={'morning':'günün listesi','company':'son 12 ay','brief':'şirket özeti','why_moved':'fiyat hareketi',
+           'search':'konu araması','detail':'bildirim kartı','unknown':'yardım','out_of_scope':'kapsam dışı'}
 LOCK=threading.Lock()  # one question at a time: Ollama runs one model call at once anyway
 
 e=lambda x:html.escape('' if x is None else str(x))
 
-CSS='''nav{margin-bottom:12px}nav a{margin-right:14px}
-.msg{border-radius:10px;padding:10px 14px;margin:10px 0;max-width:85%}
-.q{background:#e3f0ff;margin-left:auto}.a{background:#fff;border:1px solid #ddd}
-.ah{font-weight:600;margin-bottom:4px}.a div{margin:2px 0}.err{border-left:5px solid #c62828}
+CSS='''.msg{border-radius:10px;padding:10px 14px;margin:10px 0;max-width:85%}
+.q{background:var(--q);margin-left:auto}.a{background:var(--surface);border:1px solid var(--line)}
+.ah{font-weight:600;margin-bottom:4px}.a div{margin:2px 0}.err{border-left:4px solid var(--red)}
 .ask textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px}
-.ex{display:inline-block;margin:4px 6px 4px 0}.ex button{border-radius:14px;padding:4px 10px}
-@media (prefers-color-scheme: dark){.q{background:#1e3a5f}.a{background:#1f1f1f;border-color:#333}}'''
+.ex{display:inline-block;margin:4px 6px 4px 0}.ex button{border-radius:14px;padding:4px 12px;background:transparent;
+color:var(--accent);border:1px solid var(--accent)}'''
 
 
 def linkify(line):
@@ -100,18 +101,22 @@ def ask(question,runner=None,now=None,history=None):
     return rec
 
 
-NAV='<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a><a href="/themes">Haftalık temalar</a></nav>'
+LINKS=(('/','Sohbet'),('/form','Rehberli sorgu'),('/days','Sabah listeleri'),('/themes','Haftalık temalar'))
+HEADER=('<header class="top"><div class="topin"><div class="brand"><span>KAP</span>Bildirim Önceliklendirme Asistanı'
+        '<small>yeni iş ilişkisi · yerel modeller</small></div><nav>'+''.join(f'<a href="{u}">{t}</a>' for u,t in LINKS)+
+        '</nav></div></header>')
+NAV=''  # the navigation lives in HEADER (panel.page); kept so callers stay unchanged
 
 
 def render_body(history):
     out=[NAV,
-         '<h1>KAP Bildirim Önceliklendirme Asistanı</h1>',
-         '<p class="muted">Yeni iş ilişkisi bildirimleri hakkında sorun. Rakamlar ve linkler veritabanından gelir, '
-         'model yalnızca soruyu yönlendirir. Her şey bu bilgisayarda çalışır.</p>']
+         '<h1>Asistana sorun</h1>',
+         '<p class="muted">Yeni iş ilişkisi bildirimleri hakkında sorun. Rakamlar ve KAP linkleri doğrudan bildirim '
+         'verisinden gelir; veriler bu bilgisayardan çıkmaz.</p>']
     for i,r in enumerate(history):
         anchor=' id="son"' if i==len(history)-1 else ''
         out.append(f'<div class="msg q"{anchor}>{e(r["q"])}</div>')
-        meta=f'{e(r["at"])} · {r["seconds"]:.1f} sn'.replace('.',',')+(f' · araç: {e(r["intent"])}' if r['intent'] else '')
+        meta=f'{e(r["at"])} · {r["seconds"]:.1f} sn'.replace('.',',')+(f' · {e(INTENT_TR.get(r["intent"],r["intent"]))}' if r['intent'] else '')
         out.append(f'<div class="msg a{" err" if r["error"] else ""}">{render_answer(r["a"])}'
                    f'<div class="muted">{meta}</div></div>')
     out.append('<form class="ask" method="post" action="/chat">'
@@ -151,7 +156,7 @@ def _self_test():
         ask(f'q{i}',runner=lambda q:{'answer':'x','intent':'unknown'},now=datetime(2026,11,10,12),history=h)
     assert len(h)==MAX_HISTORY and h[-1]['q']==f'q{MAX_HISTORY+4}'
     body=render_body([{'q':'<script>x</script>','a':'cevap','at':'12:00','seconds':1.25,'intent':'search','error':False}])
-    assert '<script>' not in body and '&lt;script&gt;' in body and 'id="son"' in body and 'araç: search' in body
+    assert '<script>' not in body and '&lt;script&gt;' in body and 'id="son"' in body and '· konu araması' in body
     assert 'Sohbeti temizle' in body and 'Örnek sorular' not in body
     empty=render_body([])
     assert 'Örnek sorular' in empty and empty.count('action="/chat"')==1+len(EXAMPLES)

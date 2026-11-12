@@ -25,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import chat
+import form
 import themes
 
 DB_PATH='data/kap.duckdb'
@@ -54,6 +55,18 @@ def load_sectors(path=DB_PATH):
         con.close()
 
 
+def load_symbols(path=DB_PATH):
+    '''Disclosure symbols for the form's drop-down (one short read); empty without a DB.'''
+    import duckdb
+    if not os.path.exists(path):
+        return set()
+    con=duckdb.connect(path,read_only=True)
+    try:
+        return {r[0] for r in con.execute('SELECT DISTINCT symbol FROM disclosures WHERE symbol IS NOT NULL').fetchall()}
+    finally:
+        con.close()
+
+
 def desk_of(symbol,sectors,desks):
     sector=sectors.get(symbol)
     if not sector:
@@ -72,8 +85,9 @@ def by_desk(items,sectors,desks):
     return dict(sorted(groups.items(),key=lambda kv:(-sum(look(i) for i in kv[1]),kv[0]==UNASSIGNED,kv[0])))
 
 
-def load_reviews(path=LOG_PATH):
-    '''news_id -> latest decision record.'''
+def load_reviews(path=None):
+    '''news_id -> latest decision record (path None = the current LOG_PATH).'''
+    path=LOG_PATH if path is None else path
     out={}
     if path and os.path.exists(path):
         with open(path,encoding='utf-8') as f:
@@ -84,11 +98,15 @@ def load_reviews(path=LOG_PATH):
     return out
 
 
-def record_review(news_id,day,decision,note,path=LOG_PATH,now=None):
+def record_review(news_id,day,decision,note,path=None,now=None,reasons=None):
+    '''reasons: the flag codes shown at review time, so later rebuilds of the day cannot change the stats.'''
     if decision not in DECISIONS:
         raise ValueError('decision')
+    path=LOG_PATH if path is None else path
     r={'news_id':str(news_id),'day':day,'decision':decision,'note':(note or '')[:500],
        'at':(now or datetime.now()).isoformat(timespec='seconds')}
+    if reasons is not None:
+        r['reasons']=list(reasons)
     with open(path,'a',encoding='utf-8') as f:
         f.write(json.dumps(r,ensure_ascii=False)+'\n')
     return r
@@ -104,28 +122,60 @@ def kap_link(url):
         else f'<span class="muted">KAP linki geçersiz: {e(url)}</span>'
 
 
-CSS='''body{font-family:system-ui,sans-serif;margin:0 auto;max-width:960px;padding:16px;color:#1a1a1a;background:#fafafa}
-h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:28px;border-bottom:1px solid #ccc;padding-bottom:4px}
-.card{background:#fff;border:1px solid #ddd;border-radius:6px;padding:10px 14px;margin:10px 0}
-.flag{border-left:5px solid #c62828}.high{border-left:5px solid #ef6c00}
-.muted{color:#666;font-size:.9rem}.review{background:#fff4f4;padding:8px;border-radius:4px;margin-top:6px}
-.done{background:#eef7ee}button{margin-right:6px}input[type=text]{width:60%}
-@media (prefers-color-scheme: dark){body{background:#151515;color:#e6e6e6}.card{background:#1f1f1f;border-color:#333}
-.review{background:#3a1f1f}.done{background:#1f331f}.muted{color:#aaa}a{color:#8ab4f8}}'''+chat.CSS
+CSS=''':root{--bg:#f3f5f8;--surface:#fff;--ink:#14213d;--muted:#5b6474;--line:#dde2ea;--brand:#0b1f3a;
+--accent:#0f766e;--amber:#b45309;--red:#b91c1c;--green:#15803d;--tint-red:#fdf1f1;--tint-green:#eef8f1;--q:#e8f0fb}
+@media (prefers-color-scheme: dark){:root{--bg:#0c121c;--surface:#141d2b;--ink:#e6ebf2;--muted:#9aa5b5;--line:#26324a;
+--brand:#08111f;--accent:#2dd4bf;--amber:#f59e0b;--red:#f87171;--green:#4ade80;--tint-red:#2a1719;--tint-green:#13261b;--q:#1a2a42}}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--bg);
+color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.45}
+header.top{background:var(--brand);border-bottom:3px solid var(--accent);padding:10px 16px}
+.topin{max-width:980px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 22px}
+.brand{color:#fff;font-weight:700;letter-spacing:.02em}.brand span{color:var(--accent);margin-right:6px}
+.brand small{color:#9fb0c6;font-weight:400;margin-left:8px}
+nav a{color:#d3dce8;text-decoration:none;margin-right:16px;font-size:.95rem}nav a:hover{color:#fff;text-decoration:underline}
+main{max-width:980px;margin:0 auto;padding:18px 16px 40px}
+h1{font-size:1.35rem;margin:6px 0 10px}
+h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:28px 0 8px;
+padding-left:8px;border-left:3px solid var(--accent)}
+a{color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0}
+.flag{border-left:4px solid var(--red)}.high{border-left:4px solid var(--amber)}
+.badge{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:10px;border:1px solid var(--line);
+color:var(--muted);margin-left:6px}.badge.high{color:var(--amber);border-color:var(--amber)}
+.badge.flag{color:var(--red);border-color:var(--red)}a.badge{text-decoration:none}
+.muted{color:var(--muted);font-size:.9rem}
+.review{background:var(--tint-red);padding:8px;border-radius:6px;margin-top:6px}.done{background:var(--tint-green)}
+button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;margin-right:6px;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+input[type=text]{width:60%}
+.choices{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:12px}
+.choice{display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;color:var(--ink);text-decoration:none}
+.choice:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.choice .ic{font-size:1.4rem;color:var(--accent)}
+.choice.free{border-style:dashed}
+form.guided{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:var(--surface);border:1px solid var(--line);
+border-radius:8px;padding:14px}
+form.guided label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px}
+form.guided .wide{grid-column:1/-1}form.guided input[type=text]{width:100%}form.guided button{justify-self:start}
+@media (max-width:640px){form.guided{grid-template-columns:1fr}input[type=text]{width:100%}}'''+chat.CSS
 
 
 def page(title,body):
     return (f'<!doctype html><html lang="tr"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title>'
-            f'<style>{CSS}</style></head><body>{body}</body></html>')
+            f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{body}</main></body></html>')
 
 
 def render_item(item,day,review):
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
     imp=item['importance']
     cls='flag' if imp['needs_review'] else ('high' if imp['level']=='high' else '')
-    out=[f'<div class="card {cls}"><b>{e(item["symbol"])}</b> - {e(LEVEL_TR.get(imp["level"],imp["level"]))} '
-         f'(skor {e(imp["score"])}) · {kap_link(item.get("kap_url"))}']
+    badges=f'<span class="badge {"high" if imp["level"]=="high" else ""}">{e(LEVEL_TR.get(imp["level"],imp["level"]))} · skor {e(imp["score"])}</span>'
+    if imp['needs_review']:
+        badges+=(f'<a class="badge flag" href="#r{e(item["news_id"])}">kontrol et ↓</a>' if not review
+                 else '<span class="badge flag">kontrol edildi</span>')
+    from names import company_label
+    out=[f'<div class="card {cls}"><b>{e(company_label(item["symbol"],short=True))}</b> '
+         f'<span class="muted">{e(item["symbol"])}</span>{badges} · {kap_link(item.get("kap_url"))}']
     if item.get('amount') is not None:
         out.append(f'<div>Tutar: {e(tr_num(item["amount"],0))} {e(item.get("currency"))}</div>')
     reasons=[reason_text(r) for r in imp.get('reasons',[])]
@@ -139,7 +189,7 @@ def render_item(item,day,review):
             out.append(f'<div class="review done">Kontrol edildi: {e(DECISIONS[review["decision"]])} '
                        f'({e(review["at"])}){" - "+e(review["note"]) if review.get("note") else ""}</div>')
         else:
-            out.append(f'<div class="review"><b>KONTROL ET:</b> {e(codes)}<br>'
+            out.append(f'<div class="review" id="r{e(item["news_id"])}"><b>KONTROL ET:</b> {e(codes)}<br>'
                        f'<form method="post" action="/review">'
                        f'<input type="hidden" name="news_id" value="{e(item["news_id"])}">'
                        f'<input type="hidden" name="day" value="{e(day)}">'
@@ -172,10 +222,9 @@ def render_index(days):
                 f'<h1>Sabah listeleri</h1><ul>{links}</ul>')
 
 
-THEME_LIMIT=('Temalar metin benzerliğinden kodla bulundu (turkish-e5-large, k-means, k=27, LLM yok). '
-             'Sektörü şanstan iyi ama zayıf yansıtıyor (şirket düzeyi ARI 0,144; rastgele p99 0,032) ve '
-             'şirketin kendi bildirim şablonunu sektörden daha çok izliyor (ARI 0,298). Masa yönlendirmesi '
-             'Matriks sektör etiketiyle yapılır; temalar yalnızca haftaya genel bakış içindir.')
+THEME_LIMIT=('Temalar bildirim metinlerinin benzerliğinden otomatik çıkarılır ve sektörü yalnızca kısmen yansıtır; '
+             'benzer bildirim şablonu kullanan şirketler aynı temada toplanabilir. Masa ataması Matriks sektörüne '
+             'göredir; temalar haftaya genel bakış içindir.')
 
 
 def fmt1(x):
@@ -245,6 +294,12 @@ class Handler(BaseHTTPRequestHandler):
             if items is None:
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews()))
+        if path=='/form':
+            kind=(parse_qs(urlparse(self.path).query).get('type') or [None])[0]
+            kind=kind if kind in form.TYPES else None  # unknown type -> step 1
+            symbols=load_symbols() if kind and 'symbol' in form.FIELDS[kind] else set()
+            return self.send(200,page('Rehberli sorgu',form.render_body(symbols,form.display_names(),form.LAST,
+                                                                        chat.NAV,chat.render_answer,kind=kind)))
         if path=='/themes':
             out=themes.load_clusters()
             if out is None:
@@ -270,31 +325,45 @@ class Handler(BaseHTTPRequestHandler):
         if origin and urlparse(origin).hostname not in (HOST,'localhost'):
             return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
         path=urlparse(self.path).path
-        if path not in ('/review','/chat','/chat/clear'):
+        if path not in ('/review','/chat','/chat/clear','/form'):
             return self.send(404,page('Yok','<p>Sayfa yok.</p>'))
         n=min(int(self.headers.get('Content-Length') or 0),4096)
-        form={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8')).items()}
+        form_data={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8')).items()}
         if path=='/chat/clear':
             chat.HISTORY.clear()
             return self.send(303,'',location='/')
+        if path=='/form':
+            from agent import load_context
+            try:
+                ctx=None if chat.in_collection_window(datetime.now()) else load_context()  # no DB read in the window
+                rec=form.run(form_data,ctx)
+            except Exception as ex:  # DB missing or locked: show the type, keep the page alive
+                rec={'form':{k:form_data.get(k,'') for k in ('type','symbol','day','text')},'seconds':0.0,'error':True,
+                     'at':datetime.now().strftime('%H:%M'),'answer':f'Veritabanı okunamadı ({type(ex).__name__}).'}
+                form.LAST.clear()
+                form.LAST.update(rec)
+            print(f'form: type={rec["form"]["type"]} seconds={rec["seconds"]} error={rec["error"]}',flush=True)  # no text
+            kind=rec['form'].get('type')
+            return self.send(303,'',location=f'/form?type={kind}#son' if kind in form.TYPES else '/form')
         if path=='/chat':
-            q=(form.get('q') or '').strip()
+            q=(form_data.get('q') or '').strip()
             if not q or len(q)>chat.MAX_QUESTION:
                 return self.send(400,page('Hata','<p>Soru boş ya da çok uzun.</p>'))
             rec=chat.ask(q)
             print(f'chat: intent={rec["intent"]} seconds={rec["seconds"]} error={rec["error"]}',flush=True)  # no text
             return self.send(303,'',location='/#son')
-        day=form.get('day','')
-        if not DAY_RE.match(day) or form.get('decision') not in DECISIONS or not form.get('news_id'):
+        day=form_data.get('day','')
+        if not DAY_RE.match(day) or form_data.get('decision') not in DECISIONS or not form_data.get('news_id'):
             return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
-        items=load_day(day) or []
-        if form['news_id'] not in {i['news_id'] for i in items if i['importance']['needs_review']}:
+        flagged={i['news_id']:i for i in (load_day(day) or []) if i['importance']['needs_review']}
+        if form_data['news_id'] not in flagged:
             return self.send(400,page('Hata','<p>Bu bildirim o günün kontrol listesinde yok.</p>'))
-        record_review(form['news_id'],day,form['decision'],form.get('note'))
+        record_review(form_data['news_id'],day,form_data['decision'],form_data.get('note'),
+                      reasons=flagged[form_data['news_id']]['importance']['needs_review_reasons'])
         self.send(303,'',location=f'/day/{day}')
 
 
-def stats(path=LOG_PATH):
+def stats(path=None):
     rv=load_reviews(path)
     c={'reviewed':len(rv),'confirm':0,'reject':0}
     for r in rv.values():
@@ -308,10 +377,13 @@ def reason_stats(reviews,load=None):
     days={}
     out={}
     for nid,r in reviews.items():
-        if r['day'] not in days:
-            days[r['day']]={i['news_id']:i for i in (load(r['day']) or [])}
-        item=days[r['day']].get(nid)
-        codes=item['importance']['needs_review_reasons'] if item else ['unknown_item']
+        if 'reasons' in r:  # stored at review time (since 12 Nov)
+            codes=r['reasons'] or ['no_reason_stored']
+        else:  # older records: the day's current list, which a rebuild may have changed
+            if r['day'] not in days:
+                days[r['day']]={i['news_id']:i for i in (load(r['day']) or [])}
+            item=days[r['day']].get(nid)
+            codes=(item['importance']['needs_review_reasons'] or ['not_flagged_after_rebuild']) if item else ['unknown_item']
         for code in codes:
             out.setdefault(code,{'confirm':0,'reject':0})[r['decision']]+=1
     return dict(sorted(out.items()))
@@ -347,6 +419,9 @@ def _self_test():
         assert rv['2']['decision']=='confirm' and stats(log)=={'reviewed':1,'confirm':1,'reject':0}
         rs=reason_stats({**rv,'9':{'news_id':'9','day':'2026-11-09','decision':'reject'}},load=lambda d:items)
         assert rs=={'amount_not_in_text':{'confirm':1,'reject':0},'unknown_item':{'confirm':0,'reject':1}}
+        stored=record_review('4','2026-11-09','reject','',path=log,reasons=['currency_unclear'])
+        rs2=reason_stats({'4':stored,'1':{'news_id':'1','day':'2026-11-09','decision':'confirm'}},load=lambda d:items)
+        assert rs2=={'currency_unclear':{'confirm':0,'reject':1},'not_flagged_after_rebuild':{'confirm':1,'reject':0}}
         try:
             record_review('2','2026-11-09','maybe',None,path=log)
             raise AssertionError('bad decision accepted')
@@ -367,11 +442,13 @@ def _self_test():
     assert '3 bildirim, 2 tema.' in w and '<b>' not in w and '<i>' not in w and '&lt;i&gt;x' in w   # escaped
     assert 'href="javascript' not in w and 'href="https://www.kap.org.tr/tr/Bildirim/5"' in w
     assert w.count('şablon etkisi')==1 and 'normalde haftada 0,2 bildirim' in w and 'sektörler: Savunma 1' in w
-    assert 'tema kelimesi yok' in w and 'ARI 0,144' in w
+    assert 'tema kelimesi yok' in w and 'kısmen yansıtır' in w
     idx=render_themes_index([('2026-11-09',3)],'2026-11-12 08:00:00',2)
     assert 'href="/themes/2026-11-09"' in idx and 'Sonraki 2 bildirim henüz kümelenmedi' in idx
     assert 'clusters.json bulunamadı' in render_themes_index([],None,0)
-    print('self-test ok: 23 checks')
+    assert 'class="top"' in html_out and 'href="/form"' in html_out and '<main>' in html_out    # theme header on every page
+    assert '<a class="badge flag" href="#r2">kontrol et ↓</a>' in html_out and 'id="r2"' in html_out and 'class="badge high">yüksek · skor 4' in html_out
+    print('self-test ok: 26 checks')
 
 
 def main():
@@ -380,7 +457,11 @@ def main():
     ap.add_argument('--port',type=int,default=PORT)
     ap.add_argument('--stats',action='store_true')
     ap.add_argument('--self-test',action='store_true')
+    ap.add_argument('--review-log',help='another review log, e.g. data/review_log_test.jsonl for a clean test (the real log stays untouched)')
     args=ap.parse_args()
+    if args.review_log:
+        global LOG_PATH
+        LOG_PATH=args.review_log
     if args.self_test:
         _self_test()
     elif args.stats:
@@ -388,7 +469,8 @@ def main():
         for code,c in reason_stats(load_reviews()).items():
             print(f'  {code} confirm={c["confirm"]} reject={c["reject"]}')
     elif args.serve:
-        print(f'panel on http://{HOST}:{args.port} (Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())}')
+        print(f'panel on http://{HOST}:{args.port} (Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())} '
+              f'review log={LOG_PATH}')
         ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
     else:
         ap.error('give --serve, --stats or --self-test')

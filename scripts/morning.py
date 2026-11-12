@@ -113,7 +113,8 @@ def render(day,items):
         lines.append('Bugün yeni iş ilişkisi bildirimi yok.')
     for n,item in enumerate(sorted(items,key=priority),1):
         imp=item['importance']
-        lines.append(f'## {n}. {item["symbol"]} - {LEVEL_TR[imp["level"]]} (skor {imp["score"]})')
+        from names import company_label
+        lines.append(f'## {n}. {company_label(item["symbol"])} - {LEVEL_TR[imp["level"]]} (skor {imp["score"]})')
         lines.append(f'- KAP: {item["kap_url"]}')
         if item.get('amount') is not None:
             lines.append(f'- Tutar: {tr_num(item["amount"],0)} {item.get("currency") or ""}'.rstrip())

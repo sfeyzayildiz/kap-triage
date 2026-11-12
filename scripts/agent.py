@@ -237,7 +237,8 @@ def tool_company(state):
             ORDER BY d.published_at DESC''',[state['symbol'],day,day-timedelta(days=365)]).fetchall()
     finally:
         con.close()
-    lines=[f'# {state["symbol"]}: son 12 ayda {len(rows)} yeni iş ilişkisi bildirimi ({day} itibarıyla)','']
+    from names import company_label
+    lines=[f'# {company_label(state["symbol"])}: son 12 ayda {len(rows)} yeni iş ilişkisi bildirimi ({day} itibarıyla)','']
     for pub,upd,amount,cur,url in rows:
         amt=f'{amount:,.0f}'.replace(',','.')+f' {cur} (Matriks kaydı)' if amount else 'tutar kaydı yok'
         lines.append(f'- {str(pub)[:10]} | {"güncelleme/düzeltme" if upd else "yeni"} | {amt} | {url}')
@@ -265,7 +266,8 @@ def tool_why_moved(state):
         disc=disclosures_before(con,sym,d)
     finally:
         con.close()
-    lines=[f'# {sym}, {d}: hisse {tr_pct(r)}, XU100\'e göre {tr_pct(a)}']
+    from names import company_label
+    lines=[f'# {company_label(sym)}, {d}: hisse {tr_pct(r)}, XU100\'e göre {tr_pct(a)}']
     if d!=day:
         lines.append(f'({day} işlem günü değil; ondan önceki son işlem günü kullanıldı.)')
     if abs(r)>SPLIT_JUMP:
@@ -294,15 +296,16 @@ def tool_search(state):
     index=load_index()
     day=state.get('day') if state.get('date_filter') else None
     hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5,on_day=day)
-    head=f'# Arama: {state.get("query") or state["question"]}'+(f' ({state["symbol"]})' if state.get('symbol') else '')
+    from names import company_label
+    head=f'# Arama: {state.get("query") or state["question"]}'+(f' ({company_label(state["symbol"])})' if state.get('symbol') else '')
     lines=[head+(f', {day}' if day and hits else ''),'']
     if day and not hits:
         lines.append(f'{day} tarihinde uygun bildirim bulunamadı; tüm tarihlerde arandı.')
         hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5)
-    lines+=[f'{i}. {h["published_at"][:10]} | {h["symbol"]} | {h["kap_url"]}' for i,h in enumerate(hits,1)]
+    lines+=[f'{i}. {h["published_at"][:10]} | {company_label(h["symbol"],short=True)} | {h["kap_url"]}' for i,h in enumerate(hits,1)]
     lines.append('')
-    lines.append('Anlam benzerliğiyle 20 aday bulundu, soru ve metni birlikte okuyan bir modelle yeniden sıralandı. '
-                 'Bağımsız 20 soruluk testte doğru bildirim ilk 5\'te 20/20, ilk sırada 17/20. KAP metnini okuyarak doğrulayın.')
+    lines.append('Sonuçlar anlam benzerliğine göre sıralandı. Bağımsız 20 soruluk testte doğru bildirim ilk 5 sonuçta 20/20, '
+                 'ilk sırada 17/20. KAP metnini okuyarak doğrulayın.')
     return '\n'.join(lines)+'\n'
 
 
@@ -331,7 +334,8 @@ def extract_card(news_id):
 def card_lines(hit,data):
     '''Card text from the extracted fields; every value comes from code, never written by the model.'''
     from morning import REVIEW_TR, tr_num
-    lines=[f'# Bildirim kartı: {hit["symbol"]}, {hit["published_at"][:10]}',f'Kaynak: {hit["kap_url"]}']
+    from names import company_label
+    lines=[f'# Bildirim kartı: {company_label(hit["symbol"])}, {hit["published_at"][:10]}',f'Kaynak: {hit["kap_url"]}']
     if data is None or 'run_error' in data.get('needs_review_reasons',[]):
         return lines+['Bu bildirimden alan çıkarılamadı; KAP metnini okuyun.']
     v=lambda x:x if x not in (None,'') else 'belirtilmemiş'
@@ -372,11 +376,12 @@ def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day
     rest=hits[1:]
     if rest:
         lines+=['',('Başka bildirim olabilir:' if card else '')]
-        lines+=[f'{i}. {h["published_at"][:10]} | {h["symbol"]} | {h["kap_url"]}' for i,h in enumerate(rest,2)]
+        from names import company_label
+        lines+=[f'{i}. {h["published_at"][:10]} | {company_label(h["symbol"],short=True)} | {h["kap_url"]}' for i,h in enumerate(rest,2)]
     lines.append('')
     if card:
-        lines.append('Alanlar yerel modelin bu bildirimden çıkardığı değerlerdir; cümleyi model yazmaz. Tutar ve para birimi '
-                     'ölçüldü (bağımsız 100 bildirimde 1 sessiz hata), diğer alanlar ölçülmedi. Kart ilk sıradaki bildirime aittir; '
+        lines.append('Alanlar bu bildirimin metninden otomatik çıkarıldı. Tutar ve para birimi '
+                     'test edildi (bağımsız 100 bildirimde 1 sessiz hata), diğer alanlar henüz test edilmedi. Kart ilk sıradaki bildirime aittir; '
                      'KAP metnini okuyarak doğrulayın.')
     else:
         lines.append('Arama ilk 5\'te doğru bildirimi bağımsız testte 20/20 buldu. KAP metnini okuyarak doğrulayın.')
@@ -473,7 +478,8 @@ def step_similar(state,brief):
 def compose_brief(symbol,brief):
     '''Brief text from the four steps; a failed or empty step becomes one line, the rest still shows.'''
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
-    lines=[f'# {symbol}: şirket özeti (4 adım, hepsi kodla)','','## 1. Son bildirim']
+    from names import company_label
+    lines=[f'# {company_label(symbol)}: şirket özeti','','## 1. Son bildirim']
     latest=brief.get('latest')
     if not latest or latest.get('error') or not latest.get('hit'):
         lines.append('Son bildirim çıkarılamadı (hata).' if latest and latest.get('error') else 'Son bildirim bulunamadı.')
@@ -526,6 +532,8 @@ TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,
 def build_graph(router,tools,ctx,steps=BRIEF_STEPS):
     '''route -> one tool -> END; intent brief -> the step chain -> compose -> END (docs/brief_rule.md).'''
     def _route(state):
+        if state.get('intent'):  # guided form (scripts/form.py): the route is chosen by the analyst, no LLM
+            return {'intent':state['intent']}
         if SCOPE_SWITCH and out_of_scope(state['question']):  # docs/scope_guard_rule.md: no router call
             return {'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
         r=router(state['question'],ctx['today'])
@@ -661,7 +669,7 @@ def _self_test():
     g2=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=fake)
     out=g2.invoke({'question':bq})
     assert order==['latest','history','reaction','similar'] and set(out['steps'])==set(order)
-    assert '# ASELS: şirket özeti' in out['answer'] and '## 4.' in out['answer']   # a validate note may precede it
+    assert ': şirket özeti' in out['answer'] and 'ASELS' in out['answer'] and '## 4.' in out['answer']   # a validate note may precede it
     def boom(st,br):
         raise ValueError
     g3=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=(('latest',boom),)+fake[1:])
@@ -698,7 +706,12 @@ def _self_test():
     finally:
         SCOPE_SWITCH=saved
     assert tool_scope({}).startswith('Bu soru yeni iş ilişkisi') and 'Şunları sorabilirsiniz' in tool_scope({})
-    print('self-test ok: 63 checks')
+    # guided form: a preset intent skips the router (and the switches)
+    o5=g4.invoke({'question':'ASELS temettü ne kadar?','intent':'why_moved','symbol':'ASELS','day':'2026-10-29','note':None})
+    assert routed==[] and o5['intent']=='why_moved' and calls[-1]==('why_moved','ASELS','2026-10-29')
+    o6=g4.invoke({'question':'ASELS','intent':'brief','symbol':'ASELS','day':None,'note':None})
+    assert routed==[] and ': şirket özeti' in o6['answer'] and 'ASELS' in o6['answer']
+    print('self-test ok: 65 checks')
 
 
 def main():
