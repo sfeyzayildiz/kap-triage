@@ -28,6 +28,8 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - **Without an LLM (same Set C, same gold):** best regex 25/100 silent errors (63/100 found an amount at all); regex + all code checks still 23/100 silent. The LLM system: 1/100. Earlier small number: regex 12/15 vs LLM 15/15 (dev).
 - Ops terms: escape rate 1%, straight-through rate 89%.
 
+- Model families on Set A, same frozen prompt and scoring (12 Nov, report only): e4b thinking on **0 silent / 10 flagged**; qwen3:14b thinking off 0 / 15 (same raw 89/100, slower to flag-free parity: it flags more); Turkish-Gemma-9b-T1 5 / 27; e4b thinking off 5 / 8; 26b thinking off 9 / 4; qwen3:14b thinking on did not finish (thinking exhausts the token budget). Three families, no one beats e4b thinking on; remaining errors are definition questions, not capacity.
+
 ## Agent routing
 - 20 questions by Feyza: LLM router **17/20** vs. keyword router 9/20 → LLM kept. Ticker right 4/8 (2 wrong tickers from company names: known risk).
 - Name → ticker in code (router v2): intended link in top 5 **18/20** (v1 11/20). Adopted.
