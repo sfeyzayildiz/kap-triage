@@ -19,11 +19,13 @@ import html
 import json
 import os
 import re
-from datetime import datetime
+from collections import Counter
+from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import chat
+import themes
 
 DB_PATH='data/kap.duckdb'
 DESKS={}  # sector name -> desk name; empty until the sector names are known
@@ -152,7 +154,7 @@ def render_day(day,items,sectors,desks,reviews):
     groups=by_desk(items,sectors,desks)
     flagged=[i for i in items if i['importance']['needs_review']]
     done=sum(i['news_id'] in reviews for i in flagged)
-    body=[f'<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a></nav><h1>Sabah listesi: {e(day)}</h1>',
+    body=[chat.NAV+f'<h1>Sabah listesi: {e(day)}</h1>',
           f'<p>{len(items)} bildirim, {len(groups)} masa; kontrol gereken {len(flagged)}, kontrol edilen {done}.</p>']
     if not items:
         body.append('<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
@@ -166,8 +168,49 @@ def render_day(day,items,sectors,desks,reviews):
 
 def render_index(days):
     links=''.join(f'<li><a href="/day/{e(d)}">{e(d)}</a></li>' for d in days) or '<li>Kayıtlı sabah listesi yok.</li>'
-    return page('Masa paneli','<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a></nav>'
+    return page('Masa paneli',chat.NAV+
                 f'<h1>Sabah listeleri</h1><ul>{links}</ul>')
+
+
+THEME_LIMIT=('Temalar metin benzerliğinden kodla bulundu (turkish-e5-large, k-means, k=27, LLM yok). '
+             'Sektörü şanstan iyi ama zayıf yansıtıyor (şirket düzeyi ARI 0,144; rastgele p99 0,032) ve '
+             'şirketin kendi bildirim şablonunu sektörden daha çok izliyor (ARI 0,298). Masa yönlendirmesi '
+             'Matriks sektör etiketiyle yapılır; temalar yalnızca haftaya genel bakış içindir.')
+
+
+def fmt1(x):
+    return f'{x:.1f}'.replace('.',',')
+
+
+def render_themes_index(week_rows,last,n_after):
+    links=''.join(f'<li><a href="/themes/{e(w)}">{e(w)} haftası</a> ({n} bildirim)</li>' for w,n in week_rows) \
+        or '<li>Kümeleme yok (clusters.json bulunamadı).</li>'
+    note=(f'<p class="muted">Son kümelenen bildirim: {e(last[:10])}. Sonraki {n_after} bildirim henüz kümelenmedi '
+          '(yeniden kurmak kümeleri ve tema numaralarını değiştirir).</p>') if last else ''
+    return page('Haftalık temalar',chat.NAV+f'<h1>Haftalık temalar</h1>{note}<ul>{links}</ul>'
+                f'<p class="muted">{e(THEME_LIMIT)}</p>')
+
+
+def render_week(start,view,sectors,urls):
+    n=sum(v['n'] for v in view)
+    body=[chat.NAV,f'<h1>Haftalık temalar: {e(start)} haftası</h1>',
+          f'<p>{n} bildirim, {len(view)} tema.</p>']
+    if not view:
+        body.append('<p>Bu hafta kümelenmiş bildirim yok.</p>')
+    for v in view:
+        title=', '.join(v['words']) if v['words'] else 'tema kelimesi yok (kelime en az 3 şirkette geçmeli)'
+        body.append(f'<h2>{e(title)} ({v["n"]} bildirim, {v["companies_week"]} şirket)</h2>')
+        notes=[f'normalde haftada {fmt1(v["avg_per_week"])} bildirim',f'tüm dönemde {v["companies_all"]} şirket']
+        if v['companies_all']==1:
+            notes.append('tek şirketin bildirim şablonu (şablon etkisi)')
+        sec=Counter(desk_of(a['symbol'],sectors,{}) for a in v['items'])
+        notes.append('sektörler: '+', '.join(f'{s} {c}' for s,c in sec.most_common()))
+        body.append(f'<p class="muted">{e("; ".join(notes))}</p><ul>')
+        body+= [f'<li>{e(a["symbol"])} · {e(a["published_at"][:10])} · {kap_link(urls.get(a["news_id"]))}</li>'
+                for a in v['items']]
+        body.append('</ul>')
+    body.append(f'<p class="muted">{e(THEME_LIMIT)}</p>')
+    return page(f'Temalar {start}',''.join(body))
 
 
 def load_day(day):
@@ -202,6 +245,24 @@ class Handler(BaseHTTPRequestHandler):
             if items is None:
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews()))
+        if path=='/themes':
+            out=themes.load_clusters()
+            if out is None:
+                return self.send(200,render_themes_index([],None,0))
+            last=themes.last_clustered(out['assign'])
+            return self.send(200,render_themes_index(themes.weeks(out['assign']),last,themes.count_after(last)))
+        m=re.match(r'^/themes/(\d{4}-\d{2}-\d{2})$',path)
+        if m:
+            out=themes.load_clusters()
+            try:
+                start=date.fromisoformat(m.group(1))
+            except ValueError:
+                start=None
+            if out is None or start is None or themes.week_start(start)!=start:
+                return self.send(404,page('Yok','<p>Bu hafta yok (hafta pazartesi ile başlar).</p>'))
+            view=themes.week_view(out,start)
+            urls=themes.load_meta([a['news_id'] for v in view for a in v['items']])
+            return self.send(200,render_week(str(start),view,load_sectors(),urls))
         self.send(404,page('Yok','<p>Sayfa yok.</p>'))
 
     def do_POST(self):
@@ -295,7 +356,22 @@ def _self_test():
         assert 'kontrol edilen 1' in out and 'Kontrol edildi: Doğru' in out and 'name="decision"' not in out
     assert 'Kayıtlı sabah listesi yok.' in render_index([]) and 'href="/days"' in render_index([])
     assert 'Bu gün yeni iş ilişkisi bildirimi yok.' in render_day('2026-11-01',[],{},{},{})
-    print('self-test ok: 16 checks')
+    assert 'href="/themes"' in render_index([]) and 'href="/themes"' in render_day('2026-11-01',[],{},{},{})
+
+    view=[{'cluster':1,'n':2,'words':[],'companies_week':1,'companies_all':1,'avg_per_week':0.25,'ratio':8.0,
+           'items':[{'news_id':'4','symbol':'<b>','published_at':'2026-11-11 09:00:00'},
+                    {'news_id':'5','symbol':'CCC','published_at':'2026-11-12 08:00:00'}]},
+          {'cluster':0,'n':1,'words':['savunma','<i>x'],'companies_week':1,'companies_all':9,'avg_per_week':1.5,'ratio':0.7,
+           'items':[{'news_id':'3','symbol':'AAA','published_at':'2026-11-10 09:00:00'}]}]
+    w=render_week('2026-11-09',view,sectors,{'4':'javascript:alert(1)','5':'https://www.kap.org.tr/tr/Bildirim/5'})
+    assert '3 bildirim, 2 tema.' in w and '<b>' not in w and '<i>' not in w and '&lt;i&gt;x' in w   # escaped
+    assert 'href="javascript' not in w and 'href="https://www.kap.org.tr/tr/Bildirim/5"' in w
+    assert w.count('şablon etkisi')==1 and 'normalde haftada 0,2 bildirim' in w and 'sektörler: Savunma 1' in w
+    assert 'tema kelimesi yok' in w and 'ARI 0,144' in w
+    idx=render_themes_index([('2026-11-09',3)],'2026-11-12 08:00:00',2)
+    assert 'href="/themes/2026-11-09"' in idx and 'Sonraki 2 bildirim henüz kümelenmedi' in idx
+    assert 'clusters.json bulunamadı' in render_themes_index([],None,0)
+    print('self-test ok: 23 checks')
 
 
 def main():

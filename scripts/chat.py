@@ -100,8 +100,11 @@ def ask(question,runner=None,now=None,history=None):
     return rec
 
 
+NAV='<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a><a href="/themes">Haftalık temalar</a></nav>'
+
+
 def render_body(history):
-    out=['<nav><a href="/">Sohbet</a><a href="/days">Sabah listeleri</a></nav>',
+    out=[NAV,
          '<h1>KAP Bildirim Önceliklendirme Asistanı</h1>',
          '<p class="muted">Yeni iş ilişkisi bildirimleri hakkında sorun. Rakamlar ve linkler veritabanından gelir, '
          'model yalnızca soruyu yönlendirir. Her şey bu bilgisayarda çalışır.</p>']

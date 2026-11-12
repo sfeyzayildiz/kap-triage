@@ -40,6 +40,7 @@ TESTS={
     'injection_checks':'--self-test',
     'matriks_crosscheck':'--self-test',
     'source_check':'--self-test',
+    'themes':'--self-test',
     'panel':'--self-test',
     'chat':'--self-test',
     'answer':'--self-test',
