@@ -1,0 +1,44 @@
+# System card: KAP Bildirim Önceliklendirme Asistanı
+
+One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-12. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
+
+## Purpose
+Morning triage of KAP "Yeni İş İlişkisi" (new business relationship) disclosures for a brokerage equity analyst: which ones to read first, why, and how reliable the extracted facts are. Every item carries its KAP link.
+
+**Intended use:** a first look and a ranking aid; the analyst reads the KAP text before any decision.
+**Not intended for:** investment advice, price prediction, other disclosure types, unattended automated trading or publication of the extracted numbers.
+
+## Data
+- Source: Matriks API (licensed, used with permission): new-business records (prod), KAP disclosure texts (test environment, counts match prod), daily price bars, sector labels. About 1,290 disclosures since 2024-10-31, 1-2 new per day.
+- Collected once a night on one Mac (one pull per day, enforced in code). Data never leaves the machine: local models, no external services, nothing in git or in the Docker image.
+
+## How it works (short)
+A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counterparty, duration, revision, related party). Code checks contradictions and flags them (`needs_review`) instead of fixing them; a layered defence checks the amount against Matriks' own record and the sentence it came from. Code computes the importance score, the ordering (long contract first, then amount), the price reaction against XU100, the history and similar disclosures (embedding search + reranker). The LLM never writes a number or a link shown to the analyst.
+
+## Measured performance (rule written before each run; held-out unless noted)
+| What | Result |
+|---|---|
+| Silent errors in amount / currency (wrong, not flagged) | 1/100 on unseen Set C (95% upper bound 4.7%); 11/100 sent to a human |
+| Without an LLM, same set | best regex 25/100 silent errors |
+| Hidden instruction in the disclosure text (amount attack) | silent successes 9 → 0 of 18 with the layered defence; 3/200 extra flags on real texts |
+| Ordering vs the analyst's blind choice, 12 new days | top pick 11/12 (old score 5.5); AUC 0.877 |
+| Search (embedding + rerank), 20 questions | right disclosure in the top 5: 20/20; at rank 1: 17/20 |
+| Agent routing with company names, 20 questions | intended link in the top 5: 18/20 |
+| Speed | extraction about 15 s per disclosure; everything else under 0.01 s; a company brief about 18 s |
+
+## Known limits (say them first)
+- Fields other than amount and currency (duration, counterparty origin, related party) are **not measured**, although the ordering and the score use them.
+- One person labeled the gold data and wrote most questions; no second-rater agreement yet.
+- Small test sets, wide bounds. Single disclosure type. Nightly, not real time.
+- The chat cannot always say "the data cannot answer this"; an out-of-scope question with a company name can get an unrelated card (the guided form avoids it).
+- Search's typical miss is the right company's wrong disclosure; a card belongs to the first hit only.
+- Prices are unadjusted (a 22% jump rule guesses splits). Weekly themes are weak (template effect).
+
+## Human oversight
+Flagged items show the reason and a confirm / reject step; decisions are logged with the reasons at review time (first real use: 3 of 6 flags were real errors). Every answer links to the KAP source.
+
+## Security and privacy
+Disclosure text is treated as untrusted input (injection tested and defended); the panel binds to the local machine, sends no scripts (strict CSP) and escapes all text. No personal data is processed.
+
+## Maintenance
+Self-tests on every change (CI); nightly alerts (OK / FAILED / SKIPPED) and postmortems in `PROJECT_NOTES.md`; a pull guard enforces the provider's rate rule. Any change to a measured part needs a new rule and a new measurement.

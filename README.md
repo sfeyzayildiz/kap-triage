@@ -84,6 +84,7 @@ Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also
 - Disclosure texts come from the Matriks test environment (same counts as prod); new-business data from prod.
 - This is a working prototype, not a product.
 
+One-page system card (purpose, data, measured performance, limits): `docs/system_card.md`. How it would extend to other disclosure types: `docs/extending.md`.
 Where we were wrong, and what we did about it: `docs/known_issues.md`.
 
 Development log and all decisions: `PROJECT_NOTES.md`.
