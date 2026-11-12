@@ -43,21 +43,26 @@ flowchart LR
 
     Q(["Analyst question"]):::out
     ROUTE["Route (LLM)<br/>intent, symbol, date, topic"]:::llm
-    VAL["Validate (code)<br/>ticker exists, date in range"]:::code
+    VAL["Validate (code)<br/>name table → ticker, written date,<br/>ticker exists, date in range"]:::code
+    SW["Switches (code)<br/>detail words → card<br/>'X'e bak' → brief"]:::code
     T1["morning<br/>day's ranked list"]:::code
     T2["company<br/>last 12 months"]:::code
     T3["why_moved<br/>abnormal move + disclosures"]:::code
     T4["search<br/>embedding top 20, cross-encoder rerank, top 5"]:::code
+    T5["detail card<br/>top hit → extraction + checks"]:::code
+    B["brief: latest → history →<br/>reaction → similar → compose"]:::code
     A(["Answer: numbers and KAP links from code"]):::out
 
-    Q --> ROUTE --> VAL
-    VAL --> T1 --> A
-    VAL --> T2 --> A
-    VAL --> T3 --> A
-    VAL --> T4 --> A
+    Q --> ROUTE --> VAL --> SW
+    SW --> T1 --> A
+    SW --> T2 --> A
+    SW --> T3 --> A
+    SW --> T4 --> A
+    SW --> T5 --> A
+    SW --> B --> A
 ```
 
-The LLM only reads the question. It never writes a number or a link.
+The LLM only reads the question. It never writes a number or a link. The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. A word-list scope check before the router was measured and kept off (7/10 blocked, bar 9).
 
 ## Where the LLM is used, and where it is not
 
@@ -85,12 +90,12 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 | Latency, all other stages | 0.0025 s per disclosure + 7.4 s index check once per run | demo day, 4 disclosures |
 | Busy day (8 disclosures) | about 3 min (computed from p90, not measured) | |
 
-History: Set A (dev) 0/100 → Set B frozen v3 4/100 FAIL → code checks from the error analysis → Set C 1/100 PASS.
+History: Set A (dev) 0/100 → Set B frozen v3 4/100 FAIL → code checks from the error analysis → Set C 1/100 PASS. Every other result, adopted or not: `docs/results.md`.
 
 ## Not measured (stated as limits)
 
-- Importance score: rules are judgment, not fitted; no accuracy number.
-- Agent routing: smoke test only; a router test set needs questions written by Feyza.
+- Importance score: rules are judgment, not fitted. Checked once against the analyst's blind choice: better than chance, equal to sorting by amount (AUC 0.681 both).
+- Agent: routing, router v2 and the brief were measured (see `docs/results.md`), but on 10-20 questions each, written by one person. Red team: out-of-scope questions, relative periods and two-company questions are not handled.
 - Document-to-document similarity ("similar earlier disclosures"): no measured quality.
 - Search ranks a same-company or same-region document above an exact proper-noun match; all 16 recall@1 misses on Set C were the right company. BM25 / hybrid did not clear the bar on Set D; a cross-encoder rerank did (17/20 at rank 1, exactly the bar). On dev it fixed and broke 5 each at rank 1, so rank-1 gains need a fresh question set to confirm.
 - Similarity cannot say "no such disclosure": negative and answerable questions overlap.

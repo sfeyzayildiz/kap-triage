@@ -1,6 +1,6 @@
-# KAP New Business Triage
+# KAP Bildirim Önceliklendirme Asistanı
 
-A morning triage assistant for equity analysts who follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, Borsa İstanbul's public disclosure platform.
+(KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts who follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, Borsa İstanbul's public disclosure platform.
 
 ## The problem
 An analyst sees several of these disclosures every day and has to decide which ones matter:
@@ -20,7 +20,7 @@ For each day's disclosures:
 5. **Price reaction.** Return against XU100 on the first trading day the market could react.
 6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
 7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
-8. **Desk panel.** A local web page with the list per sector desk and a confirm / reject step for flagged items; decisions are logged and counted per flag type.
+8. **Desk panel.** A local web page with a chat box for the agent, the list per sector desk (Matriks sector label), a confirm / reject step for flagged items (decisions are logged and counted per flag type), and a weekly themes page built from embedding clusters.
 
 An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq" and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code.
 
@@ -32,11 +32,14 @@ An agent built with LangGraph answers questions such as "What should I look at t
 | Retrieval, `turkish-e5-large`, held-out Set C questions (48) | recall@5 0.875, recall@1 0.667 | Model chosen on 66 dev questions by a pre-written rule. |
 | + cross-encoder rerank (`bge-reranker-v2-m3`), 20 hand-written questions | top 5: 20/20, top 1: 17/20 (was 15/20) | Adopted. BM25 and hybrid search were tried and rejected by their bars. |
 | Amount injection attack, 18 new texts, sealed attack wording | silent successes 9 → **0** with the layered defence; 3/200 extra flags on real texts | Adopted. Two weaker defences were rejected by their bars. |
+| Without an LLM, same Set C | best regex 25 silent errors out of 100 | So the LLM is needed where the text is free Turkish. |
+| Agent routing with company names (router v2), 20 questions | intended link in the top 5: 18/20 (was 11/20) | Company brief flow: 9/10 routed, 10/10 right ticker, median 18.5 s. |
+| Importance score vs. the analyst's blind choice, 10 unseen days | AUC 0.681, same as sorting by amount | Better than chance, but the extra components did not show added value. |
 | Analyst review of flags, one demo day | 3 of 6 flags were real extraction errors | First real use of the panel; small sample. |
 | Latency | median 14.6 s per disclosure (LLM); all other stages 0.003 s | A busy day takes about 3 minutes, overnight. |
 | Abnormal price moves, 493 trading days | 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before | So for most moves the agent says the cause may be elsewhere. |
 
-Decision rules are committed before each measurement (`docs/*_rule.md`), and results are recorded as they come out, including failures. Tried and not adopted, with numbers: text-pattern injection checks, the Matriks cross-check alone, BM25 / hybrid search, and LLM-written answers with citations (citations were right, 45/46, but the model answered 3 of 7 unanswerable questions). The importance score has no measured accuracy; its rules are in `docs/importance_score.md`.
+Decision rules are committed before each measurement (`docs/*_rule.md`), and results are recorded as they come out, including failures. Tried and not adopted, with numbers: text-pattern injection checks, the Matriks cross-check alone, BM25 / hybrid search, chunking, quantities on the card, a word-list scope guard (blocked 7 of 10 out-of-scope questions, bar 9), and LLM-written answers with citations (citations were right, but the model answered unanswerable questions). Every result on one page: `docs/results.md`.
 
 ## How to run
 Requirements: Python 3.12, [Ollama](https://ollama.com) with `gemma4:e4b`, and a Matriks API token in `.env` (`KAP_TOKEN`) for collection.
@@ -73,6 +76,7 @@ Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
 - The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.
 - `MONEY_RE` in the amount checks misses "ABD Doları" (10 of 81 Set B amounts).
+- The agent has no scope check: an out-of-scope question (dividend, target price) that names a company and asks a detail can get an unrelated disclosure card. Relative periods ("geçen hafta") and two-company comparisons are not supported.
 - Test sets are small (100 / 48 / 20 / 18 items), so the bounds are wide. The injection test used one attack wording.
 - Disclosure texts come from the Matriks test environment (same counts as prod); new-business data from prod.
 - This is a working prototype, not a product.
