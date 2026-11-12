@@ -20,9 +20,9 @@ For each day's disclosures:
 5. **Price reaction.** Return against XU100 on the first trading day the market could react.
 6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
 7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
-8. **Desk panel.** A local web page with a chat box for the agent, the list per sector desk (Matriks sector label), a confirm / reject step for flagged items (decisions are logged and counted per flag type), and a weekly themes page built from embedding clusters.
+8. **Desk panel.** A local web page with a chat box for the agent, the list per sector desk (Matriks sector label), a confirm / reject step for flagged items (decisions are logged and counted per flag type), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, and a reliability page with the measured results as charts. Light / dark theme switch; no JavaScript.
 
-An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq" and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code.
+An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq" and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code. A guided form (`/form`) offers the same tools without free text: the analyst picks the question type, then the company and the day, so nothing can be misunderstood; free questions stay in the chat.
 
 ## Measured reliability
 | what | result | notes |
@@ -35,6 +35,7 @@ An agent built with LangGraph answers questions such as "What should I look at t
 | Without an LLM, same Set C | best regex 25 silent errors out of 100 | So the LLM is needed where the text is free Turkish. |
 | Agent routing with company names (router v2), 20 questions | intended link in the top 5: 18/20 (was 11/20) | Company brief flow: 9/10 routed, 10/10 right ticker, median 18.5 s. |
 | Importance score vs. the analyst's blind choice, 10 unseen days | AUC 0.681, same as sorting by amount | Better than chance, but the extra components did not show added value. |
+| Ordering v2 (long contract, then amount), 12 new days | top pick 11/12 (v1 5.5), AUC 0.877 (v1 0.792) | Adopted. Amount alone did even better (12/12) but was not the dev choice. |
 | Analyst review of flags, one demo day | 3 of 6 flags were real extraction errors | First real use of the panel; small sample. |
 | Latency | median 14.6 s per disclosure (LLM); all other stages 0.003 s | A busy day takes about 3 minutes, overnight. |
 | Abnormal price moves, 493 trading days | 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before | So for most moves the agent says the cause may be elsewhere. |
@@ -57,7 +58,7 @@ ollama pull gemma4:e4b
 # ask the agent
 .venv/bin/python scripts/agent.py "Bugün neye bakmalıyım?"
 
-# desk panel -> http://127.0.0.1:8765
+# desk panel -> http://127.0.0.1:8765 (chat), /form (guided), /days, /themes, /guvenilirlik
 .venv/bin/python scripts/panel.py --serve
 ```
 

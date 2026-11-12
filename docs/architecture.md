@@ -62,7 +62,7 @@ flowchart LR
     SW --> B --> A
 ```
 
-The LLM only reads the question. It never writes a number or a link. The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. A word-list scope check before the router was measured and kept off (7/10 blocked, bar 9).
+The LLM only reads the question. It never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. A word-list scope check before the router was measured and kept off (7/10 blocked, bar 9).
 
 ## Where the LLM is used, and where it is not
 
