@@ -129,7 +129,10 @@ def score(result,rate,baseline,n_history,revenue=None,revenue_source=None):
         reasons.append({'code':'related_party','points':-2})
         total-=2
     level='high' if total>=4 else 'medium' if total>=2 else 'low'
-    return {'score':total,'level':level,'kind':kind,'reasons':reasons,
+    stated=result.get('amount')
+    # stated amount in TRY (also for revisions): the sort key of ordering v2 (docs/importance_v2_rule.md)
+    amount_try=stated*rate if stated is not None and rate is not None else None
+    return {'score':total,'level':level,'kind':kind,'reasons':reasons,'amount_try':amount_try,
             'needs_review':bool(result.get('needs_review')),
             'needs_review_reasons':result.get('needs_review_reasons') or []}
 

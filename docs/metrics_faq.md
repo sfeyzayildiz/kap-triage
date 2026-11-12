@@ -46,6 +46,8 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 ## Importance score vs. the analyst (blind, report only)
 - 10 unseen days, 49 disclosures, Feyza labeled blind, 47 within-day pairs. AUC score **0.681** (random p95 0.670, p 0.042), amount-only **0.681**, margin 0 → `AMOUNT_EXPLAINS`: better than chance, but sorting by amount does as well. Day's top pick: amount 7/10, score 3/10 (random 2.1). Level high: 9 of 11 were her picks, but it caught 9 of her 29.
 
+- **Ordering v2 (adopted, 12 new days):** long contract first, then amount: AUC **0.877** vs v1 0.792, top pick **11/12** vs 5.5. Amount alone did even better (0.953, 12/12) but was not the dev choice; switching on the test round would be tuning.
+
 ## Human in the loop
 - Panel, one demo day: 6 flags reviewed on KAP, 3 were real extraction errors.
 

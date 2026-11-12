@@ -46,6 +46,7 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 |---|---|---|---|
 | Revenue ratio data gates | prod archive | semantics 99.2%, coverage 84%, scale 0.6% | **on** |
 | Importance score vs. the analyst's blind look-first choice | 10 unseen days, 49 disclosures, 47 pairs | AUC 0.681 (random p95 0.670) = amount only 0.681; top pick amount 7/10, score 3/10 | **AMOUNT_EXPLAINS**, weights unchanged |
+| Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice) |
 | Clustering k = 27 vs. Matriks sectors | 1288 disclosures | company-level ARI 0.144 vs. shuffled p99 0.032; ARI vs. company 0.298 | reflects sector, weakly; desks use the sector label, clusters only for the weekly themes page |
 | Analyst review of flags in the panel | one day | 3 of 6 flags were real extraction errors | first real use, small sample |
 

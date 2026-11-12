@@ -28,5 +28,6 @@ Date: 2026-11-02. The LLM extracts facts; this score is computed in code from th
 ## Honest limits
 - Weights and thresholds are judgment, not fitted to data.
 - Checked once against the analyst (2026-11-12, `docs/importance_check_rule.md`, 10 unseen days, 49 disclosures, 47 pairs): within-day AUC 0.681, just above the random p95 0.670, and equal to sorting by amount alone (0.681) → `AMOUNT_EXPLAINS`. The other components are not shown to add value; weights unchanged (report only).
+- Ordering v2 (2026-11-12, `docs/importance_v2_rule.md`, 12 new days): the morning list now orders inside each group by long contract first, then the stated TRY amount (AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12). Points and levels are still v1 and still shown as reasons. Amount alone scored higher on that round (0.953) but was not the dev choice.
 - The company baseline uses Matriks amounts, which were wrong in some Set A cases; the median limits the effect of one bad value.
 - Any later check of the score (for example against abnormal returns after the disclosure) needs its own decision rule, committed before measuring.

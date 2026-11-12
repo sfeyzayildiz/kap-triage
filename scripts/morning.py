@@ -91,9 +91,18 @@ def reaction_text(rx):
     return text
 
 
+ORDER_V2=True  # docs/importance_v2_rule.md: ADOPT_V2 (round 2, 12 days: C3 AUC 0.877 vs v1 0.792, top-1 11 vs 5.5 of 12)
+
+
 def priority(item):
+    '''Look-first items (high or flagged) on top; inside each group v2 = long contract first, then TRY amount.'''
     imp=item['importance']
-    return (not (imp['needs_review'] or imp['level']=='high'),-imp['score'])
+    group=not (imp['needs_review'] or imp['level']=='high')
+    if not ORDER_V2:
+        return (group,-imp['score'])
+    long='long_contract' in {r.get('code') for r in imp.get('reasons',[])}
+    a=imp.get('amount_try')
+    return (group,not long,-(a if a is not None else float('-inf')))
 
 
 def render(day,items):
@@ -140,7 +149,7 @@ def _self_test():
     assert history(con,'CCC',datetime(2026,10,1,9))=={'n':0,'n_updates':0,'last':None}
     con.close()
 
-    imp={'score':5,'level':'high','kind':'new','needs_review':False,'needs_review_reasons':[],
+    imp={'score':5,'level':'high','kind':'new','needs_review':False,'needs_review_reasons':[],'amount_try':6.3e7,
          'reasons':[{'code':'size_vs_history','ratio':3.5,'n_history':4,'points':3},{'code':'foreign_currency','currency':'USD','points':1}]}
     low={'score':0,'level':'low','kind':'new','needs_review':True,'needs_review_reasons':['currency_unclear'],
          'reasons':[{'code':'no_amount','points':0}]}
@@ -158,7 +167,12 @@ def _self_test():
     assert 'KONTROL ET: para birimi belirsiz' in text
     assert 'Benzer eski bildirim: 2026-05-01 (benzerlik 0,91) u9' in text
     assert 'Bugün yeni iş ilişkisi bildirimi yok.' in render('2026-11-01',[])
-    print('self-test ok: 8 checks')
+    # ordering v2: inside a group, a long contract first, then the larger TRY amount; no amount last
+    mk=lambda a,long=False:{'importance':{'needs_review':False,'level':'low','score':9 if a is None else 0,'amount_try':a,
+                                          'reasons':[{'code':'long_contract'}] if long else []}}
+    order=sorted([mk(None),mk(5e6),mk(9e8),mk(1e6,long=True)],key=priority)
+    assert [i['importance']['amount_try'] for i in order]==[1e6,9e8,5e6,None]
+    print('self-test ok: 9 checks')
 
 
 def extract_day(day):

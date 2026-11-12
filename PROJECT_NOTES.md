@@ -186,6 +186,28 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - **Clustering (rule docs/clustering_rule.md, k = 27 sectors, `--evaluate` once):** company-level ARI vs sector **0.144**; shuffled p99 0.032, max of 1000 0.047 → **decision: clusters reflect sector** (beyond chance). Doc-level ARI 0.214, NMI 0.494, purity 0.626 (1276 docs with a sector); ARI vs company 0.298.
   - Reading: above chance by a wide margin, but weak in absolute terms. Clusters follow the company (0.298) more than the sector (0.214): companies reuse their own disclosure templates, and 7 of 27 clusters hold a single company. So: desk routing uses Matriks' sector label directly (as the rule planned); clusters are only for weekly themes, with the template effect stated as a limit.
 
+## 2026-11-12: Importance ordering v2, rule, dev choice (round 2 not labeled yet)
+- Feyza (12 Nov): finishing, including the improvements the measurements found, matters more than the demo date; the demo can move. First improvement: the score did not beat amount.
+- Dev = round 1 (10 days, 47 pairs). `--dev-report` (metrics only): amount 0.681 (top-1 7/10), revenue ratio 0.638, history ratio 0.596, long contract 0.649 (in 7 of her yes, 0 of her no), foreign currency 0.585; related party, revision, `needs_review` ≈ 0.5.
+- Rule `docs/importance_v2_rule.md` (b9d7490), written after the single-signal numbers and before the candidate comparison: four fixed sort keys, no fitted weights (C1 amount; C2 v1 + amount tie-break; C3 long contract, then amount; C4 v1 points without size, then amount); highest dev AUC wins (gap < 0.005 → simpler). Round 2: 12 new days, seed 20261113, same blind labels. ADOPT_V2 if the chosen key beats its shuffled p95 and gains ≥ 0.05 AUC or ≥ 3 top-1 days over v1 without losing more than 0.02 AUC. If adopted, only the order inside "look first" and "the rest" changes; levels and reasons stay v1.
+- **Dev choice (mechanical): C3** (dev AUC C1 0.681, **C3 0.809**, C2 0.702, C4 0.723; top-1 C1 7, C3 7, C2 3, C4 4 of 10). Optimistic by construction (C3 was written after seeing long contract on these days); round 2 decides.
+- `importance_check.py --round 2` (own files, round 1 days excluded, refuses without `CHOSEN`), `--dev-report`, `--dev-choose`; 27 checks, 45 self-tests pass.
+- Round 2 sampled by Claude after the choice was committed: 12 days, 52 disclosures (4-6 per day). Feyza labeled blind; one mis-key fixed with `--redo` before the run (tool added for that, latest row wins).
+- **Result (labels, run and score by Feyza 2026-11-12, branch commit 1a74daf, once):** 52 valid (run_error 0), look-first yes 29, top pick on 12/12 days, 53 pairs.
+
+| key | AUC | top-1 (of 12, random 2.8) |
+|---|---|---|
+| v1 score | 0.792 | 5.5 |
+| amount only (= C1) | **0.953** | **12.0** |
+| **C3 long contract, then amount (chosen on dev)** | **0.877** | **11.0** |
+| C2 v1 + amount | 0.821 | 8.0 |
+| C4 quality, then amount | 0.783 | 5.0 |
+
+  - Chosen C3: null p95 0.651, p < 0.0001; AUC +0.085 and top-1 +5.5 over v1 → **Decision: `ADOPT_V2`.** Wired: `morning.priority` (`ORDER_V2=True`): look-first group first as before, then long contract, then the stated TRY amount (`importance.score` now returns `amount_try`). Levels, points and reasons unchanged. Panel desks use the same order.
+  - Stated plainly: **amount alone did better than the chosen key on round 2** (0.953, 12/12 top picks). The rule chose C3 on dev; switching to amount now would be choosing on the test set, so C3 stays. Amount-only as the order would need its own rule and a new round.
+  - Reading: on both rounds the analyst's "most important" was almost always the largest amount (7/10, then 12/12); the relative-size and quality points of v1 pushed the right item down. Caveat: Feyza knew the round 1 result (amount explains) before labeling round 2, so her labels may lean on amount more than before; and the amount is visible in the text she reads, so agreement partly reflects what an analyst sees first. One analyst, 53 pairs.
+  - To do: saved morning lists (demo days) were built before `amount_try` existed; rebuild them without the LLM with `morning.py --date D --from-pipeline data/morning_D.jsonl`. kap-deploy pull before the night so the nightly list uses v2.
+
 ## 2026-11-12: Scope guard, rule and code (questions not written yet)
 - Rule `docs/scope_guard_rule.md` (3fccd47, Amendment 1 5427767: word-start matching so Turkish suffixes match; both before code and questions). Fixed ASCII-folded phrase list in three categories (other disclosure types, valuation/advice, financial statements), checked **before the LLM router**; hit → intent `out_of_scope` → scope line + help text, no router call, no card. Macro questions and unanswerable in-scope details are stated gaps.
 - Measurement is code only (the guard depends only on the text): Feyza writes 10 out-of-scope + 10 in-scope questions without reading the list (`scripts/scope_eval.py --write`); bars A blocked ≥ 9/10, F_new ≤ 1/10, F_old ≤ 2 over all earlier in-scope question sets (route without gold `unknown`, v2, card, brief, RAG dev/C/negatives). All met → `ADOPT_SCOPE`, else `SCOPE_SWITCH=False`.
