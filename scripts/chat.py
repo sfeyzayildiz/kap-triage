@@ -101,9 +101,11 @@ def ask(question,runner=None,now=None,history=None):
     return rec
 
 
-LINKS=(('/','Sohbet'),('/form','Rehberli sorgu'),('/days','Sabah listeleri'),('/themes','Haftalık temalar'))
+LINKS=(('/','Sohbet'),('/form','Rehberli sorgu'),('/days','Sabah listeleri'),('/themes','Haftalık temalar'),
+       ('/guvenilirlik','Güvenilirlik'))
 HEADER=('<header class="top"><div class="topin"><div class="brand"><span>KAP</span>Bildirim Önceliklendirme Asistanı'
         '<small>yeni iş ilişkisi · yerel modeller</small></div><nav>'+''.join(f'<a href="{u}">{t}</a>' for u,t in LINKS)+
+        '<a class="theme" href="/tema" title="Tema: sistem → koyu → açık" aria-label="Temayı değiştir">◐</a>'
         '</nav></div></header>')
 NAV=''  # the navigation lives in HEADER (panel.page); kept so callers stay unchanged
 

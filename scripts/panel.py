@@ -26,6 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 import chat
 import form
+import reliability
 import themes
 
 DB_PATH='data/kap.duckdb'
@@ -145,10 +146,16 @@ def kap_link(url):
         else f'<span class="muted">KAP linki geçersiz: {e(url)}</span>'
 
 
+# dark tokens: used by the system setting (unless the analyst chose light) and by the theme switch (/tema, a cookie)
+DARK=('--bg:#0c121c;--surface:#141d2b;--ink:#e6ebf2;--muted:#9aa5b5;--line:#26324a;--brand:#08111f;--accent:#2dd4bf;'
+      '--amber:#f59e0b;--red:#f87171;--green:#4ade80;--tint-red:#2a1719;--tint-green:#13261b;--q:#1a2a42;color-scheme:dark')
+THEMES=('auto','dark','light')  # the switch cycles in this order
 CSS=''':root{--bg:#f3f5f8;--surface:#fff;--ink:#14213d;--muted:#5b6474;--line:#dde2ea;--brand:#0b1f3a;
 --accent:#0f766e;--amber:#b45309;--red:#b91c1c;--green:#15803d;--tint-red:#fdf1f1;--tint-green:#eef8f1;--q:#e8f0fb}
-@media (prefers-color-scheme: dark){:root{--bg:#0c121c;--surface:#141d2b;--ink:#e6ebf2;--muted:#9aa5b5;--line:#26324a;
---brand:#08111f;--accent:#2dd4bf;--amber:#f59e0b;--red:#f87171;--green:#4ade80;--tint-red:#2a1719;--tint-green:#13261b;--q:#1a2a42}}
+@media (prefers-color-scheme: dark){:root:not([data-theme=light]){'''+DARK+'''}}
+:root[data-theme=dark]{'''+DARK+'''}
+:root[data-theme=light]{color-scheme:light}
+nav a.theme{font-size:1.1rem;margin-left:4px}
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--bg);
 color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.45}
 header.top{background:var(--brand);border-bottom:3px solid var(--accent);padding:10px 16px}
@@ -180,7 +187,7 @@ form.guided{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:
 border-radius:8px;padding:14px}
 form.guided label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px}
 form.guided .wide{grid-column:1/-1}form.guided input[type=text]{width:100%}form.guided button{justify-self:start}
-@media (max-width:640px){form.guided{grid-template-columns:1fr}input[type=text]{width:100%}}'''+chat.CSS
+@media (max-width:640px){form.guided{grid-template-columns:1fr}input[type=text]{width:100%}}'''+chat.CSS+reliability.CSS
 
 
 def page(title,body):
@@ -293,13 +300,25 @@ def load_day(day):
 
 
 class Handler(BaseHTTPRequestHandler):
-    def send(self,code,body,ctype='text/html; charset=utf-8',location=None):
+    def theme(self):
+        for part in (self.headers.get('Cookie') or '').split(';'):
+            k,_,v=part.strip().partition('=')
+            if k=='theme' and v in THEMES:
+                return v
+        return 'auto'
+
+    def send(self,code,body,ctype='text/html; charset=utf-8',location=None,cookie=None):
+        t=self.theme()
+        if t!='auto':
+            body=body.replace('<html lang="tr">',f'<html lang="tr" data-theme="{t}">',1)
         data=body.encode('utf-8')
         self.send_response(code)
         self.send_header('Content-Type',ctype)
         self.send_header('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'")
         if location:
             self.send_header('Location',location)
+        if cookie:
+            self.send_header('Set-Cookie',cookie)
         self.send_header('Content-Length',str(len(data)))
         self.end_headers()
         self.wfile.write(data)
@@ -320,6 +339,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             from price_chart import charts_for_items
             return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts_for_items(items)))
+        if path=='/tema':  # theme switch without JavaScript: next theme in a cookie, back to the same page
+            nxt=THEMES[(THEMES.index(self.theme())+1)%len(THEMES)]
+            ref=urlparse(self.headers.get('Referer') or '')
+            back=ref.path if ref.hostname in (HOST,'localhost') and ref.path.startswith('/') else '/'
+            if ref.query and back=='/form':
+                back+='?'+ref.query
+            age=0 if nxt=='auto' else 31536000
+            return self.send(303,'',location=back,cookie=f'theme={nxt}; Path=/; Max-Age={age}; SameSite=Strict')
+        if path=='/guvenilirlik':
+            return self.send(200,page('Güvenilirlik',reliability.render_body(chat.NAV)))
         if path=='/form':
             kind=(parse_qs(urlparse(self.path).query).get('type') or [None])[0]
             kind=kind if kind in form.TYPES else None  # unknown type -> step 1
@@ -478,7 +507,8 @@ def _self_test():
     assert 'clusters.json bulunamadı' in render_themes_index([],None,0)
     assert 'class="top"' in html_out and 'href="/form"' in html_out and '<main>' in html_out    # theme header on every page
     assert '<a class="badge flag" href="#r2">kontrol et ↓</a>' in html_out and 'id="r2"' in html_out and 'class="badge high">yüksek · skor 4' in html_out
-    print('self-test ok: 30 checks')
+    assert ':root[data-theme=dark]{' in CSS and ':root:not([data-theme=light])' in CSS and 'href="/tema"' in render_index([])
+    print('self-test ok: 31 checks')
 
 
 def main():
