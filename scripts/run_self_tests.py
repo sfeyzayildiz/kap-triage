@@ -41,6 +41,7 @@ TESTS={
     'matriks_crosscheck':'--self-test',
     'source_check':'--self-test',
     'themes':'--self-test',
+    'price_chart':'--self-test',
     'form':'--self-test',
     'panel':'--self-test',
     'chat':'--self-test',

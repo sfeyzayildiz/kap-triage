@@ -94,7 +94,7 @@ def default_runner(state):
     return build_graph(llm_route,TOOLS,ctx).invoke(state)
 
 
-def run(form,ctx,runner=None,now=None):
+def run(form,ctx,runner=None,now=None,chart=None):
     '''Validate, run once, keep the latest record; never raises.'''
     now=now or datetime.now()
     rec={'form':{k:form.get(k,'') for k in ('type','symbol','day','text')},'at':now.strftime('%H:%M'),
@@ -111,6 +111,12 @@ def run(form,ctx,runner=None,now=None):
                 with LOCK:
                     out=(runner or default_runner)(state)
                 rec['answer']=out.get('answer') or ''
+                try:  # price chart for why_moved / brief (display only; a failure shows no chart)
+                    if chart is None:
+                        from price_chart import chart_for_state as chart
+                    rec['chart']=chart(state)
+                except Exception:
+                    rec['chart']=''
             except Exception as ex:
                 rec.update(answer=f'Cevap üretilemedi ({type(ex).__name__}). Ollama açık mı?',error=True)
             rec['seconds']=round(time.time()-t0,1)
@@ -165,6 +171,7 @@ def render_body(symbols,names,last,nav,render_answer,kind=None):
         meta=f'{e(last["at"])} · {last["seconds"]:.1f} sn'.replace('.',',')
         out.append(f'<div class="msg a{" err" if last["error"] else ""}" id="son">{render_answer(last["answer"])}'
                    f'<div class="muted">{meta}</div></div>')
+        out.append(last.get('chart') or '')
         out.append('<p><a href="/form">Yeni soru</a></p>')
     out.append('<p class="muted">Kaynak: KAP bildirimleri ve Matriks verisi. Karar öncesi KAP metnini okuyun.</p>')
     return ''.join(out)
@@ -209,7 +216,12 @@ def _self_test():
     assert first.count('<a class="choice')==len(TYPES)+1 and 'href="/form?type=detail"' in first and 'Kendim yazayım' in first
     assert render_body(set(),{},None,'',lambda t:t,kind='zzz')==render_choices('')
     assert display_names('/nonexistent')=={}
-    print('self-test ok: 22 checks')
+    r=run({'type':'why_moved','symbol':'ASELS'},ctx,runner=lambda st:{'answer':'# m'},now=datetime(2026,11,12,10),
+          chart=lambda st:'<figure class="chart">C</figure>' if st['intent']=='why_moved' else '')
+    assert r['chart'].startswith('<figure') and '<figure class="chart">C</figure>' in render_body({'ASELS'},{},r,'',lambda t:t,kind='why_moved')
+    r=run({'type':'why_moved','symbol':'ASELS'},ctx,runner=lambda st:{'answer':'# m'},now=datetime(2026,11,12,10),chart=lambda st:1/0)
+    assert r['chart']=='' and not r['error']   # a chart failure never hides the answer
+    print('self-test ok: 24 checks')
 
 
 def main():

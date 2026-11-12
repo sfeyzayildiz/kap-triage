@@ -50,7 +50,7 @@ def load_sectors(path=DB_PATH):
     try:
         if not con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name='symbol_sectors'").fetchall()[0][0]:
             return {}
-        return {s:n for s,n in con.execute('SELECT symbol,sector_name FROM symbol_sectors').fetchall()}
+        return {s:pretty_sector(n) for s,n in con.execute('SELECT symbol,sector_name FROM symbol_sectors').fetchall()}
     finally:
         con.close()
 
@@ -65,6 +65,29 @@ def load_symbols(path=DB_PATH):
         return {r[0] for r in con.execute('SELECT DISTINCT symbol FROM disclosures WHERE symbol IS NOT NULL').fetchall()}
     finally:
         con.close()
+
+
+ASCII_TR={'ESYA':'EŞYA','ULASIM':'ULAŞIM'}  # Matriks names written without Turkish letters (display only)
+SMALL_WORDS={'ve','ile','veya'}
+
+
+def pretty_sector(name):
+    '''Display form of a Matriks sector name: spacing around commas and dashes, Turkish title case. Data unchanged.'''
+    if not name:
+        return name
+    import re as _re
+    s=_re.sub(r'\s*,\s*',', ',name.strip())
+    s=_re.sub(r'\s*-\s*',' - ',s)
+    words=[]
+    for w in s.split():
+        w=ASCII_TR.get(w.upper().strip(','),w.strip(','))+(',' if w.endswith(',') else '')
+        low=w.replace('İ','i').replace('I','ı').lower()
+        if words and low.strip(',') in SMALL_WORDS:
+            words.append(low)
+        else:
+            first=low[0]
+            words.append(({'i':'İ','ı':'I'}.get(first) or first.upper())+low[1:])
+    return ' '.join(words)
 
 
 def desk_of(symbol,sectors,desks):
@@ -135,7 +158,7 @@ header.top{background:var(--brand);border-bottom:3px solid var(--accent);padding
 nav a{color:#d3dce8;text-decoration:none;margin-right:16px;font-size:.95rem}nav a:hover{color:#fff;text-decoration:underline}
 main{max-width:980px;margin:0 auto;padding:18px 16px 40px}
 h1{font-size:1.35rem;margin:6px 0 10px}
-h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:28px 0 8px;
+h2{font-size:.95rem;letter-spacing:.01em;color:var(--muted);margin:28px 0 8px;
 padding-left:8px;border-left:3px solid var(--accent)}
 a{color:var(--accent)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0}
@@ -152,6 +175,7 @@ input[type=text]{width:60%}
 .choice{display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;color:var(--ink);text-decoration:none}
 .choice:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.choice .ic{font-size:1.4rem;color:var(--accent)}
 .choice.free{border-style:dashed}
+.chart{margin:8px 0 2px}.chart svg{width:100%;max-width:440px;height:auto;display:block}.chart figcaption{font-size:.8rem}.k.s{color:var(--accent)}.k.i{color:var(--muted)}
 form.guided{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:var(--surface);border:1px solid var(--line);
 border-radius:8px;padding:14px}
 form.guided label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px}
@@ -165,7 +189,7 @@ def page(title,body):
             f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{body}</main></body></html>')
 
 
-def render_item(item,day,review):
+def render_item(item,day,review,chart=''):
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
     imp=item['importance']
     cls='flag' if imp['needs_review'] else ('high' if imp['level']=='high' else '')
@@ -183,6 +207,7 @@ def render_item(item,day,review):
         out.append(f'<div>Neden: {e("; ".join(reasons))}</div>')
     if item.get('reaction'):
         out.append(f'<div class="muted">Fiyat: {e(reaction_text(item["reaction"]))}</div>')
+    out.append(chart or '')  # built by price_chart from numbers only
     if imp['needs_review']:
         codes='; '.join(REVIEW_TR.get(c,c) for c in imp['needs_review_reasons'])
         if review:
@@ -200,7 +225,7 @@ def render_item(item,day,review):
     return ''.join(out)
 
 
-def render_day(day,items,sectors,desks,reviews):
+def render_day(day,items,sectors,desks,reviews,charts=None):
     groups=by_desk(items,sectors,desks)
     flagged=[i for i in items if i['importance']['needs_review']]
     done=sum(i['news_id'] in reviews for i in flagged)
@@ -210,7 +235,7 @@ def render_day(day,items,sectors,desks,reviews):
         body.append('<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
     for desk,its in groups.items():
         body.append(f'<h2>{e(desk)} ({len(its)})</h2>')
-        body+= [render_item(i,day,reviews.get(i['news_id'])) for i in its]
+        body+= [render_item(i,day,reviews.get(i['news_id']),(charts or {}).get(i['news_id'],'')) for i in its]
     body.append('<p class="muted">Kaynak: KAP bildirimleri ve Matriks verisi. Skor kurallı bir sıralamadır, tahmin değildir; '
                 'karar öncesi KAP metnini okuyun.</p>')
     return page(f'Sabah listesi {day}',''.join(body))
@@ -293,7 +318,8 @@ class Handler(BaseHTTPRequestHandler):
             items=load_day(m.group(1))
             if items is None:
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
-            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews()))
+            from price_chart import charts_for_items
+            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts_for_items(items)))
         if path=='/form':
             kind=(parse_qs(urlparse(self.path).query).get('type') or [None])[0]
             kind=kind if kind in form.TYPES else None  # unknown type -> step 1
@@ -402,6 +428,9 @@ def _self_test():
             'importance':imp(1,'low',[])}]
     sectors={'AAA':'Savunma','BBB':'Enerji','CCC':'Savunma'}
     assert desk_of('AAA',sectors,{})=='Savunma' and desk_of('ZZZ',sectors,{})==UNASSIGNED
+    assert pretty_sector('GIDA , İÇECEK VE TÜTÜN')=='Gıda, İçecek ve Tütün'
+    assert pretty_sector('METAL ESYA,MAKİNE,ELEKTRİKLİ CİHAZLAR,ULASIM ARAÇ')=='Metal Eşya, Makine, Elektrikli Cihazlar, Ulaşım Araç'
+    assert pretty_sector('TEKNOLOJİ - BİLİŞİM')=='Teknoloji - Bilişim' and pretty_sector('İNŞAAT-TAAHHÜT')=='İnşaat - Taahhüt' and pretty_sector(None) is None
     assert desk_of('BBB',sectors,{'Enerji':'Enerji ve altyapı'})=='Enerji ve altyapı'
     g=by_desk(items,sectors,{})
     assert list(g)==['Enerji','Savunma',UNASSIGNED]  # ties on look-first broken by name, unassigned last
@@ -443,12 +472,13 @@ def _self_test():
     assert 'href="javascript' not in w and 'href="https://www.kap.org.tr/tr/Bildirim/5"' in w
     assert w.count('şablon etkisi')==1 and 'normalde haftada 0,2 bildirim' in w and 'sektörler: Savunma 1' in w
     assert 'tema kelimesi yok' in w and 'kısmen yansıtır' in w
+    assert '<figure class="chart">X</figure>' in render_day('2026-11-09',items,sectors,{},{},charts={'1':'<figure class="chart">X</figure>'})
     idx=render_themes_index([('2026-11-09',3)],'2026-11-12 08:00:00',2)
     assert 'href="/themes/2026-11-09"' in idx and 'Sonraki 2 bildirim henüz kümelenmedi' in idx
     assert 'clusters.json bulunamadı' in render_themes_index([],None,0)
     assert 'class="top"' in html_out and 'href="/form"' in html_out and '<main>' in html_out    # theme header on every page
     assert '<a class="badge flag" href="#r2">kontrol et ↓</a>' in html_out and 'id="r2"' in html_out and 'class="badge high">yüksek · skor 4' in html_out
-    print('self-test ok: 26 checks')
+    print('self-test ok: 30 checks')
 
 
 def main():
