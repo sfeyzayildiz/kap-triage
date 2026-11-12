@@ -26,6 +26,7 @@ Date: 2026-11-02. The LLM extracts facts; this score is computed in code from th
 - Price reaction: not used as input.
 
 ## Honest limits
-- Weights and thresholds are judgment, not fitted to data. There is no measured accuracy for the score.
+- Weights and thresholds are judgment, not fitted to data.
+- Checked once against the analyst (2026-11-12, `docs/importance_check_rule.md`, 10 unseen days, 49 disclosures, 47 pairs): within-day AUC 0.681, just above the random p95 0.670, and equal to sorting by amount alone (0.681) → `AMOUNT_EXPLAINS`. The other components are not shown to add value; weights unchanged (report only).
 - The company baseline uses Matriks amounts, which were wrong in some Set A cases; the median limits the effect of one bad value.
 - Any later check of the score (for example against abnormal returns after the disclosure) needs its own decision rule, committed before measuring.

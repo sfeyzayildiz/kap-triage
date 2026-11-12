@@ -47,6 +47,7 @@ TESTS={
     'regex_baseline':'--self-test',
     'build_chunks':'--self-test',
     'brief_eval':'--self-test',
+    'importance_check':'--self-test',
     'write_negatives':'--self-test',
     'revenue_check':'--self-test',
     'deploy_check':'--self-test',

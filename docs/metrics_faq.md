@@ -42,6 +42,9 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 ## Generation (cited answers): tried, not adopted
 - Citations right 45/46 when shown; but 3 of 7 unanswerable questions answered (bar ≥ 5/7 stay silent). Median 3.4 s. Off.
 
+## Importance score vs. the analyst (blind, report only)
+- 10 unseen days, 49 disclosures, Feyza labeled blind, 47 within-day pairs. AUC score **0.681** (random p95 0.670, p 0.042), amount-only **0.681**, margin 0 → `AMOUNT_EXPLAINS`: better than chance, but sorting by amount does as well. Day's top pick: amount 7/10, score 3/10 (random 2.1). Level high: 9 of 11 were her picks, but it caught 9 of her 29.
+
 ## Human in the loop
 - Panel, one demo day: 6 flags reviewed on KAP, 3 were real extraction errors.
 
@@ -53,4 +56,4 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Revenue ratio: on; coverage 84% of disclosures; data check 99.2% consistent.
 
 ## Not measured (say it before they ask)
-- Importance score weights (judgment). Document-to-document similarity. Clustering (waits for sector labels). Test sets are small (100 / 48 / 20 / 18), so bounds are wide.
+- Importance score weights (judgment; the order was checked once against one analyst, see above, weights not fitted). Document-to-document similarity. Test sets are small (100 / 48 / 20 / 18), so bounds are wide.
