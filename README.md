@@ -62,6 +62,8 @@ ollama pull gemma4:e4b
 .venv/bin/python scripts/panel.py --serve
 ```
 
+With Docker: `docker compose up --build` (Ollama stays on the host; `data/` is mounted, never baked in). See `docs/docker.md`.
+
 Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also in CI on every pull request). Operations: `docs/runbook.md`. Architecture: `docs/architecture.md`. Other entry points:
 - `scripts/price_collect.py`: daily price bars.
 - `scripts/rag_index.py --build`: search index.

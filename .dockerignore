@@ -1,0 +1,9 @@
+# never in the image: licensed data, the token, local environments
+data/
+.env
+.env.*
+.venv/
+.git/
+**/__pycache__/
+*.pyc
+.DS_Store

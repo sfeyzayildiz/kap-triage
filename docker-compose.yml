@@ -1,0 +1,20 @@
+# One command: docker compose up --build   -> http://127.0.0.1:8765
+# Needs Ollama running on the host with gemma4:e4b, and a data/ folder (see docs/docker.md).
+services:
+  panel:
+    build: .
+    image: kap-triage:latest
+    ports:
+      - "127.0.0.1:8765:8765"   # published on this computer only, like the Mac setup
+    volumes:
+      - ./data:/app/data
+      - model-cache:/home/app/.cache/huggingface
+    env_file:
+      - path: .env
+        required: false          # only collection needs the Matriks token; the panel does not
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach the host's Ollama on Linux too
+    restart: unless-stopped
+
+volumes:
+  model-cache:

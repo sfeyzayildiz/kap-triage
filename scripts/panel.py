@@ -32,7 +32,10 @@ import themes
 DB_PATH='data/kap.duckdb'
 DESKS={}  # sector name -> desk name; empty until the sector names are known
 LOG_PATH='data/review_log.jsonl'
-HOST='127.0.0.1'
+# bind address: 127.0.0.1 on the Mac; the Docker image sets PANEL_HOST=0.0.0.0 and compose publishes
+# the port on 127.0.0.1 only, so the panel stays local either way (docs/docker.md)
+HOST=os.environ.get('PANEL_HOST','127.0.0.1')
+LOCAL_NAMES=('127.0.0.1','localhost')  # accepted Origin / Referer hosts
 PORT=8765
 UNASSIGNED='Atanmamış'
 DECISIONS={'confirm':'Doğru (KAP metniyle kontrol ettim)','reject':'Yanlış (çıkarım hatalı)'}
@@ -342,7 +345,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/tema':  # theme switch without JavaScript: next theme in a cookie, back to the same page
             nxt=THEMES[(THEMES.index(self.theme())+1)%len(THEMES)]
             ref=urlparse(self.headers.get('Referer') or '')
-            back=ref.path if ref.hostname in (HOST,'localhost') and ref.path.startswith('/') else '/'
+            back=ref.path if ref.hostname in LOCAL_NAMES and ref.path.startswith('/') else '/'
             if ref.query and back=='/form':
                 back+='?'+ref.query
             age=0 if nxt=='auto' else 31536000
@@ -377,7 +380,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         origin=self.headers.get('Origin')
-        if origin and urlparse(origin).hostname not in (HOST,'localhost'):
+        if origin and urlparse(origin).hostname not in LOCAL_NAMES:
             return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
         path=urlparse(self.path).path
         if path not in ('/review','/chat','/chat/clear','/form'):
@@ -529,7 +532,7 @@ def main():
         for code,c in reason_stats(load_reviews()).items():
             print(f'  {code} confirm={c["confirm"]} reject={c["reject"]}')
     elif args.serve:
-        print(f'panel on http://{HOST}:{args.port} (Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())} '
+        print(f'panel on http://127.0.0.1:{args.port} (bind {HOST}; Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())} '
               f'review log={LOG_PATH}')
         ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
     else:
