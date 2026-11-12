@@ -54,6 +54,19 @@ BRIEF_RE=re.compile(r'\b(bak|bakalım|bakalim|özet|ozet|özetle|ozetle|değerle
 BRIEF_SWITCH=True  # docs/brief_rule.md: on for the measurement; decided by Feyza's 10 questions
 BRIEF_HISTORY_LINKS=8
 V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter in search, detail switch
+# docs/scope_guard_rule.md result 2026-11-12: SCOPE_OFF (A blocked 7/10, bar 9; F_new 0/10, F_old 1/185).
+# Code kept as a record; a v2 list needs new questions and its own rule.
+SCOPE_SWITCH=False
+# docs/scope_guard_rule.md (fixed before any question; ASCII-folded, matched at a word start, suffixes allowed)
+SCOPE_PHRASES=('temettu','kar payi','bedelsiz','bedelli','sermaye artirim','geri alim','genel kurul','halka arz',
+               'hedef fiyat','tavsiye','alinir mi','alinmali mi','almali miyim','alayim mi','satilir mi','satilmali mi',
+               'satmali miyim','satayim mi','al mi sat mi','f/k','fiyat/kazanc','pd/dd','degerleme',
+               'bilanco','net kar','finansal tablo','favok','ceyrek sonuc')
+SCOPE_RE=re.compile(r'\b('+'|'.join(re.escape(p) for p in SCOPE_PHRASES)+')')
+FOLD=str.maketrans('çğıöşüâîû','cgiosuaiu')
+SCOPE_TEXT=('Bu soru yeni iş ilişkisi bildirimlerinin dışında görünüyor (ör. temettü, sermaye artırımı, hedef fiyat, '
+            'al-sat tavsiyesi, finansal tablolar). Bu asistan yalnızca KAP "Yeni İş İlişkisi" bildirimlerini kapsar '
+            've yatırım tavsiyesi vermez.\n\n')
 
 ROUTER_PROMPT='''You route a Turkish equity analyst's question to exactly one tool. Return JSON only.
 intent:
@@ -169,6 +182,16 @@ def route_question(route,question,ctx,v2=None):
         if BRIEF_SWITCH:
             v=brief_switch(v,question)
     return v
+
+
+def fold(text):
+    '''Turkish lower case folded to ASCII (İ->i, I->ı->i).'''
+    return (text or '').replace('İ','i').replace('I','ı').lower().replace('̇','').translate(FOLD)
+
+
+def out_of_scope(question):
+    '''docs/scope_guard_rule.md: a fixed phrase outside new-business disclosures (runs before the LLM router).'''
+    return bool(SCOPE_RE.search(fold(question)))
 
 
 def detail_switch(v,question):
@@ -375,6 +398,10 @@ def tool_help(state):
             '- "Irak\'taki projelerle ilgili bildirimler"\n')
 
 
+def tool_scope(state):
+    return SCOPE_TEXT+tool_help(state)
+
+
 # --- company brief: multi-step flow, docs/brief_rule.md (every value from code; the model writes no sentence) ---
 def _timed(name,fn):
     def run(state):
@@ -493,12 +520,14 @@ BRIEF_STEPS=(('latest',step_latest),('history',step_history),('reaction',step_re
 
 
 TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,'search':tool_search,'detail':tool_detail,
-       'unknown':tool_help}
+       'unknown':tool_help,'out_of_scope':tool_scope}
 
 
 def build_graph(router,tools,ctx,steps=BRIEF_STEPS):
     '''route -> one tool -> END; intent brief -> the step chain -> compose -> END (docs/brief_rule.md).'''
     def _route(state):
+        if SCOPE_SWITCH and out_of_scope(state['question']):  # docs/scope_guard_rule.md: no router call
+            return {'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
         r=router(state['question'],ctx['today'])
         return route_question(r,state['question'],ctx)
 
@@ -652,7 +681,24 @@ def _self_test():
     assert 'olağandışı mı: hayır' in t and '10 bildirim, 9 güncelleme/düzeltme, 1 Matriks tutar kaydı' in t
     assert '... 2 bildirim daha' in t and '(benzerlik 0,91) u2' in t and t.count('\n- ')==BRIEF_HISTORY_LINKS+2   # 8 history + '... daha' + 1 similar
     assert 'Yok.' in compose_brief('X',{'latest':None,'history':[],'reaction':None,'similar':[]})
-    print('self-test ok: 55 checks')
+    # scope guard (docs/scope_guard_rule.md): folded, word start, suffixes allowed, before the router
+    assert fold('İŞ BİLANÇOSU Iğdır')=='is bilancosu igdir'
+    assert out_of_scope('ASELS temettüsü ne kadar?') and out_of_scope('THYAO HEDEF FİYATI kaç?')
+    assert out_of_scope('Aselsan alınır mı') and out_of_scope('KONTR sermaye artırımı yapacak mı') and out_of_scope('F/K oranı')
+    assert not out_of_scope('ASELS son bir yılda hangi işleri aldı?') and not out_of_scope('Irak\'taki projelerle ilgili bildirimler')
+    assert not out_of_scope('Fonet\'in Aydın sözleşmesinin süresi kaç ay?') and not out_of_scope('THYAO dün neden düştü?')
+    assert not out_of_scope('karşı taraf kim') and not out_of_scope('ihale bedeli')   # 'kar' / 'bedel' inside other words
+    global SCOPE_SWITCH
+    saved,routed=SCOPE_SWITCH,[]
+    try:
+        SCOPE_SWITCH=True  # the guard's path is tested even while it is off in production
+        g4=build_graph(lambda q,t:routed.append(q) or {'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=fake)
+        o4=g4.invoke({'question':'ASELS temettü ne kadar?'})
+        assert routed==[] and o4['intent']=='out_of_scope' and calls[-1][0]=='out_of_scope'
+    finally:
+        SCOPE_SWITCH=saved
+    assert tool_scope({}).startswith('Bu soru yeni iş ilişkisi') and 'Şunları sorabilirsiniz' in tool_scope({})
+    print('self-test ok: 63 checks')
 
 
 def main():
