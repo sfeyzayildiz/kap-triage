@@ -298,6 +298,10 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-13: Drift check after Set C → NO_DRIFT_SEEN
+- Rule `docs/drift_rule.md` (971bd86, before the run). Feyza ran `drift_check.py --ids` (40), `eval_vs_matriks.py --prompt v3` once, `--score`.
+- Agreement with Matriks (amount and currency): Set C 72/78 (92.3%) → after Set C **35/40 (87.5%)**, bar ≥ 82.3% → `NO_DRIFT_SEEN`. Run errors 0. Of the 5 mismatches, 4 are `llm_null` (no amount extracted, so no silent wrong amount) and 1 is an amount mismatch (id 6814653; details in /tmp only, not read). Matriks is a reference, not gold.
+
 ## 2026-11-13: Duration / origin / related party measured → long KEEP, foreign OFF, related OFF
 - Feyza labeled 50 Set C items (rule fields_rule v1) before any model output, then one `--run` (finished before 23:38, 0 run errors), `--score` after the collection window.
 - long: 3/50 errors (bar ≤ 3), all false "no", gold yes 6 → **KEEP** (ordering v2 unchanged). foreign: **7/50** (false no 7, gold yes 18) → **OFF**. related: **5/50** (false no 5, gold yes 6) → **OFF**. No false "yes" in any field: the model does not invent these facts, it misses them (foreign: 7 of 18 missed).

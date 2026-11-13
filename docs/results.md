@@ -40,6 +40,7 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 | Cited answers v3 / v4 (gates, gemma4:26b) | dev 66 | v4: 51/54 shown, 5/7 negatives (bar 6/7) | **not adopted**; held-out set still unused |
 | Company brief (multi-step flow) | 10 questions | routed 9/10, ticker 10/10, review yes 9/10, median 18.5 s | **adopted** |
 | Scope guard (fixed word list) | 20 new + 185 earlier questions | blocked 7/10 out-of-scope (bar 9); false blocks 0/10 and 1/185 | **off** |
+| Drift: agreement with Matriks after Set C | 40 disclosures after 2026-10-08 | 35/40 (87.5%) vs Set C 72/78 (92.3%); bar ≥ 82.3%; 4 of 5 misses are "no amount" | **no drift seen** |
 | Fields used by the score: long contract / foreign counterparty / related party | 50 Set C, labeled before the run | errors 3/50 / 7/50 / 5/50 (bar 3 each); all misses, no invented "yes" | long **kept**; foreign, related **off** |
 | Desk e-mails via n8n + local Mailpit | all 15 saved days, 43 items, 33 e-mails | lost 0, duplicated 0, wrong desk 0, amount leaks 0; median 0.2 s per day (bar 10 s) | **adopted** |
 | Relative periods (code phrase table) | 15 new + 205 earlier questions | exact period 10/10 (bar 9); false period 1/5 (bar 1); wrong fires 0/9 of 205 earlier (bar 2) | **adopted** |

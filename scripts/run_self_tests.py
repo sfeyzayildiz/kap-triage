@@ -56,6 +56,7 @@ TESTS={
     'period_eval':'--self-test',
     'desk_mail':'--self-test',
     'fields_eval':'--self-test',
+    'drift_check':'--self-test',
     'desk_route_check':'--self-test',
     'importance_check':'--self-test',
     'write_negatives':'--self-test',
