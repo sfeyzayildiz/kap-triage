@@ -71,7 +71,7 @@ def load_symbols(path=DB_PATH):
         con.close()
 
 
-ASCII_TR={'ESYA':'EŞYA','ULASIM':'ULAŞIM'}  # Matriks names written without Turkish letters (display only)
+ASCII_TR={'ESYA':'EŞYA','ULASIM':'ULAŞIM','TAS':'TAŞ'}  # Matriks names written without Turkish letters (display only)
 SMALL_WORDS={'ve','ile','veya'}
 
 
@@ -342,6 +342,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             from price_chart import charts_for_items
             return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts_for_items(items)))
+        m=re.match(r'^/api/desks/(\d{4}-\d{2}-\d{2}|latest)$',path)
+        if m:  # docs/n8n_routing_rule.md: read-only JSON for n8n (no amounts, no disclosure text)
+            day=m.group(1)
+            if day=='latest':
+                days=available_days()
+                day=days[0] if days else None
+            items=load_day(day) if day else None
+            if items is None:
+                return self.send(404,json.dumps({'error':'no morning list','day':day}),ctype='application/json')
+            import desk_mail
+            return self.send(200,json.dumps(desk_mail.payload(day,items,load_sectors(),DESKS),ensure_ascii=False),
+                             ctype='application/json; charset=utf-8')
         if path=='/tema':  # theme switch without JavaScript: next theme in a cookie, back to the same page
             nxt=THEMES[(THEMES.index(self.theme())+1)%len(THEMES)]
             ref=urlparse(self.headers.get('Referer') or '')
@@ -463,6 +475,7 @@ def _self_test():
     assert pretty_sector('GIDA , İÇECEK VE TÜTÜN')=='Gıda, İçecek ve Tütün'
     assert pretty_sector('METAL ESYA,MAKİNE,ELEKTRİKLİ CİHAZLAR,ULASIM ARAÇ')=='Metal Eşya, Makine, Elektrikli Cihazlar, Ulaşım Araç'
     assert pretty_sector('TEKNOLOJİ - BİLİŞİM')=='Teknoloji - Bilişim' and pretty_sector('İNŞAAT-TAAHHÜT')=='İnşaat - Taahhüt' and pretty_sector(None) is None
+    assert pretty_sector('TAS VE TOPRAĞA DAYALI')=='Taş ve Toprağa Dayalı'   # display only; mailbox unchanged (tas-ve-...)
     assert desk_of('BBB',sectors,{'Enerji':'Enerji ve altyapı'})=='Enerji ve altyapı'
     g=by_desk(items,sectors,{})
     assert list(g)==['Enerji','Savunma',UNASSIGNED]  # ties on look-first broken by name, unassigned last

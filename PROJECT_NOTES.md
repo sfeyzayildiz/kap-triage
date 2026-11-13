@@ -298,6 +298,19 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-13: n8n desk e-mails measured → ADOPT_N8N
+- Feyza: `docker compose up --build -d`, owner account, imported credential + workflow (both imported without error), workflow Active. First smoke test failed in the check script (Mailpit's DELETE answers plain "ok", not JSON): fixed and committed before the measured run (291ac09); Claude ran the one-day smoke test (counts only, 2/2 e-mails, all 0).
+- First `--all` was stopped by hand (Ctrl+C) after 6 of 15 days (all six clean, no results file written, no decision); then one complete run: **15 days, 33/33 e-mails, 43 items, L 0, D 0, W 0, X 0, T median 0.2 s** (bars 0/0/0/0, ≤ 10 s) → `ADOPT_N8N`. The system is deterministic and nothing changed between the two runs.
+- After the measurement (display only, not measured): sector "TAS" shown as "Taş" (Feyza saw it in Mailpit; mailbox address unchanged).
+- Limits as in the rule: integration measured, not whether the sector desk is the right recipient; Mailpit stands in for corporate e-mail.
+
+## 2026-11-13: n8n desk e-mails, rule and code (workflow not run yet)
+- Rule `docs/n8n_routing_rule.md` (e0dd167, before code). Feyza's choices: desk = Matriks sector (27, no grouping); delivery = local e-mail via Mailpit, not Telegram (external servers; brokerage compliance uses approved channels; Matriks licence); Claude writes the workflow, Feyza imports and runs it, then a guided tour of the editor.
+- `scripts/desk_mail.py` (12 checks): per-desk e-mail built in code (company, look-first / check flags, reason labels without numbers, KAP link, panel link); no amounts, ratios or text. Panel `GET /api/desks/<day|latest>`. Offline check on all 15 saved days: 33 e-mails, 43 items, 0 leaking e-mails (counts only).
+- `docker-compose.yml`: + `n8nio/n8n:1.123.88` (telemetry, version checks, templates, personalization off) and `axllent/mailpit:v1.31.6` (version check off), all ports on 127.0.0.1. `n8n/desk_routing.json` (Webhook + Schedule 07:30 → Code → HTTP → Split Out → Send Email → Code; two sticky notes), `n8n/credentials_mailpit.json` (no secret).
+- `scripts/desk_route_check.py` (10 checks): `--day` smoke test, `--all` measured run (L, D, W, X, T).
+- Claude cannot reach Docker from its shell; the workflow JSON is untested until Feyza imports it. Fixes before the measured run are allowed by the rule (integration, not tuning).
+
 ## 2026-11-13: Relative periods measured → ADOPT_PERIODS
 - Feyza wrote 10 period + 5 no-period questions (not seen by Claude; gold dates computed by her from the rule table and calendar facts, no precomputed dates given), judged the 9 earlier questions where the parser fired.
 - P exact 10/10 (bar ≥ 9), N false period 1/5 at index 11 (bar ≤ 1), O fired 9/205 earlier, wrong 0 (bar ≤ 2). Decision by the pre-written rule: `ADOPT_PERIODS`, `PERIODS=True` stays. The N hit is not fixed (no change after seeing results); it is a stated limit.

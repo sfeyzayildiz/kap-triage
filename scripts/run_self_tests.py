@@ -54,6 +54,8 @@ TESTS={
     'scope_eval':'--self-test',
     'periods':'--self-test',
     'period_eval':'--self-test',
+    'desk_mail':'--self-test',
+    'desk_route_check':'--self-test',
     'importance_check':'--self-test',
     'write_negatives':'--self-test',
     'revenue_check':'--self-test',

@@ -1,5 +1,6 @@
 # One command: docker compose up --build   -> http://127.0.0.1:8765
 # Needs Ollama running on the host with gemma4:e4b, and a data/ folder (see docs/docker.md).
+# n8n (127.0.0.1:5678) and Mailpit (127.0.0.1:8025): desk e-mails, docs/n8n_routing_rule.md, docs/n8n_guide.md.
 services:
   panel:
     build: .
@@ -16,5 +17,40 @@ services:
       - "host.docker.internal:host-gateway"   # reach the host's Ollama on Linux too
     restart: unless-stopped
 
+  n8n:
+    image: n8nio/n8n:1.123.88
+    ports:
+      - "127.0.0.1:5678:5678"   # editor and webhook on this computer only
+    environment:
+      - GENERIC_TIMEZONE=Europe/Istanbul
+      - TZ=Europe/Istanbul
+      - N8N_SECURE_COOKIE=false                 # plain http on localhost
+      - N8N_DIAGNOSTICS_ENABLED=false           # no telemetry: nothing leaves the machine
+      - N8N_DIAGNOSTICS_CONFIG_FRONTEND=
+      - N8N_DIAGNOSTICS_CONFIG_BACKEND=
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_HIRING_BANNER_ENABLED=false
+      - EXTERNAL_FRONTEND_HOOKS_URLS=
+      - N8N_DEFAULT_BINARY_DATA_MODE=default
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./n8n:/import:ro                        # workflow + local SMTP credential to import
+    depends_on:
+      - panel
+      - mailpit
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    ports:
+      - "127.0.0.1:8025:8025"   # web inbox and API on this computer only; SMTP 1025 stays inside Docker
+    environment:
+      - MP_MAX_MESSAGES=2000
+      - MP_DISABLE_VERSION_CHECK=true           # no call to GitHub for updates
+    restart: unless-stopped
+
 volumes:
   model-cache:
+  n8n-data:
