@@ -18,11 +18,12 @@ Written 2026-11-12 after a review of the whole project (PROJECT_NOTES.md, docs/r
 ## B. The product
 | # | What is wrong or weak | Status |
 |---|---|---|
-| B1 | In the chat, an out-of-scope question that names a company and a detail ("ASELS temettü ne kadar?") gets an unrelated disclosure card. The scope guard v2 is not built yet. | **Fixable** (rule + new questions). Meanwhile the guided form avoids it; in the demo, no such questions. |
+| B1 | In the chat, an out-of-scope question that names a company and a detail ("ASELS temettü ne kadar?") gets an unrelated disclosure card. Scope guard v2 (router intent `out_of_scope`) blocked 10/10 out-of-scope but also 29/185 earlier in-scope questions (bar 3) → off (13 Nov). | **Accepted** for the final: both guards failed their bars. The guided form avoids it; in the demo, no such questions. A v3 would need a different design (e.g. a check only after the router said `company`), its own rule and new questions. |
 | B2 | Relative periods ("geçen hafta") are not parsed; two companies in one question → only the first; a counterparty's name can be taken as the company. | **Fixable** (relative periods planned); the other two **accepted** for now. The form avoids all three. |
 | B3 | The system rarely says "the data cannot answer this": unanswerable questions still get a list or a card. | **Accepted**; cited answers that abstain did not pass their bar. |
 | B4 | Search's typical miss: right company, wrong disclosure (all 16 rank-1 misses on Set C). A card can therefore show the wrong disclosure of the right company. | **Accepted**, stated on every card ("the card belongs to the first hit; read the KAP text"). |
 | B5 | `MONEY_RE` misses "ABD Doları" (10 of 81 Set B amounts), so some currency checks do not fire. | **Fixable:** `amount_checks` v2, needs a new labeled set (frozen v1 stays). |
+| B5b | Live use, 12 Nov morning list (Feyza's review): 2/2 flagged disclosures had wrong extractions, both caught by the flag (none silent). Types: mixed currency / split amounts not read (importance 0); a TL revision where only the FX part was scored. | **Fixable** with B5 (same family); not changed from these two cases, a v2 must be measured on a new labeled set. |
 | B6 | Weekly themes: about half of the theme words are generic; clusters follow company templates more than sectors. | **Accepted**, stated on the page; desks use the Matriks sector label. |
 | B7 | Prices are unadjusted; splits are guessed by a 22% jump rule. EFORC has no prices and no sector. | **Accepted**, stated. |
 | B8 | Disclosure texts come from the Matriks test environment, amounts from prod; revenue uses Matriks' choice of balance sheet. | **Accepted**, stated; counts match prod. |

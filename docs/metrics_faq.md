@@ -34,7 +34,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - 20 questions by Feyza: LLM router **17/20** vs. keyword router 9/20 → LLM kept. Ticker right 4/8 (2 wrong tickers from company names: known risk).
 - Name → ticker in code (router v2): intended link in top 5 **18/20** (v1 11/20). Adopted.
 - Company brief (multi-step LangGraph: latest → history → reaction → similar → compose), 10 questions: routed **9/10**, ticker **10/10**, review yes **9/10**, median **18.5 s** (14 s of it is the extraction). Adopted.
-- Red team (exploration, 16 questions by Feyza): 7 right. Scope guard (word list before the router): blocked **7/10** out-of-scope (bar 9), false blocks 0/10 new and 1/185 earlier → off. Say it: an out-of-scope question with a company name can still get an unrelated card.
+- Red team (exploration, 16 questions by Feyza): 7 right. Scope guard (word list before the router): blocked **7/10** out-of-scope (bar 9), false blocks 0/10 new and 1/185 earlier → off. Scope guard v2 (router may say out of scope): blocked **10/10** but falsely blocked **29/185** earlier in-scope questions (bar 3) → off. The trade-off in one line: a word list misses wordings, a small-model judge over-blocks. Say it: an out-of-scope question with a company name can still get an unrelated card.
 
 ## Security (prompt injection, red team)
 - Amount attack without defence: 20/20 success, 14 silent (Set C texts 1-20).

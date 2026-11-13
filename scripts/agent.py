@@ -57,6 +57,7 @@ V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter 
 # docs/scope_guard_rule.md result 2026-11-12: SCOPE_OFF (A blocked 7/10, bar 9; F_new 0/10, F_old 1/185).
 # Code kept as a record; a v2 list needs new questions and its own rule.
 SCOPE_SWITCH=False
+SCOPE_V2=False  # docs/scope_guard_v2_rule.md: measured 13 Nov, SCOPE_V2_OFF (F_old 29/185, bar 3); code kept as a record
 # docs/scope_guard_rule.md (fixed before any question; ASCII-folded, matched at a word start, suffixes allowed)
 SCOPE_PHRASES=('temettu','kar payi','bedelsiz','bedelli','sermaye artirim','geri alim','genel kurul','halka arz',
                'hedef fiyat','tavsiye','alinir mi','alinmali mi','almali miyim','alayim mi','satilir mi','satilmali mi',
@@ -88,6 +89,21 @@ class Route(BaseModel):
     query: Optional[str]
 
 
+# docs/scope_guard_v2_rule.md: one more intent, wording fixed before any question
+SCOPE_LINE=('- "out_of_scope": the answer is not in new business disclosures: other disclosure types (dividend, capital '
+            'increase, buyback, general assembly, IPO), valuation or investment advice (target price, buy / sell / hold), '
+            'financial statements and results (balance sheet, profit, EBITDA), macro or the general market (interest '
+            'rates, FX outlook, index forecast)\n')
+ROUTER_PROMPT_V2=ROUTER_PROMPT.replace('- "unknown": anything else',SCOPE_LINE+'- "unknown": anything else')
+
+
+class RouteV2(BaseModel):
+    intent: Literal['morning','company','why_moved','search','unknown','out_of_scope']
+    symbol: Optional[str]
+    date: Optional[str]
+    query: Optional[str]
+
+
 class State(TypedDict,total=False):
     question: str
     intent: str
@@ -101,13 +117,15 @@ class State(TypedDict,total=False):
     steps: dict
 
 
-def llm_route(question,today):
+def llm_route(question,today,v2=None):
     from llm_extract import CLIENT, MODEL
-    prompt=ROUTER_PROMPT.format(today=today,yesterday=today-timedelta(days=1))
+    v2=SCOPE_V2 if v2 is None else v2
+    schema=RouteV2 if v2 else Route
+    prompt=(ROUTER_PROMPT_V2 if v2 else ROUTER_PROMPT).format(today=today,yesterday=today-timedelta(days=1))
     resp=CLIENT.chat(model=MODEL,messages=[{'role':'user','content':prompt+question}],
-                     format=Route.model_json_schema(),options={'temperature':0,'num_ctx':4096})
+                     format=schema.model_json_schema(),options={'temperature':0,'num_ctx':4096})
     try:
-        return Route.model_validate_json(resp.message.content).model_dump()
+        return schema.model_validate_json(resp.message.content).model_dump()
     except ValidationError:
         return {'intent':'unknown','symbol':None,'date':None,'query':None}
 
@@ -192,6 +210,11 @@ def fold(text):
 def out_of_scope(question):
     '''docs/scope_guard_rule.md: a fixed phrase outside new-business disclosures (runs before the LLM router).'''
     return bool(SCOPE_RE.search(fold(question)))
+
+
+def scope_v2(question,route):
+    '''docs/scope_guard_v2_rule.md: the v1 word list or the router's out_of_scope intent.'''
+    return out_of_scope(question) or (route or {}).get('intent')=='out_of_scope'
 
 
 def detail_switch(v,question):
@@ -537,6 +560,8 @@ def build_graph(router,tools,ctx,steps=BRIEF_STEPS):
         if SCOPE_SWITCH and out_of_scope(state['question']):  # docs/scope_guard_rule.md: no router call
             return {'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
         r=router(state['question'],ctx['today'])
+        if SCOPE_V2 and scope_v2(state['question'],r):  # docs/scope_guard_v2_rule.md
+            return {'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
         return route_question(r,state['question'],ctx)
 
     def tool_node(name):
@@ -711,7 +736,24 @@ def _self_test():
     assert routed==[] and o5['intent']=='why_moved' and calls[-1]==('why_moved','ASELS','2026-10-29')
     o6=g4.invoke({'question':'ASELS','intent':'brief','symbol':'ASELS','day':None,'note':None})
     assert routed==[] and ': şirket özeti' in o6['answer'] and 'ASELS' in o6['answer']
-    print('self-test ok: 65 checks')
+    # scope guard v2: router intent or word list, after the router call
+    assert '"out_of_scope"' in ROUTER_PROMPT_V2 and ROUTER_PROMPT_V2.index('out_of_scope')<ROUTER_PROMPT_V2.index('"unknown"')
+    assert scope_v2('ASELS temettüsü',{'intent':'company'}) and scope_v2('Dolar ne olur',{'intent':'out_of_scope'})
+    assert not scope_v2('ASELS son işleri',{'intent':'company'})
+    global SCOPE_V2
+    saved=SCOPE_V2
+    g7=build_graph(lambda q,t:{'intent':'out_of_scope','symbol':None,'date':None,'query':None},tools,ctx,steps=fake)
+    g8=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=fake)
+    try:
+        SCOPE_V2=True
+        assert g7.invoke({'question':'Faizler düşer mi?'})['intent']=='out_of_scope'
+        assert g8.invoke({'question':'ASELS hedef fiyatı ne?'})['intent']=='out_of_scope'
+        assert g8.invoke({'question':'ASELS son bir yılda hangi işleri aldı?'})['intent']=='company'
+        SCOPE_V2=False   # switch off (13 Nov decision): the v2 check is not applied
+        assert g8.invoke({'question':'ASELS hedef fiyatı ne?'})['intent']=='company'
+    finally:
+        SCOPE_V2=saved
+    print('self-test ok: 72 checks')
 
 
 def main():

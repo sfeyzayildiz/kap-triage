@@ -40,6 +40,7 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 | Cited answers v3 / v4 (gates, gemma4:26b) | dev 66 | v4: 51/54 shown, 5/7 negatives (bar 6/7) | **not adopted**; held-out set still unused |
 | Company brief (multi-step flow) | 10 questions | routed 9/10, ticker 10/10, review yes 9/10, median 18.5 s | **adopted** |
 | Scope guard (fixed word list) | 20 new + 185 earlier questions | blocked 7/10 out-of-scope (bar 9); false blocks 0/10 and 1/185 | **off** |
+| Scope guard v2 (word list or router `out_of_scope`) | 20 new + 185 earlier questions | blocked 10/10 out-of-scope (bar 9); false blocks 0/10 new, **29/185** earlier (bar 3), 1/14 correctly routed (bar 1); median 4.4 s | **off** |
 
 ## Scoring, desks, themes
 | what | set | result | decision |
