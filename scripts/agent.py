@@ -58,6 +58,9 @@ V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter 
 # Code kept as a record; a v2 list needs new questions and its own rule.
 SCOPE_SWITCH=False
 SCOPE_V2=False  # docs/scope_guard_v2_rule.md: measured 13 Nov, SCOPE_V2_OFF (F_old 29/185, bar 3); code kept as a record
+PERIODS=True  # docs/relative_periods_rule.md: ADOPT_PERIODS 13 Nov (exact 10/10, false 1/5, wrong fires 0/9)
+PERIOD_TOOLS=('company','search','detail','morning')
+PERIOD_LIST_MAX=30
 # docs/scope_guard_rule.md (fixed before any question; ASCII-folded, matched at a word start, suffixes allowed)
 SCOPE_PHRASES=('temettu','kar payi','bedelsiz','bedelli','sermaye artirim','geri alim','genel kurul','halka arz',
                'hedef fiyat','tavsiye','alinir mi','alinmali mi','almali miyim','alayim mi','satilir mi','satilmali mi',
@@ -112,6 +115,7 @@ class State(TypedDict,total=False):
     query: Optional[str]
     note: Optional[str]
     date_filter: bool
+    period: Optional[list]
     answer: str
     brief: dict
     steps: dict
@@ -199,7 +203,29 @@ def route_question(route,question,ctx,v2=None):
             v=detail_switch(v,question)
         if BRIEF_SWITCH:
             v=brief_switch(v,question)
+    if PERIODS:
+        v=period_switch(v,question,ctx)
     return v
+
+
+def period_switch(v,question,ctx):
+    '''docs/relative_periods_rule.md: a period phrase (code) overrides the router's date for the period tools.'''
+    from periods import question_period
+    p=question_period(question,ctx['today'])
+    if p is None:
+        return v
+    start,end=p
+    if v['intent'] not in PERIOD_TOOLS:
+        return {**v,'note':' '.join(filter(None,[v.get('note'),'Dönem ifadesi bu soru türünde kullanılmıyor.']))}
+    last=ctx.get('last_disclosure')
+    note=f'Dönem: {start} – {end}.'
+    if last and end>last:
+        end=last
+        note=f'Dönem: {start} – {end} (son toplanan gün {last}; toplama her gece 23:43).'
+    old=v.get('note')
+    if v['intent']=='morning' and old and ('Tarih verilmedi' in old or 'henüz toplanmadı' in old):
+        old=None   # the single-day notes of validate no longer apply
+    return {**v,'day':None,'period':[str(start),str(end)],'note':' '.join(filter(None,[old,note]))}
 
 
 def fold(text):
@@ -235,8 +261,37 @@ def tr_pct(x):
     return ('+' if x>=0 else '')+f'{x*100:.1f}'.replace('.',',')+'%'
 
 
+def period_list(start,end):
+    '''docs/relative_periods_rule.md: every disclosure in the period by date (no extraction, no importance order).'''
+    con=duckdb.connect(DB_PATH,read_only=True)
+    try:
+        rows=con.execute('''SELECT d.published_at,d.symbol,d.is_update OR d.is_correction,n.amount,trim(n.cur),d.kap_url
+            FROM disclosures d LEFT JOIN new_business n ON n.url=d.kap_url
+            WHERE CAST(d.published_at AS DATE) BETWEEN ? AND ? ORDER BY d.published_at''',
+            [date.fromisoformat(start),date.fromisoformat(end)]).fetchall()
+    finally:
+        con.close()
+    return render_period_list(start,end,rows)
+
+
+def render_period_list(start,end,rows):
+    from names import company_label
+    lines=[f'# {start} – {end}: {len(rows)} yeni iş ilişkisi bildirimi','',
+           'Önem sırası yalnızca tek gün için hesaplanır; burada tarih sırası var. Bir günü sormak için tarihi yazın.','']
+    for pub,sym,upd,amount,cur,url in rows[:PERIOD_LIST_MAX]:
+        amt=f'{amount:,.0f}'.replace(',','.')+f' {cur} (Matriks kaydı)' if amount else 'tutar kaydı yok'
+        lines.append(f'- {str(pub)[:10]} | {company_label(sym,short=True)} | {"güncelleme/düzeltme" if upd else "yeni"} | {amt} | {url}')
+    if len(rows)>PERIOD_LIST_MAX:
+        lines.append(f'(ilk {PERIOD_LIST_MAX} gösterildi; {len(rows)-PERIOD_LIST_MAX} bildirim daha var, dönemi daraltın)')
+    if not rows:
+        lines.append('Bu dönemde bildirim yok.')
+    return '\n'.join(lines)+'\n'
+
+
 def tool_morning(state):
     from morning import enrich, extract_day, load_saved, render, save
+    if state.get('period'):
+        return period_list(*state['period'])
     day=date.fromisoformat(state['day'])
     items=load_saved(day)
     con=duckdb.connect(DB_PATH,read_only=True)
@@ -251,17 +306,23 @@ def tool_morning(state):
 
 
 def tool_company(state):
-    day=date.fromisoformat(state['day']) if state.get('day') else date.today()
+    p=state.get('period')
+    if p:
+        day=date.fromisoformat(p[1])
+    else:
+        day=date.fromisoformat(state['day']) if state.get('day') else date.today()
+    lo,inclusive=(date.fromisoformat(p[0]),True) if p else (day-timedelta(days=365),False)
     con=duckdb.connect(DB_PATH,read_only=True)
     try:
-        rows=con.execute('''SELECT d.published_at,d.is_update OR d.is_correction,n.amount,trim(n.cur),d.kap_url
+        rows=con.execute(f'''SELECT d.published_at,d.is_update OR d.is_correction,n.amount,trim(n.cur),d.kap_url
             FROM disclosures d LEFT JOIN new_business n ON n.url=d.kap_url
-            WHERE d.symbol=? AND CAST(d.published_at AS DATE)<=? AND CAST(d.published_at AS DATE)>?
-            ORDER BY d.published_at DESC''',[state['symbol'],day,day-timedelta(days=365)]).fetchall()
+            WHERE d.symbol=? AND CAST(d.published_at AS DATE)<=? AND CAST(d.published_at AS DATE){">=" if inclusive else ">"}?
+            ORDER BY d.published_at DESC''',[state['symbol'],day,lo]).fetchall()
     finally:
         con.close()
     from names import company_label
-    lines=[f'# {company_label(state["symbol"])}: son 12 ayda {len(rows)} yeni iş ilişkisi bildirimi ({day} itibarıyla)','']
+    span=f'{p[0]} – {p[1]} arasında' if p else 'son 12 ayda'
+    lines=[f'# {company_label(state["symbol"])}: {span} {len(rows)} yeni iş ilişkisi bildirimi'+('' if p else f' ({day} itibarıyla)'),'']
     for pub,upd,amount,cur,url in rows:
         amt=f'{amount:,.0f}'.replace(',','.')+f' {cur} (Matriks kaydı)' if amount else 'tutar kaydı yok'
         lines.append(f'- {str(pub)[:10]} | {"güncelleme/düzeltme" if upd else "yeni"} | {amt} | {url}')
@@ -317,13 +378,15 @@ def tool_search(state):
     # the full question is searched, as in the evaluation (docs/rerank_rule.md); the router's topic is only shown
     from rag_index import load_index, search_question
     index=load_index()
-    day=state.get('day') if state.get('date_filter') else None
-    hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5,on_day=day)
+    period=state.get('period')
+    day=state.get('day') if state.get('date_filter') and not period else None
+    hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5,on_day=day,period=period)
     from names import company_label
     head=f'# Arama: {state.get("query") or state["question"]}'+(f' ({company_label(state["symbol"])})' if state.get('symbol') else '')
-    lines=[head+(f', {day}' if day and hits else ''),'']
-    if day and not hits:
-        lines.append(f'{day} tarihinde uygun bildirim bulunamadı; tüm tarihlerde arandı.')
+    span=f'{period[0]} – {period[1]}' if period else day
+    lines=[head+(f', {span}' if span and hits else ''),'']
+    if span and not hits:
+        lines.append(f'{span} {"döneminde" if period else "tarihinde"} uygun bildirim bulunamadı; tüm tarihlerde arandı.')
         hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5)
     lines+=[f'{i}. {h["published_at"][:10]} | {company_label(h["symbol"],short=True)} | {h["kap_url"]}' for i,h in enumerate(hits,1)]
     lines.append('')
@@ -383,14 +446,14 @@ def card_lines(hit,data):
     return lines
 
 
-def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day=None):
+def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day=None,period=None):
     '''Top hit of the measured search (ticker-filtered) as a card, the other hits as links.'''
     card=CARD if card is None else card
     if search is None:
         from rag_index import load_index, search_question
         index=load_index()
-        search=lambda q,sym:search_question(index,q,symbol=sym,k=5,on_day=on_day) or \
-            (search_question(index,q,symbol=sym,k=5) if on_day else [])
+        search=lambda q,sym:search_question(index,q,symbol=sym,k=5,on_day=on_day,period=period) or \
+            (search_question(index,q,symbol=sym,k=5) if (on_day or period) else [])
     hits=search(question,symbol)
     if not hits:
         return {'hits':[],'data':None,'text':'Bu soruya uygun bildirim bulunamadı.\n'}
@@ -412,14 +475,16 @@ def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day
 
 
 def tool_detail(state):
-    day=state.get('day') if state.get('date_filter') else None
-    return detail_answer(state['question'],state.get('symbol'),on_day=day)['text']
+    period=state.get('period')
+    day=state.get('day') if state.get('date_filter') and not period else None
+    return detail_answer(state['question'],state.get('symbol'),on_day=day,period=period)['text']
 
 
 def tool_help(state):
     return ('Şunları sorabilirsiniz:\n'
             '- "Bugün neye bakmalıyım?" veya "30 Ekim\'deki bildirimler"\n'
             '- "Aselsan son bir yılda hangi işleri aldı?" (şirket adı ya da kodu)\n'
+            '- Dönem: "bu hafta", "geçen ay", "son 3 ay", "geçen çeyrek", "bu yıl" (başka ifadeler okunmaz)\n'
             '- "Fonet\'in Aydın sözleşmesinin süresi kaç ay?" (ayrıntı: bildirim kartı)\n'
             '- "THYAO dün neden düştü?"\n'
             '- "Aselsan\'a bir bak" (şirket özeti: son bildirim, fiyat, 12 ay, benzerleri)\n'
@@ -740,6 +805,24 @@ def _self_test():
     assert '"out_of_scope"' in ROUTER_PROMPT_V2 and ROUTER_PROMPT_V2.index('out_of_scope')<ROUTER_PROMPT_V2.index('"unknown"')
     assert scope_v2('ASELS temettüsü',{'intent':'company'}) and scope_v2('Dolar ne olur',{'intent':'out_of_scope'})
     assert not scope_v2('ASELS son işleri',{'intent':'company'})
+    # relative periods (docs/relative_periods_rule.md): code parser after the switches
+    c3={**ctx,'today':date(2026,11,13),'last_disclosure':date(2026,11,12)}
+    vc={'intent':'company','symbol':'ASELS','day':None,'query':'q','note':None}
+    p=period_switch(vc,'ASELS geçen ay ne aldı',c3)
+    assert p['period']==['2026-10-01','2026-10-31'] and p['note']=='Dönem: 2026-10-01 – 2026-10-31.'
+    p=period_switch({**vc,'intent':'search','day':'2026-11-13'},'bu hafta savunma',c3)
+    assert p['period']==['2026-11-09','2026-11-12'] and 'son toplanan gün' in p['note'] and p['day'] is None
+    p=period_switch({**vc,'intent':'why_moved'},'ASELS geçen hafta neden düştü',c3)
+    assert 'period' not in p and 'kullanılmıyor' in p['note']
+    p=period_switch({**vc,'intent':'morning','note':'Tarih verilmedi; ...'},'geçen hafta neye bakmalıydım',c3)
+    assert p['note'].startswith('Dönem: 2026-11-02') and p['period']==['2026-11-02','2026-11-08']
+    assert period_switch(vc,'28 Ekim ve geçen hafta',c3) is vc and period_switch(vc,'ASELS son bildirimi',c3) is vc
+    assert route_question({'intent':'company','symbol':'ASELS','date':None,'query':None},'ASELS son 3 ayda',c3)['period']==['2026-08-13','2026-11-12']
+    t=render_period_list('2026-11-02','2026-11-08',[])
+    assert 'Bu dönemde bildirim yok' in t and '0 yeni iş' in t
+    rows=[('2026-11-03 10:00','ZZZZ',False,None,None,f'u{i}') for i in range(PERIOD_LIST_MAX+1)]
+    t=render_period_list('2026-11-02','2026-11-08',rows)
+    assert t.count('| ZZZZ |')==PERIOD_LIST_MAX and '1 bildirim daha' in t
     global SCOPE_V2
     saved=SCOPE_V2
     g7=build_graph(lambda q,t:{'intent':'out_of_scope','symbol':None,'date':None,'query':None},tools,ctx,steps=fake)
@@ -753,7 +836,7 @@ def _self_test():
         assert g8.invoke({'question':'ASELS hedef fiyatı ne?'})['intent']=='company'
     finally:
         SCOPE_V2=saved
-    print('self-test ok: 72 checks')
+    print('self-test ok: 82 checks')
 
 
 def main():

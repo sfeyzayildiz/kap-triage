@@ -298,6 +298,17 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-13: Relative periods measured → ADOPT_PERIODS
+- Feyza wrote 10 period + 5 no-period questions (not seen by Claude; gold dates computed by her from the rule table and calendar facts, no precomputed dates given), judged the 9 earlier questions where the parser fired.
+- P exact 10/10 (bar ≥ 9), N false period 1/5 at index 11 (bar ≤ 1), O fired 9/205 earlier, wrong 0 (bar ≤ 2). Decision by the pre-written rule: `ADOPT_PERIODS`, `PERIODS=True` stays. The N hit is not fixed (no change after seeing results); it is a stated limit.
+- Leakage check: rule committed before code and questions; Claude did not read the questions or the gold; the one parser change (plural forms) was made from the rule text during coding, before any question existed.
+
+## 2026-11-13: Relative periods, rule and code (questions not written yet)
+- Rule `docs/relative_periods_rule.md` (28e01b3, before code and questions; Feyza approved Monday weeks, calendar "geçen hafta/ay", period list without importance order for morning).
+- `scripts/periods.py` (35 checks): fixed phrase table parsed by code, router prompt unchanged; a written single day wins. Plural vague forms ("son yıllarda", "son günlerde") not parsed, consistent with the rule's "son günlerde" limit (found by the self-test while coding, before any question).
+- `agent.period_switch` after the other switches (`PERIODS=True` for the measurement): company / search / detail / morning use the period (end clipped to the last collected day, note "Dönem: ..."); why_moved and brief get a note. `rag_index.search(period=)` (16 checks). Morning + period = date-ordered list, max 30. Smoke test on the DB: SQL runs (line counts only).
+- `scripts/period_eval.py` (9 checks): `--write` (10 period + 5 no-period, reference day 2026-11-13), `--judge` (Feyza marks earlier questions where the parser fired), `--score`.
+
 ## 2026-11-13: Scope guard v2 measured → SCOPE_V2_OFF
 - Feyza wrote 20 new questions (not seen by Claude), ran `--run --version 2` once, then `--score --version 2`.
 - A 10/10 (bar ≥ 9), F_new 0/10 (bar ≤ 1), **F_old 29/185 (bar ≤ 3)**, R 1/14 (bar ≤ 1), D median 4.4 s (bar ≤ 6.0); gold-unknown route questions blocked 4/4 (not an error). Decision by the pre-written rule: `SCOPE_V2_OFF`, `SCOPE_V2=False`, code kept as a record, prompt not changed.

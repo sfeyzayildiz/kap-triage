@@ -52,6 +52,8 @@ TESTS={
     'build_chunks':'--self-test',
     'brief_eval':'--self-test',
     'scope_eval':'--self-test',
+    'periods':'--self-test',
+    'period_eval':'--self-test',
     'importance_check':'--self-test',
     'write_negatives':'--self-test',
     'revenue_check':'--self-test',

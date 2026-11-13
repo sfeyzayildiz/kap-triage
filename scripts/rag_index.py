@@ -85,13 +85,17 @@ def update(path=INDEX_PATH):
     return index,n
 
 
-def search(index,query_vector,symbol=None,before=None,exclude=None,k=5,on_day=None):
-    '''Top k by cosine similarity, optionally only one symbol, only before a timestamp string, only one publish day.'''
+def search(index,query_vector,symbol=None,before=None,exclude=None,k=5,on_day=None,period=None):
+    '''Top k by cosine similarity, optionally only one symbol, only before a timestamp string, only one publish day,
+    only inside a (start, end) period of dates, both ends included (docs/relative_periods_rule.md).'''
     mask=np.ones(len(index['news_id']),dtype=bool)
     if symbol:
         mask&=index['symbol']==symbol
     if on_day:
         mask&=np.char.startswith(index['published_at'].astype(str),str(on_day))
+    if period:
+        day=index['published_at'].astype('U10')
+        mask&=(day>=str(period[0]))&(day<=str(period[1]))
     if before:
         mask&=index['published_at']<before
     if exclude:
@@ -129,9 +133,9 @@ def rerank_hits(question,hits,texts,score):
     return [{**with_text[i],'rerank_score':float(s[i])} for i in order]+rest
 
 
-def search_question(index,question,symbol=None,k=5,score=None,texts=None,on_day=None):
+def search_question(index,question,symbol=None,k=5,score=None,texts=None,on_day=None,period=None):
     '''Question search as measured: embed the question, top RERANK_K, cross-encoder rerank, top k.'''
-    hits=search(index,embed_query(question),symbol=symbol,k=RERANK_K,on_day=on_day)
+    hits=search(index,embed_query(question),symbol=symbol,k=RERANK_K,on_day=on_day,period=period)
     texts=texts if texts is not None else doc_texts([h['news_id'] for h in hits])
     score=score or (lambda pairs:reranker().predict(pairs,show_progress_bar=False))
     return rerank_hits(question,hits,texts,score)[:k]
@@ -177,7 +181,10 @@ def _self_test():
     assert [h['news_id'] for h in search(idx,q,on_day='2026-11-09')]==['1','3']      # day filter
     assert [h['news_id'] for h in search(idx,q,symbol='A',on_day='2026-11-09')]==['1']
     assert search(idx,q,on_day='2026-11-07')==[]
-    print('self-test ok: 13 checks')
+    assert [h['news_id'] for h in search(idx,q,period=('2026-11-08','2026-11-08'))]==['2']   # period, both ends included
+    assert [h['news_id'] for h in search(idx,q,period=('2026-11-08','2026-11-09'))]==['2','1','3']
+    assert search(idx,q,symbol='B',period=('2026-11-01','2026-11-08'))==[]
+    print('self-test ok: 16 checks')
 
 
 def main():
