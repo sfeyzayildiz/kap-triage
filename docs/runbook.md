@@ -17,6 +17,8 @@ Two folders: `~/projects/kap-explore` (development, branches) and `~/projects/ka
 | morning FAILED, `ModuleNotFoundError` | kap-deploy venv is missing a package: see "After every merge". Then rebuild the day by hand (below). |
 | morning list with `run_errors>0` | Ollama was not running; start it and rebuild the day. |
 
+**Desk e-mails (07:30, weekdays):** the n8n workflow "KAP masa yönlendirme" sends the latest morning list to each sector desk (Mailpit inbox `http://127.0.0.1:8025`). Needs Docker running with the three services (`docker compose up -d`). If no e-mails came: n8n → Executions shows the failed node; `scripts/desk_route_check.py --day YYYY-MM-DD` re-sends one day and prints counts. Setup: `docs/n8n_guide.md`.
+
 Rebuild one day's morning list by hand (after 23:50):
 ```
 cd ~/projects/kap-deploy && .venv/bin/python scripts/morning_job.py --date YYYY-MM-DD

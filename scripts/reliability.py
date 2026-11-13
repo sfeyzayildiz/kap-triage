@@ -21,6 +21,9 @@ EXTRACTION=[('Set A · geliştirme seti',0,100,False),('Set B · dondurulmuş si
 # without an LLM, same Set C and gold -- regex_baseline_rule.md result (11 Nov)
 NO_LLM=[('En iyi regex',25,100,False),('Regex + tüm kod kontrolleri',23,100,False),('Canlı sistem (LLM + kod kontrolleri)',1,100,True)]
 # amount attack: silent successes without and with each defence, on its own new texts (9 Nov)
+ASSISTANT=[('Göreli dönemler ("geçen hafta", "son 3 ay"), 15 yeni soru','tarih tam doğru 10/10; yanlış dönem 1/5; eski 205 soruda yanlış 0/9','benimsendi'),
+           ('Masalara e-posta (n8n, yerel posta), 15 gün, 43 bildirim','kayıp 0, çift 0, yanlış masa 0, tutar sızıntısı 0; günde 0,2 sn','benimsendi'),
+           ('Kapsam dışı soru filtresi v2 (router), 20 yeni soru','kapsam dışı 10/10 engellendi, ama normal soruların 29/185\'i de','reddedildi')]
 ATTACK=[('Metin kalıbı kontrolü',10,10,20,'reddedildi'),('Matriks karşılaştırması',11,2,20,'reddedildi'),
         ('Katmanlı savunma',9,0,18,'benimsendi')]
 TILES=[('1/100','sessiz hata','yeni 100 bildirimde (Set C); %95 üst sınır {ub}'),
@@ -133,6 +136,10 @@ def render_body(nav):
            'görmediğimiz saldırı cümleleriyle ölçüldü; iki savunma kuralı geçemedi, katmanlı savunma benimsendi.</p>',
            f'<figure class="rel">{paired(ATTACK)}</figure>',
            table(('savunma','savunmasız','savunmalı','karar'),[(l,f'{b}/{n}',f'{a}/{n}',d) for l,b,a,n,d in ATTACK]),
+           '<h2>4. Asistan ve masalara teslimat</h2>',
+           '<p class="muted">Aynı yöntem: kural önce, yeni sorular, tek ölçüm. Reddedilenler de burada.</p>',
+           '<table class="t"><tr>'+''.join(f'<th>{e(h)}</th>' for h in ('ne','sonuç','karar'))+'</tr>'+
+           ''.join('<tr>'+''.join(f'<td>{e(c)}</td>' for c in r)+'</tr>' for r in ASSISTANT)+'</table>',
            '<p class="muted">Sınırlar: test setleri küçük (100 / 20 / 18), bu yüzden üst sınırlar geniş; tek analist etiketledi. '
            'Ayrıntılar: docs/results.md.</p>']
     return ''.join(parts)
@@ -154,7 +161,8 @@ def _self_test():
     assert p.count('<rect')==6 and '0/18 savunmalı' in p and '%100' in p
     body=render_body('<nav></nav>')
     assert body.count('<figure class="rel">')==3 and body.count('<summary>Tablo</summary>')==3 and '%4,7' in body
-    print('self-test ok: 5 checks')
+    assert body.count('<td>reddedildi</td>')==3 and '29/185&#x27;i' in body and '<h2>4.' in body   # 2 attack rows + scope v2
+    print('self-test ok: 6 checks')
 
 
 def main():

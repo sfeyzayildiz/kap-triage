@@ -24,13 +24,16 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 | Ordering vs the analyst's blind choice, 12 new days | top pick 11/12 (old score 5.5); AUC 0.877 |
 | Search (embedding + rerank), 20 questions | right disclosure in the top 5: 20/20; at rank 1: 17/20 |
 | Agent routing with company names, 20 questions | intended link in the top 5: 18/20 |
+| Relative periods ("geçen hafta", "son 3 ay"), 15 new questions | exact 10/10; false period 1/5; wrong fires 0/9 on 205 earlier questions |
+| Desk e-mails (n8n, local mail), all 15 saved days | 43 items: 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks |
 | Speed | extraction about 15 s per disclosure; everything else under 0.01 s; a company brief about 18 s |
 
 ## Known limits (say them first)
 - Fields other than amount and currency (duration, counterparty origin, related party) are **not measured**, although the ordering and the score use them.
 - One person labeled the gold data and wrote most questions; no second-rater agreement yet.
 - Small test sets, wide bounds. Single disclosure type. Nightly, not real time.
-- The chat cannot always say "the data cannot answer this"; an out-of-scope question with a company name can get an unrelated card (the guided form avoids it).
+- The chat cannot always say "the data cannot answer this"; an out-of-scope question with a company name can get an unrelated card (the guided form avoids it; two scope guards failed their bars).
+- Desk = Matriks sector; whether that desk is the right recipient is not measured.
 - Search's typical miss is the right company's wrong disclosure; a card belongs to the first hit only.
 - Prices are unadjusted (a 22% jump rule guesses splits). Weekly themes are weak (template effect).
 
@@ -38,7 +41,7 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 Flagged items show the reason and a confirm / reject step; decisions are logged with the reasons at review time (first real use: 3 of 6 flags were real errors). Every answer links to the KAP source.
 
 ## Security and privacy
-Disclosure text is treated as untrusted input (injection tested and defended); the panel binds to the local machine, sends no scripts (strict CSP) and escapes all text. No personal data is processed.
+Disclosure text is treated as untrusted input (injection tested and defended); the panel binds to the local machine, sends no scripts (strict CSP) and escapes all text. Desk e-mails go to a local mail server, carry no amounts, and n8n / Mailpit run with telemetry off. No personal data is processed.
 
 ## Maintenance
 Self-tests on every change (CI); nightly alerts (OK / FAILED / SKIPPED) and postmortems in `PROJECT_NOTES.md`; a pull guard enforces the provider's rate rule. Any change to a measured part needs a new rule and a new measurement.

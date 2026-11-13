@@ -17,6 +17,9 @@ docker compose up --build        # first build takes several minutes (torch CPU,
 
 The port is published on `127.0.0.1` only, like the Mac setup: the panel is never reachable from the network. Inside the container it binds `0.0.0.0` (`PANEL_HOST`), which is required for the port mapping; the Origin / Referer checks accept `127.0.0.1` and `localhost` only.
 
+## n8n and Mailpit (desk e-mails)
+The same compose file starts `n8n` (`127.0.0.1:5678`, telemetry, version checks, templates and personalization off) and `mailpit` (local SMTP + web inbox, `127.0.0.1:8025`, version check off). n8n reaches the panel as `http://panel:8765` and Mailpit as `mailpit:1025` inside the Docker network; only the two UIs are published, on `127.0.0.1`. One-time import and the measured check: `docs/n8n_guide.md`; rule and result: `docs/n8n_routing_rule.md`.
+
 ## Other commands in the same image
 ```
 docker compose run --rm panel python scripts/run_self_tests.py --skip daily_collect
