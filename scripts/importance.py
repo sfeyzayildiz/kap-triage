@@ -27,6 +27,12 @@ DURATION_RE=re.compile(r'(\d+(?:[.,]\d+)?)\s*(yıl|yil|sene|year|ay|month|gün|g
 UNIT_YEARS={'yıl':1,'yil':1,'sene':1,'year':1,'ay':1/12,'month':1/12,'gün':1/365,'gun':1/365,'day':1/365}
 
 
+# docs/fields_rule.md result 2026-11-13 (50 Set C, bar <= 3 errors): long 3/50 KEEP; foreign 7/50 and
+# related 5/50 OFF (all misses were "no" for a true "yes": the model does not invent them, it misses them).
+FOREIGN_CP_POINTS=False
+RELATED_POINTS=False
+
+
 def duration_years(text):
     '''Longest duration written in the text, in years; None if none is found.'''
     best=None
@@ -118,14 +124,14 @@ def score(result,rate,baseline,n_history,revenue=None,revenue_source=None):
     if currency and currency not in TRY_CODES:
         reasons.append({'code':'foreign_currency','currency':currency,'points':1})
         total+=1
-    if result.get('counterparty_origin')=='foreign':
+    if FOREIGN_CP_POINTS and result.get('counterparty_origin')=='foreign':
         reasons.append({'code':'foreign_counterparty','points':1})
         total+=1
     years=duration_years(result.get('duration'))
     if years is not None and years>=2:
         reasons.append({'code':'long_contract','years':round(years,1),'points':1})
         total+=1
-    if result.get('related_party') is True:
+    if RELATED_POINTS and result.get('related_party') is True:
         reasons.append({'code':'related_party','points':-2})
         total-=2
     level='high' if total>=4 else 'medium' if total>=2 else 'low'
@@ -169,9 +175,10 @@ def _self_test():
     out=score(base,1.0,200.0,3)
     assert out['score']==3 and out['level']=='medium' and out['reasons'][0]['ratio']==3.5
     out=score({**base,'currency':'USD','counterparty_origin':'foreign','duration':'3 yıl'},40.0,200.0,3)
-    assert out['score']==6 and out['level']=='high'
+    assert out['score']==5 and out['level']=='high'   # foreign counterparty point off (docs/fields_rule.md)
+    assert 'foreign_counterparty' not in {r['code'] for r in out['reasons']}
     out=score({**base,'related_party':True},1.0,200.0,3)
-    assert out['score']==1 and out['level']=='low'
+    assert out['score']==3 and 'related_party' not in {r['code'] for r in out['reasons']}   # related penalty off
     out=score({**base,'amount':None},1.0,200.0,3)
     assert out['score']==0 and out['reasons'][0]['code']=='no_amount'
     out=score({**base,'currency':'XYZ'},None,200.0,3)

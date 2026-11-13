@@ -298,6 +298,17 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-13: Duration / origin / related party measured → long KEEP, foreign OFF, related OFF
+- Feyza labeled 50 Set C items (rule fields_rule v1) before any model output, then one `--run` (finished before 23:38, 0 run errors), `--score` after the collection window.
+- long: 3/50 errors (bar ≤ 3), all false "no", gold yes 6 → **KEEP** (ordering v2 unchanged). foreign: **7/50** (false no 7, gold yes 18) → **OFF**. related: **5/50** (false no 5, gold yes 6) → **OFF**. No false "yes" in any field: the model does not invent these facts, it misses them (foreign: 7 of 18 missed).
+- Applied: `importance.FOREIGN_CP_POINTS=False`, `RELATED_POINTS=False` (no points, no reason line). Effect: related-party deals are no longer pushed down (the model found only 1 of 6 anyway); foreign counterparty no longer adds a point. Extraction prompt unchanged; a better prompt for these fields would need its own rule and a new set.
+- Wrong ids recorded in the score output only (not inspected; no change from them).
+
+## 2026-11-13: Second annotator cancelled; duration / origin / related party, rule and code (not labeled yet)
+- Plan item (c), second annotator: the candidate (Feyza's father) declined. One labeler stays a stated limit (`docs/system_card.md` already says so); no kappa.
+- Item (d), known issue A5: rule `docs/fields_rule.md` (before sampling, labeling and the run). 50 Set C ids (seed 20261113); Feyza labels long / foreign / related (yes-no) from the text first; then one production extraction run (Set C results stored only amount and currency, so a new run is needed); bar ≤ 3/50 errors per field, else the field leaves the score (long: ordering v2 orders by amount only).
+- `scripts/fields_eval.py` (8 checks): `--sample`, `--label`, `--run`, `--score`.
+
 ## 2026-11-13: n8n desk e-mails measured → ADOPT_N8N
 - Feyza: `docker compose up --build -d`, owner account, imported credential + workflow (both imported without error), workflow Active. First smoke test failed in the check script (Mailpit's DELETE answers plain "ok", not JSON): fixed and committed before the measured run (291ac09); Claude ran the one-day smoke test (counts only, 2/2 e-mails, all 0).
 - First `--all` was stopped by hand (Ctrl+C) after 6 of 15 days (all six clean, no results file written, no decision); then one complete run: **15 days, 33/33 e-mails, 43 items, L 0, D 0, W 0, X 0, T median 0.2 s** (bars 0/0/0/0, ≤ 10 s) → `ADOPT_N8N`. The system is deterministic and nothing changed between the two runs.
