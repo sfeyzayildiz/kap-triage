@@ -57,6 +57,7 @@ TESTS={
     'desk_mail':'--self-test',
     'fields_eval':'--self-test',
     'drift_check':'--self-test',
+    'forward_seal':'--self-test',
     'desk_route_check':'--self-test',
     'importance_check':'--self-test',
     'write_negatives':'--self-test',

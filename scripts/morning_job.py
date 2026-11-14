@@ -47,8 +47,11 @@ def last_error(stderr):
     return lines[-1][:300] if lines else 'no stderr'
 
 
-def run(day,notify,runner=subprocess.run):
-    '''Build the morning list for day and send one alert. Returns True on success; never raises.'''
+def run(day,notify,runner=subprocess.run,sealer=None):
+    '''Build the morning list for day and send one alert. Returns True on success; never raises.
+    sealer: docs/forward_test_rule.md, seals the saved list and returns the alert suffix (default forward_seal.seal_day).'''
+    if sealer is None:
+        from forward_seal import seal_day as sealer
     try:
         r=runner([sys.executable,'scripts/morning.py','--date',day,'--allow-window'],
                  capture_output=True,text=True,timeout=TIMEOUT)
@@ -59,7 +62,7 @@ def run(day,notify,runner=subprocess.run):
         if s is None:
             notify('KAP morning FAILED',f'{day}: no summary line','high')
             return False
-        notify('KAP morning list',message(day,s),'high' if s['run_errors'] else 'default')
+        notify('KAP morning list',message(day,s)+sealer(day),'high' if s['run_errors'] else 'default')
         return True
     except Exception as e:
         notify('KAP morning FAILED',f'{day}: {type(e).__name__}','high')
@@ -89,7 +92,8 @@ def _self_test():
         raise subprocess.TimeoutExpired('x',1)
     assert not run('d',note,runner=boom) and sent[-1]==('KAP morning FAILED','d: TimeoutExpired','high')
     assert run('d',note,runner=lambda *a,**k:R(0,out.replace('run_errors=0','run_errors=2'))) and sent[-1][2]=='high'
-    print('self-test ok: 13 checks')
+    assert run('2026-11-16',note,runner=lambda *a,**k:R(0,out),sealer=lambda d:' | mühür abcd') and sent[-1][1].endswith(' | mühür abcd')
+    print('self-test ok: 14 checks')
 
 
 def main():
@@ -101,7 +105,8 @@ def main():
         _self_test()
         return
     day=args.date or list_day(datetime.now())
-    ok=run(day,lambda t,m,p='default':print(f'[alert, not sent] {t}: {m}'))
+    # a manual --date run never seals (docs/forward_test_rule.md: only the nightly list is sealed)
+    ok=run(day,lambda t,m,p='default':print(f'[alert, not sent] {t}: {m}'),sealer=(lambda d:'') if args.date else None)
     sys.exit(0 if ok else 1)
 
 
