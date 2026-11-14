@@ -68,6 +68,8 @@ flowchart LR
 
 The LLM only reads the question. It never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Two scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9) and an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
 
+**MCP (`scripts/mcp_server.py`, `docs/mcp_v2_rule.md`):** the same tools are also an MCP server (official Python SDK, stdio only, read-only). Each MCP tool enters the graph like the guided form (intent preset), so the output is the measured tool's own text (exact 10/10, overhead 0.011 s). Clients are local only, because results hold licensed data: `mcp_client.py`, the official MCP Inspector for demos, and `mcp_agent.py`, where the local model chooses the tool itself (native tool calling). That free agent picked the right tool 12/16; the constrained router 14/16, so production keeps the router.
+
 ## Where the LLM is used, and where it is not
 
 | Step | LLM? | Why |
@@ -88,7 +90,8 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 
 | Component | Result | Set |
 |---|---|---|
-| Extraction + code checks | silent errors 1/100 (95% upper bound 4.7%), flagged 11/100 | Set C, PASS |
+| Extraction + code checks | silent errors 1/100 (95% upper bound 4.7%), flagged 11/100; second run 1/100 (other item), 3/100 changed | Set C, PASS |
+| MCP server (stdio, read-only) | exact 10/10 + brief code sections 2/2, overhead 0.011 s | 12 fixed calls |
 | Injection defence (adopted) | sealed amount attack silent 9 → 0 of 18; dev new flags 3/200 | Set C texts 61-78, Feyza's sealed attacks |
 | Search, embedding only | recall@5 42/48 = 0.875, recall@1 32/48 = 0.667 | Set C questions |
 | Search, + rerank (adopted) | recall@5 20/20, recall@1 17/20 (embedding 19/20, 15/20); +0.7 s per question | Set D questions (second use) |

@@ -18,7 +18,7 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 ## Measured performance (rule written before each run; held-out unless noted)
 | What | Result |
 |---|---|
-| Silent errors in amount / currency (wrong, not flagged) | 1/100 on unseen Set C (95% upper bound 4.7%); 11/100 sent to a human |
+| Silent errors in amount / currency (wrong, not flagged) | 1/100 on unseen Set C (95% upper bound 4.7%); 11/100 sent to a human. A second run: again 1/100 (a different item); 3/100 extractions changed between runs |
 | Without an LLM, same set | best regex 25/100 silent errors |
 | Hidden instruction in the disclosure text (amount attack) | silent successes 9 → 0 of 18 with the layered defence; 3/200 extra flags on real texts |
 | Ordering vs the analyst's blind choice, 12 new days | top pick 11/12 (old score 5.5); AUC 0.877 |
