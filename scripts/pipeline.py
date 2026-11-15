@@ -20,7 +20,8 @@ from datetime import datetime
 
 import duckdb
 
-from amount_checks import amount_is_projection,cumulative_total
+from amount_checks import amount_is_projection
+from amount_checks_v2 import cumulative_total  # ADOPT_V2 (docs/set_d_rule.md); v1 file frozen, score_silent keeps v1
 from currency_check import currency_unclear
 from llm_extract import DEFAULT_PROMPT,MODEL,call_llm
 from matriks_crosscheck import amount_vs_matriks
@@ -28,6 +29,7 @@ from source_check import source_reasons
 
 DB_PATH='data/kap.duckdb'
 RUN_ERROR='run_error'
+TWO_RUN='two_run_disagree'
 SELECT='SELECT news_id,kap_url,symbol,published_at,aciklama FROM disclosures'
 
 
@@ -76,6 +78,27 @@ def judge_pass(results,texts,judge):
     for r,t in zip(results,texts):
         if RUN_ERROR not in r['needs_review_reasons']:
             apply_defence(r,t,None,judge)
+    return results
+
+
+def _key(amount,currency):
+    from eval_vs_matriks import norm_cur
+    return (None,None) if amount is None else (round(float(amount),2),norm_cur(currency))
+
+
+def two_run_check(results,texts,extract=call_llm):
+    '''ADOPT_TWO_RUN (docs/set_d_rule.md): a second extraction per text; a different (amount, currency)
+    or a failed second call adds two_run_disagree. Values stay those of the first run. Run before judge_pass.'''
+    for r,t in zip(results,texts):
+        if RUN_ERROR in r['needs_review_reasons']:
+            continue
+        try:
+            second=extract(t)
+        except Exception:
+            second=None
+        if second is None or _key(second.get('amount'),second.get('currency'))!=_key(r.get('amount'),r.get('currency')):
+            r['needs_review_reasons']=list(dict.fromkeys(r['needs_review_reasons']+[TWO_RUN]))
+            r['needs_review']=True
     return results
 
 
@@ -149,7 +172,22 @@ def _self_test():
     rs=[analyze(clean,extract=lambda t:dict(base)),analyze(clean,extract=lambda t:None)]
     judge_pass(rs,[clean,clean],lambda s:None)
     assert rs[0]['needs_review_reasons']==['judge_error'] and rs[1]['needs_review_reasons']==[RUN_ERROR]
-    print('self-test ok: 15 cases')
+
+    # amount_checks v2: 'ABD Doları' amounts now reach cumulative_total
+    usd='Ek olarak 2.000.000 ABD Doları sipariş alınmış, toplamda 5.000.000 ABD Doları olmuştur.'
+    assert 'cumulative_total' in apply_checks(dict(base),usd)['needs_review_reasons']
+
+    # two-run flag: same values (TL == TRY) pass; a different amount, a failed call or None flag; run errors skipped
+    one=lambda:[analyze(clean,extract=lambda t:{'amount':5.0,'currency':'TL','needs_review_reasons':[]})]
+    rs=two_run_check(one(),[clean],extract=lambda t:{'amount':5,'currency':'TRY'})
+    assert rs[0]['needs_review'] is False
+    rs=two_run_check(one(),[clean],extract=lambda t:{'amount':6.0,'currency':'TRY'})
+    assert rs[0]['needs_review_reasons']==[TWO_RUN] and rs[0]['amount']==5.0
+    assert two_run_check(one(),[clean],extract=broken)[0]['needs_review_reasons']==[TWO_RUN]
+    assert two_run_check(one(),[clean],extract=lambda t:None)[0]['needs_review_reasons']==[TWO_RUN]
+    rs=two_run_check([analyze(clean,extract=lambda t:None)],[clean],extract=lambda t:{'amount':1.0,'currency':'TRY'})
+    assert rs[0]['needs_review_reasons']==[RUN_ERROR]
+    print('self-test ok: 21 cases')
 
 
 def main():

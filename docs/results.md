@@ -44,6 +44,8 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 | MCP server v2 (non-LLM tools exact, brief code sections) | 10 + 2 new fixed calls | 10/10, 2/2, overhead 0.011 s | **adopted** |
 | Tool-calling agent over MCP vs constrained router | 16 dev route questions | right tool 12/16 vs router 14/16 | report only (router stays) |
 | Extraction repeatability, Set C run 2 | 100 | changed amount/currency 3/100 (bar 2) → unstable; run 2 silent 1/100, flagged 12% → reproduced | **reported** |
+| Two-run disagreement flag, Set D (live pipeline, two separate runs) | 50 new (12 zone + 38 random), labeled before the runs | disagree 3/50; new flags over run a **0/50** (bar 3); run a silent 0/50, run b silent **1/50**, caught by the flag (1/1); median a+b 30.9 s | **adopted** (nightly list only) |
+| amount_checks v2 ("ABD Doları" read as USD), Set D | 12 zone texts (whole effect zone) + Set C runs 1-2 | new flags 0, catches 0, false alarms 0 (bar 1) | **adopted** (benefit not observed) |
 | Drift: agreement with Matriks after Set C | 40 disclosures after 2026-10-08 | 35/40 (87.5%) vs Set C 72/78 (92.3%); bar ≥ 82.3%; 4 of 5 misses are "no amount" | **no drift seen** |
 | Fields used by the score: long contract / foreign counterparty / related party | 50 Set C, labeled before the run | errors 3/50 / 7/50 / 5/50 (bar 3 each); all misses, no invented "yes" | long **kept**; foreign, related **off** |
 | Desk e-mails via n8n + local Mailpit | all 15 saved days, 43 items, 33 e-mails | lost 0, duplicated 0, wrong desk 0, amount leaks 0; median 0.2 s per day (bar 10 s) | **adopted** |

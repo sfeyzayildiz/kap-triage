@@ -35,7 +35,9 @@ REVIEW_TR={
     'amount_vs_matriks':'tutar Matriks kaydından 2 kattan fazla farklı',
     'amount_not_in_text':'tutar metinde geçmiyor','amount_from_instruction':'tutar talimat gibi bir cümleden geliyor',
     'judge_error':'kaynak cümle kontrolü yapılamadı',
+    'two_run_disagree':'iki okuma farklı tutar verdi',
 }
+TWO_RUN=True  # ADOPT_TWO_RUN (docs/set_d_rule.md): nightly / command-line list reads every disclosure twice
 LEVEL_TR={'high':'yüksek','medium':'orta','low':'düşük'}
 
 
@@ -176,12 +178,18 @@ def _self_test():
     print('self-test ok: 9 checks')
 
 
-def extract_day(day):
-    '''Run extraction v3 + code checks on every disclosure of day.'''
-    from pipeline import analyze, defence_context, judge_pass, load_rows
+def extract_day(day,two_run=False):
+    '''Run extraction v3 + code checks on every disclosure of day.
+    two_run: second extraction per disclosure (ADOPT_TWO_RUN, docs/set_d_rule.md); only the batch
+    command line turns it on, interactive callers (agent) stay single-run for latency.'''
+    from pipeline import analyze, defence_context, judge_pass, load_rows, two_run_check
     rows=load_rows(str(day),None)
     matriks,judge=defence_context([r[0] for r in rows])
-    found=judge_pass([analyze(r[4],matriks=matriks.get(str(r[0]))) for r in rows],[r[4] for r in rows],judge)
+    texts=[r[4] for r in rows]
+    found=[analyze(t,matriks=matriks.get(str(r[0]))) for r,t in zip(rows,texts)]
+    if two_run:
+        two_run_check(found,texts)
+    found=judge_pass(found,texts,judge)
     results=[]
     for (news_id,url,symbol,published_at,text),res in zip(rows,found):
         results.append({**res,'news_id':str(news_id),'kap_url':url,'symbol':symbol,
@@ -247,7 +255,7 @@ def main():
         if other:
             raise SystemExit(f'{other} rows in {args.from_pipeline} are not from {args.date}')
     else:
-        results=extract_day(args.date)
+        results=extract_day(args.date,two_run=TWO_RUN)
     items=enrich(results)
     out_path=save(args.date,items)
     look=sum(i['importance']['needs_review'] or i['importance']['level']=='high' for i in items)
