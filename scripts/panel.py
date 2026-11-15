@@ -185,6 +185,7 @@ input[type=text]{width:60%}
 .choice{display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;color:var(--ink);text-decoration:none}
 .choice:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.choice .ic{font-size:1.4rem;color:var(--accent)}
 .choice.free{border-style:dashed}
+.src{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:6px 0;font-size:.9rem}.src mark{background:transparent;color:var(--accent);font-weight:700}
 .chart{margin:8px 0 2px}.chart svg{width:100%;max-width:440px;height:auto;display:block}.chart figcaption{font-size:.8rem}.k.s{color:var(--accent)}.k.i{color:var(--muted)}
 form.guided{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:var(--surface);border:1px solid var(--line);
 border-radius:8px;padding:14px}
@@ -199,7 +200,42 @@ def page(title,body):
             f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{body}</main></body></html>')
 
 
-def render_item(item,day,review,chart=''):
+def sources_for_items(items,db=DB_PATH):
+    '''{news_id: (sentence, spans)} for items with an amount (one short read-only connection); errors -> {}.'''
+    import duckdb
+    from source_check import source_sentence
+    ids=[i['news_id'] for i in items if i.get('amount') is not None]
+    if not ids or not os.path.exists(db):
+        return {}
+    try:
+        con=duckdb.connect(db,read_only=True)
+        try:
+            marks=','.join('?' for _ in ids)
+            rows=con.execute(f'SELECT news_id,aciklama FROM disclosures WHERE news_id IN ({marks})',ids).fetchall()
+        finally:
+            con.close()
+    except Exception:
+        return {}
+    amount={i['news_id']:i['amount'] for i in items}
+    return {str(n):source_sentence(t,amount[str(n)]) for n,t in rows if str(n) in amount}
+
+
+def source_html(source):
+    '''The amount's sentence, verbatim and escaped, the amount marked; None (text not read) -> nothing.'''
+    if source is None:
+        return ''
+    sentence,spans=source
+    if sentence is None:
+        return '<div class="src muted">Kaynak cümle: tutar metinde aynen geçmiyor; KAP metnini okuyun.</div>'
+    parts,pos=[],0
+    for a,b in spans:
+        parts.append(e(sentence[pos:a])+'<mark>'+e(sentence[a:b])+'</mark>')
+        pos=b
+    parts.append(e(sentence[pos:]))
+    return f'<div class="src">Kaynak cümle: “{"".join(parts)}”</div>'
+
+
+def render_item(item,day,review,chart='',source=None):
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
     imp=item['importance']
     cls='flag' if imp['needs_review'] else ('high' if imp['level']=='high' else '')
@@ -212,6 +248,7 @@ def render_item(item,day,review,chart=''):
          f'<span class="muted">{e(item["symbol"])}</span>{badges} · {kap_link(item.get("kap_url"))}']
     if item.get('amount') is not None:
         out.append(f'<div>Tutar: {e(tr_num(item["amount"],0))} {e(item.get("currency"))}</div>')
+        out.append(source_html(source))
     reasons=[reason_text(r) for r in imp.get('reasons',[])]
     if reasons:
         out.append(f'<div>Neden: {e("; ".join(reasons))}</div>')
@@ -235,7 +272,7 @@ def render_item(item,day,review,chart=''):
     return ''.join(out)
 
 
-def render_day(day,items,sectors,desks,reviews,charts=None):
+def render_day(day,items,sectors,desks,reviews,charts=None,sources=None):
     groups=by_desk(items,sectors,desks)
     flagged=[i for i in items if i['importance']['needs_review']]
     done=sum(i['news_id'] in reviews for i in flagged)
@@ -245,7 +282,8 @@ def render_day(day,items,sectors,desks,reviews,charts=None):
         body.append('<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
     for desk,its in groups.items():
         body.append(f'<h2>{e(desk)} ({len(its)})</h2>')
-        body+= [render_item(i,day,reviews.get(i['news_id']),(charts or {}).get(i['news_id'],'')) for i in its]
+        body+= [render_item(i,day,reviews.get(i['news_id']),(charts or {}).get(i['news_id'],''),(sources or {}).get(i['news_id']))
+                for i in its]
     body.append('<p class="muted">Kaynak: KAP bildirimleri ve Matriks verisi. Skor kurallı bir sıralamadır, tahmin değildir; '
                 'karar öncesi KAP metnini okuyun.</p>')
     return page(f'Sabah listesi {day}',''.join(body))
@@ -341,7 +379,8 @@ class Handler(BaseHTTPRequestHandler):
             if items is None:
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             from price_chart import charts_for_items
-            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts_for_items(items)))
+            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts_for_items(items),
+                                            sources_for_items(items)))
         m=re.match(r'^/api/desks/(\d{4}-\d{2}-\d{2}|latest)$',path)
         if m:  # docs/n8n_routing_rule.md: read-only JSON for n8n (no amounts, no disclosure text)
             day=m.group(1)
@@ -524,7 +563,13 @@ def _self_test():
     assert 'class="top"' in html_out and 'href="/form"' in html_out and '<main>' in html_out    # theme header on every page
     assert '<a class="badge flag" href="#r2">kontrol et ↓</a>' in html_out and 'id="r2"' in html_out and 'class="badge high">yüksek · skor 4' in html_out
     assert ':root[data-theme=dark]{' in CSS and ':root:not([data-theme=light])' in CSS and 'href="/tema"' in render_index([])
-    print('self-test ok: 31 checks')
+    # source sentence: verbatim, escaped, amount marked; missing -> stated, never invented; not read -> nothing
+    src=source_html(('<b>X</b> ile 12.500.000 TL bedelli sözleşme.',[(13,23)]))
+    assert src=='<div class="src">Kaynak cümle: “&lt;b&gt;X&lt;/b&gt; ile <mark>12.500.000</mark> TL bedelli sözleşme.”</div>'
+    assert 'aynen geçmiyor' in source_html((None,[])) and source_html(None)==''
+    assert 'Kaynak cümle: “a <mark>5</mark>”' in render_day('2026-11-09',[dict(items[0],amount=5.0)],sectors,{},{},sources={items[0]['news_id']:('a 5',[(2,3)])})
+    assert sources_for_items([{'news_id':'1','amount':None}])=={} and sources_for_items([dict(items[0],amount=1.0)],db='/nonexistent.duckdb')=={}
+    print('self-test ok: 35 checks')
 
 
 def main():

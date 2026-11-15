@@ -54,6 +54,23 @@ def amount_sentences(text,amount):
     return out
 
 
+def source_sentence(text,amount,cap=300):
+    '''Display only: (first sentence with the amount, [(start, end)] of the amount in it), or (None, []).
+    Verbatim from the text; a sentence longer than cap is cut around the first match with "…".'''
+    if not text or amount is None:
+        return None,[]
+    found=amount_sentences(text,amount)
+    if not found:
+        return None,[]
+    s=found[0]
+    spans=lambda x:[(m.start(),m.end()) for m in NUM_RE.finditer(x) if _close(parse_number(m.group(1),m.group(2)),float(amount))]
+    if len(s)>cap:
+        a,_=spans(s)[0]
+        lo=max(0,min(a-cap//2,len(s)-cap))
+        s=('…' if lo>0 else '')+s[lo:lo+cap]+('…' if lo+cap<len(s) else '')
+    return s,spans(s)
+
+
 def call_judge(sentence):
     '''One judge call: gemma4:e4b, temperature 0, thinking off, num_predict 64 (rule). Returns label or None.'''
     from llm_extract import CLIENT, MODEL
@@ -161,7 +178,14 @@ def _self_test():
     assert j('a')=='fact' and j('a')=='fact' and len(calls)==1 and j.calls==1
     jf=CachedJudge(path=None,call=lambda s:None)
     assert jf('b') is None and jf('b') is None and jf.calls==2  # failures are retried, not cached
-    print('self-test ok: 12 checks')
+    s,sp=source_sentence(t,12500000)
+    assert s=='Şirketimiz X A.Ş. ile 12.500.000 TL bedelli sözleşme imzalamıştır.' and [s[a:b] for a,b in sp]==['12.500.000']
+    assert source_sentence(t,999)==(None,[]) and source_sentence(t,None)==(None,[]) and source_sentence('',5)==(None,[])
+    long='Kelime '*80+'toplam 4.750.000 USD tutarındadır '+'devam '*80+'.'
+    s,sp=source_sentence(long,4750000,cap=100)
+    assert s.startswith('…') and s.endswith('…') and len(s)==102 and [s[a:b] for a,b in sp]==['4.750.000']
+    assert source_sentence('Bedel 3,2 milyon USD olup.',3200000)[0]=='Bedel 3,2 milyon USD olup.'
+    print('self-test ok: 16 checks')
 
 
 def main():

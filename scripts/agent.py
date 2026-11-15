@@ -413,6 +413,8 @@ def extract_card(news_id):
         data=analyze(text,matriks=matriks.get(str(news_id)))
         data=judge_pass([data],[text],judge)[0]
         data['quantities']=find_quantities(text)  # code, not the model; the extraction is unchanged
+        from source_check import source_sentence
+        data['source_sentence']=source_sentence(text,data.get('amount'))[0]  # verbatim, display only
         _CARDS[news_id]=data
     return _CARDS[news_id]
 
@@ -432,6 +434,9 @@ def card_lines(hit,data):
     if data.get('amount') is not None:
         amt=f'Tutar: {tr_num(data["amount"],0)} {data.get("currency") or ""}'.rstrip()
         lines.append(amt+(' (KDV dahil)' if data.get('vat_included') else ''))
+        if 'source_sentence' in data:
+            src=data['source_sentence']
+            lines.append(f'Kaynak cümle: "{src}"' if src else 'Kaynak cümle: tutar metinde aynen geçmiyor; KAP metnini okuyun.')
     else:
         lines.append('Tutar: metinde belirtilmemiş')
     if data.get('is_revision'):
@@ -720,6 +725,9 @@ def _self_test():
     SHOW_QUANTITIES=True
     assert 'Metinde geçen miktarlar (kodla bulundu): 20 adet; 505 MWm' in card_lines(hit(1),qd)
     SHOW_QUANTITIES=saved
+    assert 'Kaynak cümle' not in t                                               # no source field -> no line
+    assert 'Kaynak cümle: "1.500.000 USD bedelli."' in card_lines(hit(1),{**data,'source_sentence':'1.500.000 USD bedelli.'})
+    assert 'Kaynak cümle: tutar metinde aynen geçmiyor' in '\n'.join(card_lines(hit(1),{**data,'source_sentence':None}))
     assert 'Başka bildirim olabilir:' in t and 'Bildirim/2' in t and t.index('Bildirim/1')<t.index('Bildirim/2')
     off=detail_answer('q',search=lambda q,sym:[hit(1)],extract=lambda n:1/0,card=False)['text']
     assert 'Süre' not in off and 'Bildirim/1' in off                                    # card off: links only, no extraction
