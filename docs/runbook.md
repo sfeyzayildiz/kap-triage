@@ -19,6 +19,8 @@ Two folders: `~/projects/kap-explore` (development, branches) and `~/projects/ka
 
 **Desk e-mails (07:30, weekdays):** the n8n workflow "KAP masa yönlendirme" sends the latest morning list to each sector desk (Mailpit inbox `http://127.0.0.1:8025`). Needs Docker running with the three services (`docker compose up -d`). If no e-mails came: n8n → Executions shows the failed node; `scripts/desk_route_check.py --day YYYY-MM-DD` re-sends one day and prints counts. Setup: `docs/n8n_guide.md`.
 
+**On-demand desk e-mail with approval (smtp-mcp, `docs/smtp_mcp_rule.md`):** once `cd mcp/smtp && npm ci --ignore-scripts` (Node ≥ 24; pinned `@ni-c/smtp-mcp` 0.2.0), Docker up (Mailpit SMTP on 127.0.0.1:1025). `scripts/mail_mcp.py --send --day YYYY-MM-DD` lists the desks; add `--desk NAME` to send: the server's approval text appears, only `e` sends; recipients outside `@masa.local` are refused by the server. Health check without data: `scripts/mail_mcp.py --check` (`decision: ADOPT_SMTP_MCP`). Upgrading the package needs a new review (`npm audit` notes in the rule, Amendment 1).
+
 Rebuild one day's morning list by hand (after 23:50):
 ```
 cd ~/projects/kap-deploy && .venv/bin/python scripts/morning_job.py --date YYYY-MM-DD

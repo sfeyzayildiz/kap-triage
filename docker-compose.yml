@@ -45,9 +45,12 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.6
     ports:
-      - "127.0.0.1:8025:8025"   # web inbox and API on this computer only; SMTP 1025 stays inside Docker
+      - "127.0.0.1:8025:8025"   # web inbox and API on this computer only
+      - "127.0.0.1:1025:1025"   # SMTP for smtp-mcp on this computer only (docs/smtp_mcp_rule.md)
     environment:
       - MP_MAX_MESSAGES=2000
+      - MP_SMTP_AUTH_ACCEPT_ANY=true            # smtp-mcp requires a user/password; local catch-all inbox
+      - MP_SMTP_AUTH_ALLOW_INSECURE=true        # loopback only, no TLS
       - MP_DISABLE_VERSION_CHECK=true           # no call to GitHub for updates
     restart: unless-stopped
 

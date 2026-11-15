@@ -61,6 +61,7 @@ TESTS={
     'amount_checks_v2':'',
     'sample_set_d':'--self-test',
     'set_d':'--self-test',
+    'mail_mcp':'--self-test',
     'mcp_server':'--self-test',
     'mcp_client':'--self-test',
     'mcp_agent':'--self-test',

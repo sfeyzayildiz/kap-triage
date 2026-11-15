@@ -1,0 +1,8 @@
+{
+  "name": "kap-smtp-mcp",
+  "private": true,
+  "description": "Pinned third-party MCP server for desk e-mail (docs/smtp_mcp_rule.md). Install: npm ci --ignore-scripts",
+  "dependencies": {
+    "@ni-c/smtp-mcp": "0.2.0"
+  }
+}
