@@ -70,6 +70,8 @@ TESTS={
     'capital_collect':'--self-test',
     'capital_profile':'--self-test',
     'sample_capital':'--self-test',
+    'label_capital':'--self-test',
+    'capital_extract':'--self-test',
     'mcp_server':'--self-test',
     'mcp_client':'--self-test',
     'mcp_agent':'--self-test',

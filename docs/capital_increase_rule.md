@@ -90,6 +90,15 @@ The three lines cannot hold together. Each is a reportable answer to "could it b
 - **Files:** gold `data/gold_capital_test.jsonl`, runs `data/capital_run_f.jsonl`, `_l`, `_c`. The scorer refuses unless the gold and all three runs hold the same 30 ids (`INCOMPLETE`), scores once and keeps the result in `data/capital_score.txt`.
 - The Matriks-record and price-bridge reports print "not available" if the tables are missing.
 
+## Note 3b (2026-11-16, before any pull; how the runner and the labeling tool read this rule, no decision changes)
+`scripts/label_capital.py` and `scripts/capital_extract.py` were written from this rule and synthetic rows. Points it left open, fixed now:
+- **What each reader gets.** The labeler and L get the same `text` (the whole content as plain text, one line per row or block, cells joined by " | "); F gets the HTML `content`. The headline is shown to neither.
+- **A version** of a reader is the sha1 of its file (`prompts/extract_ci_<v>.txt`, `scripts/capital_form.py`). Every dev run is logged (`data/capital_dev_versions.jsonl`) and a fourth distinct version of either is refused. Any edit counts, a comment included.
+- **"Once"** for the held-out run: it may resume after a crash at the same commit; a run at another commit is refused. It starts only when all 30 held-out labels exist, `scripts/` and `prompts/` are committed, and the prompt and form reader in use were run on dev.
+- **Run errors:** a reader exception (Ollama timeout, 120 s as in `llm_extract.py`; invalid JSON after one retry) is a run error. Thinking is passed explicitly (`think=True`).
+- **Labeling order:** held-out labeling refuses until the 8 dev labels exist; all held-out labels carry one guideline version; held-out labels cannot be redone once a held-out run file exists. Dev labels can be redone (shakedown).
+- **Latency:** C's seconds are F's plus L's for the same record.
+
 ## Honest limits
 - **30 records bound very little.** 0/30 silent only says the rate is probably below 9.5%; 1/30 below 14.9%; 2/30 below 19.5%. `ADOPT_PILOT` means "the method transferred and nothing alarming was seen", not "measured reliable". The headline reliability numbers stay those of "Yeni İş İlişkisi" (Set C, Set D).
 - One labeler, a guideline written blind and adjusted on 8 dev texts.
