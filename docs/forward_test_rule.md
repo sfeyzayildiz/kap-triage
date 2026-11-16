@@ -21,3 +21,12 @@ About 8 trading days and perhaps 10-30 disclosures: a signal, not proof. Directi
 
 ## Note 1 (2026-11-16, written before the day)
 On Saturday 21 Nov 2026 the capital-increase pilot pull runs in the daytime (`docs/capital_increase_rule.md`, Note 1). The nightly job skips that night under the one-pull-per-day guard, so **no list is sealed for 21 Nov**; a disclosure published that day is outside this test. Decided in advance, not after seeing any result. The sealed days are therefore 15-20 and 22-25 Nov. Nothing else changes.
+
+## Note 2 (2026-11-16, before any price after the first seal exists; how the code reads this rule)
+`scripts/forward_score.py` was written from this rule and synthetic prices (20 self-test checks). Points the rule left open, fixed now:
+- **p-value:** (1 + shuffles with a difference at least as large as observed) / 10,001, so it is never 0 and ties count against the claim.
+- **Trading days** are the days with an `XU100` bar. **No price** also covers a disclosure without a symbol.
+- **`INCOMPLETE`** (nothing scored) until `XU100` has a bar on or after 2026-11-26. The score is computed once and kept in `data/forward_score.txt`; a second call only prints it.
+- **Integrity:** a day whose snapshot differs from its first logged hash is dropped and the line says `BROKEN`; days without a seal (21 Nov, Note 1) are listed. The script prints the 16-character prefixes; comparing them with the phone alerts is Feyza's step.
+- The decision comes only from the t1 pass; the reaction-day pass is printed next to it.
+

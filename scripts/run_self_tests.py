@@ -58,6 +58,7 @@ TESTS={
     'fields_eval':'--self-test',
     'drift_check':'--self-test',
     'forward_seal':'--self-test',
+    'forward_score':'--self-test',
     'amount_checks_v2':'',
     'sample_set_d':'--self-test',
     'set_d':'--self-test',
