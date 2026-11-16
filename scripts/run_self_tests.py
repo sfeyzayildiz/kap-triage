@@ -64,6 +64,8 @@ TESTS={
     'mail_mcp':'--self-test',
     'tcmb_check':'--self-test',
     'capital_form':'--self-test',
+    'capital_checks':'--self-test',
+    'capital_score':'--self-test',
     'mcp_server':'--self-test',
     'mcp_client':'--self-test',
     'mcp_agent':'--self-test',
