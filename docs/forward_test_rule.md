@@ -18,3 +18,6 @@ Date: 2026-11-14 (22:30). Every earlier measurement used past data. This one is 
 
 ## Limits (said in the presentation)
 About 8 trading days and perhaps 10-30 disclosures: a signal, not proof. Direction is not predicted (the list says "look", not "buy"). Prices are unadjusted. The list ranks attention, so `NOT_SUPPORTED` is a valid, reportable result.
+
+## Note 1 (2026-11-16, written before the day)
+On Saturday 21 Nov 2026 the capital-increase pilot pull runs in the daytime (`docs/capital_increase_rule.md`, Note 1). The nightly job skips that night under the one-pull-per-day guard, so **no list is sealed for 21 Nov**; a disclosure published that day is outside this test. Decided in advance, not after seeing any result. The sealed days are therefore 15-20 and 22-25 Nov. Nothing else changes.
