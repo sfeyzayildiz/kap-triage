@@ -20,6 +20,7 @@ DB_PATH='data/kap.duckdb'
 USE_REVENUE=True  # gates passed on refreshed prod data 2026-11-10 (docs/revenue_ratio_rule.md, PROJECT_NOTES)
 EXTREME_RATIO=5.0
 RATE_DAYS=10
+TCMB_FILL=False  # docs/tcmb_rule.md: switch on 26 Nov (after the last forward-test seal) only if Part 1 agrees
 MIN_HISTORY=3
 TRY_CODES=('TRY','TL')
 
@@ -52,7 +53,12 @@ def fx_rate(con,currency,day):
     rows=con.execute('''SELECT tcmb_ex_rt FROM new_business
         WHERE trim(upper(cur))=? AND tcmb_ex_rt>0 AND date<=? AND date>=?
         ORDER BY date DESC LIMIT 1''',[currency,day,day-timedelta(days=RATE_DAYS)]).fetchall()
-    return rows[0][0] if rows else None
+    if rows:
+        return rows[0][0]
+    if TCMB_FILL:  # docs/tcmb_rule.md Part 2: only when Matriks gives no rate; a failure stays "kur yok"
+        from tcmb_check import tcmb_rate
+        return tcmb_rate(currency,day)
+    return None
 
 
 def company_baseline(con,symbol,day):
@@ -166,6 +172,14 @@ def _self_test():
         ('AAA',date(2026,9,25),' USD',1.0,40.0),('BBB',date(2026,3,5),'TRY',50.0,1.0)])
     assert fx_rate(con,'USD',date(2026,9,30))==40.0
     assert fx_rate(con,'USD',date(2026,10,20)) is None
+    global TCMB_FILL
+    import tcmb_check
+    saved_fill,saved_rate=TCMB_FILL,tcmb_check.tcmb_rate
+    TCMB_FILL,tcmb_check.tcmb_rate=True,lambda c,d:41.5
+    assert fx_rate(con,'USD',date(2026,10,20))==41.5 and fx_rate(con,'USD',date(2026,9,30))==40.0   # fallback only without Matriks
+    tcmb_check.tcmb_rate=lambda c,d:None
+    assert fx_rate(con,'GBP',date(2026,9,30)) is None                                               # failure stays "kur yok"
+    TCMB_FILL,tcmb_check.tcmb_rate=saved_fill,saved_rate
     assert fx_rate(con,'TRY',date(2026,10,20))==1.0
     assert company_baseline(con,'AAA',date(2026,9,1))==(200.0,3)
     assert company_baseline(con,'BBB',date(2026,9,1))[1]==1

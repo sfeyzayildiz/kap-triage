@@ -30,3 +30,4 @@ urllib3==2.8.0
 websockets==17.3
 langgraph==1.0.2
 mcp==1.30.0
+tcmb-mcp==0.1.2  # docs/tcmb_rule.md; reviewed wheel sha256 9e14b700855a9338...; deps mcp<2, httpx already pinned above
