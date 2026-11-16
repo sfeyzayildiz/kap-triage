@@ -27,6 +27,9 @@ Date: 2026-11-15. Feyza's choices (15 Nov): use the rate for **both** a check an
 - The installed wheel is the reviewed file itself (`pip install --no-deps <reviewed wheel>`), sha256 `9e14b700855a93385277398377499d2dd14c91b6725de86fe4b86cfa816cb50c`, equal to PyPI's published digest. **0.1.2 was uploaded on 2026-11-10** (five days before this rule): a young, single-author package with little outside use; trust rests on the full source review, not on adoption.
 - `--plan`: 542 record days → 1061 days to look at (bulletin day, weekends, previous business day), ~18 min at 1 request per second the first time; a stopped run resumes from the cache. Smoke test (Claude, one date, 2026-11-13): 22 currencies, JPY per-unit handled, 3.8 s including server start; no Matriks value was compared.
 
+## Note 2 (2026-11-16, after the measurement; nothing in the rule or the decision changes)
+The "Limits" line below says Matriks' convention is not documented. That was wrong: the `PROJECT_NOTES.md` entry of 2026-11-01 ("Matriks data access") records the docs' definition, `tcmbExRt` = the **previous day's closing central bank rate** for the currency. The primary reference fixed above (the bulletin dated the record's day) is therefore not Matriks' own definition; the reported "previous business day" figure is. By Matriks' definition the match is **972/1045 (93.0%)**, not 913/1045 (87.4%). Both are under the 95% bar, so the decision is the same: `MATRIKS_RATE_DIFFERS`, `FILL_OFF`. The primary reference is not changed after the run; the Matriks feedback document leads with 93.0% and the EUR pattern.
+
 ## Limits
 - TCMB indicative rates, not the contract's own rate; companies may convert at another rate. Matriks' exact convention (buying / selling, which bulletin) is not documented; Part 1 infers agreement, not intent.
 - One reviewed version of a third-party package; an upgrade needs a new review.

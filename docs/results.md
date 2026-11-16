@@ -1,6 +1,6 @@
 # Results on one page
 
-Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in `PROJECT_NOTES.md`). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-12.
+Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in `PROJECT_NOTES.md`). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-16.
 
 ## Extraction (the core)
 | what | set | result | decision |
@@ -42,12 +42,13 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 | Scope guard (fixed word list) | 20 new + 185 earlier questions | blocked 7/10 out-of-scope (bar 9); false blocks 0/10 and 1/185 | **off** |
 | MCP server v1 (12 calls, exact text) | 12 fixed calls | 11/12 (the difference was the LLM card of one brief), overhead 0.011 s | **off** |
 | MCP server v2 (non-LLM tools exact, brief code sections) | 10 + 2 new fixed calls | 10/10, 2/2, overhead 0.011 s | **adopted** |
-| Tool-calling agent over MCP vs constrained router | 16 dev route questions | right tool 12/16 vs router 14/16 | report only (router stays) |
+| Tool-calling agent over MCP vs constrained router | 16 dev route questions | right tool 12/16 vs router 14/16 | report only (router stays); "not better": the router was built on these questions |
 | Extraction repeatability, Set C run 2 | 100 | changed amount/currency 3/100 (bar 2) → unstable; run 2 silent 1/100, flagged 12% → reproduced | **reported** |
-| Matriks' FX rate vs official TCMB rate (tcmb-mcp, registry) | 1045 Matriks FX records, 542 days | within 0.5% of TCMB forex buying: same day 87.4% (bar 95%), previous business day 93.0%; median difference 0.16%; on 83 extracted FX amounts 0 importance level changes | **differs** (reported to Matriks); gap filling **off** |
-| smtp-mcp (registry MCP server, `@ni-c/smtp-mcp` 0.2.0 pinned) for on-demand desk e-mail | 7 allowlist + 5 behaviour checks, synthetic message | refused 7/7 outside `@masa.local` (2 from nodemailer advisories); declined 0 sent; accepted exactly 1, fields and text equal; replay 0; invented token rejected; 0.10 s | **adopted** |
-| Two-run disagreement flag, Set D (live pipeline, two separate runs) | 50 new (12 zone + 38 random), labeled before the runs | disagree 3/50; new flags over run a **0/50** (bar 3); run a silent 0/50, run b silent **1/50**, caught by the flag (1/1); median a+b 30.9 s | **adopted** (nightly list only) |
-| amount_checks v2 ("ABD Doları" read as USD), Set D | 12 zone texts (whole effect zone) + Set C runs 1-2 | new flags 0, catches 0, false alarms 0 (bar 1) | **adopted** (benefit not observed) |
+| Matriks' FX rate vs official TCMB rate (tcmb-mcp, registry) | 1045 Matriks FX records, 542 days | within 0.5% of TCMB forex buying: against Matriks' documented convention (previous day's closing rate) **972/1045 = 93.0%** (bar 95%); against the rule's primary reference (same-day bulletin) 913/1045 = 87.4%; median difference 0.16%; on 83 extracted FX amounts 0 importance-level changes (rank order not measured) | **differs** (reported to Matriks); gap filling **off** |
+| smtp-mcp (registry MCP server, `@ni-c/smtp-mcp` 0.2.0 pinned) for on-demand desk e-mail | 7 allowlist + 5 behaviour checks: chosen cases, synthetic message, automated approval | refused 7/7 outside `@masa.local` (2 from nodemailer advisories); declined 0 sent; accepted exactly 1, fields and text equal; replay 0; invented token rejected; 0.10 s | **adopted** (mechanism shown; a person's attention and adversarial coverage not measured; 1 high `npm audit` finding accepted on a source reading) |
+| Source sentence on the cards (display only) | 43 saved items, 32 with an amount | a sentence containing the amount found 32/32; whether it is the right sentence was not checked | shown as "the sentence where the amount appears" |
+| Two-run disagreement flag, Set D (live pipeline, two separate runs) | 50 new (12 zone + 38 random), labeled before the runs | disagree 3/50; new flags over run a **0/50** (bar 3); run a silent 0/50, run b silent **1/50**, caught by the flag (1/1); on the random 38 alone 0/38 (95% upper 7.6%) and 1/38 (11.9%); median a+b 30.9 s | **adopted** (nightly list only) |
+| amount_checks v2 ("ABD Doları" read as USD), Set D | 12 zone texts (whole effect zone) + Set C runs 1-2 | new flags 0, catches 0, false alarms 0 (bar 1) | **adopted** (parser gap closed; no flag changed anywhere, no observed effect) |
 | Drift: agreement with Matriks after Set C | 40 disclosures after 2026-10-08 | 35/40 (87.5%) vs Set C 72/78 (92.3%); bar ≥ 82.3%; 4 of 5 misses are "no amount" | **no drift seen** |
 | Fields used by the score: long contract / foreign counterparty / related party | 50 Set C, labeled before the run | errors 3/50 / 7/50 / 5/50 (bar 3 each); all misses, no invented "yes" | long **kept**; foreign, related **off** |
 | Desk e-mails via n8n + local Mailpit | all 15 saved days, 43 items, 33 e-mails | lost 0, duplicated 0, wrong desk 0, amount leaks 0; median 0.2 s per day (bar 10 s) | **adopted** |

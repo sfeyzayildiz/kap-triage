@@ -298,6 +298,13 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-16: Review wording applied to the docs (text only; no code, rule or result changed)
+- Feyza accepted findings 1, 4, 5, 6, 7, 8, 10 for the docs, 3 as a planned count, 9 as a low-risk known issue.
+- `docs/demo_script.md`, `docs/metrics_faq.md`: straight-through 89% (Set C, level 2) vs about 78-80% live (Set D); Set D bounds on the random 38 (0/38 upper 7.6%, 1/38 upper 11.9%); tool calling "not better"; a "wording after the review" section (TCMB, v2, smtp-mcp, source sentence).
+- `docs/tcmb_rule.md` Note 2 (after the measurement): Matriks' documented definition is the previous day's closing rate (1 Nov entry), so the figure by its definition is 972/1045 (93.0%), not 913/1045 (87.4%); decision unchanged (`MATRIKS_RATE_DIFFERS`, `FILL_OFF`).
+- `docs/results.md` (rows for TCMB, smtp-mcp, two-run, v2, tool calling; new row for the source sentence; header date), `docs/known_issues.md` (B5, B5c reworded; A10-A12, B9, B10, C6 added), `README.md`, `CLAUDE.md`.
+- Planned after 26 Nov, with the forward-test scoring: count `two_run_disagree` in the nightly lists of 15-25 Nov, number only.
+
 ## 2026-11-16: Independent review of #114-#117 (reading rules, code and docs; no code change, nothing re-measured)
 Ordered by weight for the talk. Wording fixes in the docs are proposed, not made.
 1. **Straight-through rate is overstated.** `docs/demo_script.md` and `docs/metrics_faq.md` say 89%. That is Set C at level 2 (no Matriks cross-check, no source judge). The live pipeline on Set D flagged 20-22%, so the live figure is about 78-80%. Set C and Set D measure two different systems and should not be pooled.
