@@ -76,6 +76,11 @@ The three lines cannot hold together. Each is a reportable answer to "could it b
 - **D5 → (a):** one request to `v1/capital-increase` in the same session (`start=2024-09-01`, `end=2026-11-21`, `type=CPI`), report only.
 - Nothing else in this rule changes: seed, draw, systems, measures and decision lines are as written above.
 
+## Note 2 (2026-11-16, before any pull; descriptive, no decision changes)
+- First drafts of the two readers were written before the pull, from the public form layout and synthetic examples only: `scripts/capital_form.py` (form reader F, 28 self-test checks) and `prompts/extract_ci_v1.txt` (the prompt this rule calls `prompts/cap_v1.txt`; the file name follows `extract_v3.txt`). The order above puts this step after labeling; writing it earlier exposes no text, since none exists yet.
+- These drafts are **version 1 of the three** allowed for each reader. Any change after the dev texts are seen is version 2.
+- The form reader's label table was written from memory of the KAP form, not from Matriks' rendering. If the counts-only profile shows that the content carries no tables, F falls back to whatever LLM-free reader can be written within the three versions, and that is reported.
+
 ## Honest limits
 - **30 records bound very little.** 0/30 silent only says the rate is probably below 9.5%; 1/30 below 14.9%; 2/30 below 19.5%. `ADOPT_PILOT` means "the method transferred and nothing alarming was seen", not "measured reliable". The headline reliability numbers stay those of "Yeni İş İlişkisi" (Set C, Set D).
 - One labeler, a guideline written blind and adjusted on 8 dev texts.
