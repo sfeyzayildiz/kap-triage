@@ -298,6 +298,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-18: Nightly run of 17 Nov missed (Mac switched off)
+- No `KAP collector` alert for 17 Nov: the Mac was off at 23:43, so launchd did not start the job (launchd runs a missed calendar job after sleep, not after shutdown).
+- No hand pull: it would be that day's only pull and make the 18 Nov night skip too. The 3-day lookback of the 18 Nov night collects 17-18 Nov.
+- Forward test: no seal for 17 Nov; recorded as Note 3 of `docs/forward_test_rule.md` before any outcome exists. Sealed days: 15-16, 18-20, 22-25 Nov.
+- Lesson: during the sealed window (to 25 Nov) the Mac stays on and plugged in at 23:43; sleep is fine, shutdown is not.
+
 ## 2026-11-16: Capital-increase pilot, labeling tool and runner (code only; no data read)
 - `scripts/label_capital.py` (14 checks): blind, text only, the guideline's fields, number questions skipped for an `n` component, C1 fills other/none; dev first, one guideline version for the held-out set, no held-out redo after a held-out run file exists.
 - `scripts/capital_extract.py` (27 checks): pydantic `CapitalV1` in the prompt's field order (29 fields, 7 review codes), own Ollama call (gemma4:e4b, `think=True`, temperature 0, num_ctx 8192, 120 s timeout, one retry, model output never printed); F, L, C per record into three run files; dev limit of 3 versions per reader (file sha1, logged); held-out guard (labels complete, freeze commit, version tried on dev, one commit, resumable); `--score-dev` with `capital_score.score_arm`.

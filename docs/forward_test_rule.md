@@ -30,3 +30,6 @@ On Saturday 21 Nov 2026 the capital-increase pilot pull runs in the daytime (`do
 - **Integrity:** a day whose snapshot differs from its first logged hash is dropped and the line says `BROKEN`; days without a seal (21 Nov, Note 1) are listed. The script prints the 16-character prefixes; comparing them with the phone alerts is Feyza's step.
 - The decision comes only from the t1 pass; the reaction-day pass is printed next to it.
 
+## Note 3 (2026-11-18 00:10, before any price after the first seal exists; an unplanned gap)
+The Mac was switched off at 23:43 on 17 Nov 2026, so the nightly job did not run and **no list was sealed for 17 Nov**. This was not planned and not chosen; it is recorded before any outcome exists (prices are pulled only after 26 Nov). Treated exactly like 21 Nov (Note 1): a disclosure published on 17 Nov is outside this test; the 3-day lookback of the 18 Nov night collects it, unsealed. No list is sealed by hand afterwards, because a list made later is not a sealed prediction. The sealed days are therefore 15-16, 18-20 and 22-25 Nov. The scorer already lists days without a seal; nothing else changes.
+
