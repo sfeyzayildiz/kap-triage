@@ -62,6 +62,7 @@ TESTS={
     'amount_checks_v2':'',
     'sample_set_d':'--self-test',
     'set_d':'--self-test',
+    'vendor_audit':'--self-test',
     'mail_mcp':'--self-test',
     'tcmb_check':'--self-test',
     'capital_form':'--self-test',

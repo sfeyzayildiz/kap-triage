@@ -57,6 +57,12 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - "Could it be done without an LLM?" For this form-based type, code reads most of it; the LLM's value is the cross-check that catches the code's 3 silent errors (`LLM_ADDS`), at the price of many flags. For free-text "Yeni İş İlişkisi" it was the other way round (regex 25/100 silent).
 - Pull to score in one day; the method transferred, the Matriks cross-check did not (no KAP link in that record; 11/20 rates found).
 
+## Data-vendor auditor: is a Matriks record wrong? (18 Nov, rule first, not adopted)
+- 641 unseen disclosures, 14 records flagged (2.2%). Blind check of all 14 + 14 random controls: **6/14 real Matriks errors** (3 pre-revision amounts, 2 wrong currency, 1 wrong scale), 8 convention differences (VAT, TL equivalent, share), 0 consistent. Strict precision 43% (95% CI 18-71%) < bar 50% → **AUDITOR_OFF**.
+- Random controls: 0/14 errors, so the list is far richer than random, but the bar was "one real error per two candidates" and it missed.
+- Recall is low by design: records where our own checks are unsure are not audited (M1 on the gold sets: 1 of 9 Matriks errors caught; the other 8 were in texts we also flag).
+- Say: "we measured it, it missed its pre-written bar, so it is a report tool, not a nightly feature."
+
 ## Speed
 - Extraction median 14.6 s per disclosure (p90 20.6 s); all other stages 0.003 s; busy day ~3 min overnight. Routing 3.2 s.
 

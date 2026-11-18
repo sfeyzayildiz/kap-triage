@@ -90,6 +90,7 @@ Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also
 
 ## Limits
 - Scope is only "Yeni İş İlişkisi" disclosures. A second type (capital increases) was tested once as a pilot on 18 Nov: 0/30 silent errors but 16/30 flagged, so not adopted by its pre-written bar (`docs/capital_increase_rule.md`).
+- A data-vendor auditor (which Matriks records disagree with the KAP text) was measured once on 18 Nov: 6 of 14 flagged records were real Matriks errors (43%, bar 50%), so it stays a report tool, not a nightly feature (`docs/vendor_audit_rule.md`).
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
 - The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.
 - The money regex of the code checks did not read "ABD Doları" (10 of 81 Set B amounts). Closed on 15 Nov by `amount_checks_v2.py`; no flag changed on any measured set, so no effect was observed. Other spellings ("US Doları") are still not read.
