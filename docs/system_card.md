@@ -31,7 +31,7 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 ## Known limits (say them first)
 - Fields other than amount and currency were measured once on 50 Set C texts (13 Nov): long contract 3/50 errors (kept), foreign counterparty 7/50 and related party 5/50 (both switched off in the score).
 - One person labeled the gold data and wrote most questions; no second-rater agreement yet.
-- Small test sets, wide bounds. Single disclosure type in production; a capital-increase pilot (18 Nov, 30 held-out) had 0 silent errors but flagged 16/30 and was not adopted. Nightly, not real time.
+- Small test sets, wide bounds. Single disclosure type in production; a capital-increase pilot (18 Nov, 30 held-out) had 0 silent errors but flagged 16/30 and was not adopted. The data-vendor auditor (Matriks record vs. KAP text) reached 6/14 strict precision, below its 50% bar, so it is a hand-run report tool, not part of the nightly path. Nightly, not real time.
 - The chat cannot always say "the data cannot answer this"; an out-of-scope question with a company name can get an unrelated card (the guided form avoids it; two scope guards failed their bars).
 - Desk = Matriks sector; whether that desk is the right recipient is not measured.
 - Search's typical miss is the right company's wrong disclosure; a card belongs to the first hit only.
