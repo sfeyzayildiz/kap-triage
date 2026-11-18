@@ -76,6 +76,12 @@ The three lines cannot hold together. Each is a reportable answer to "could it b
 - **D5 → (a):** one request to `v1/capital-increase` in the same session (`start=2024-09-01`, `end=2026-11-21`, `type=CPI`), report only.
 - Nothing else in this rule changes: seed, draw, systems, measures and decision lines are as written above.
 
+## Note 1b (2026-11-18 morning, before any pull, sample or label; Feyza's choice)
+- **D1 moved from (c) Sat 21 Nov to (d) Wed 18 Nov, daytime.** Reason: finish the project early (Feyza has the day for labeling). No capital-increase text, sample or result exists yet, so the change cannot be shaped by data.
+- **Window:** 2026-08-01 to **2026-11-17** (the day before the pull); fallback start 2026-05-01 unchanged. The `v1/capital-increase` request uses `end=2026-11-18`.
+- Cost for the forward test, stated before the day: no list is sealed for 18 Nov (a weekday with real items); 21 Nov is sealed again. See Note 4 of `docs/forward_test_rule.md`.
+- Nothing else changes: seed, draw, sizes, systems, measures and decision lines are as written above.
+
 ## Note 2 (2026-11-16, before any pull; descriptive, no decision changes)
 - First drafts of the two readers were written before the pull, from the public form layout and synthetic examples only: `scripts/capital_form.py` (form reader F, 28 self-test checks) and `prompts/extract_ci_v1.txt` (the prompt this rule calls `prompts/cap_v1.txt`; the file name follows `extract_v3.txt`). The order above puts this step after labeling; writing it earlier exposes no text, since none exists yet.
 - These drafts are **version 1 of the three** allowed for each reader. Any change after the dev texts are seen is version 2.

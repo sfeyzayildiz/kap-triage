@@ -60,8 +60,8 @@ Paste the `--run` summary line, the `--compare` output and the `revenue_check` l
 ```
 Then (Claude's commands): rebuild clusters with k = number of sectors, `clusters.py --evaluate` once, fill the desk map in `panel.py`, rebuild the two demo reports.
 
-### Capital-increase pilot day (Sat 21 Nov 2026, daytime; rule `docs/capital_increase_rule.md`)
-The nightly job stays **loaded** (Note 1): `pull_guard` makes it skip that night, and the 21 Nov alert says `KAP collector SKIPPED`, which is expected. Nothing to resume the next morning. Never 23:30-23:59. Ollama must be running from step 4 on. About 3 hours for Feyza in all, most of it labeling; steps marked **Claude** happen in the chat in between.
+### Capital-increase pilot day (Wed 18 Nov 2026, daytime; rule `docs/capital_increase_rule.md`, Note 1b)
+The nightly job stays **loaded** (Note 1): `pull_guard` makes it skip that night, and the 18 Nov alert says `KAP collector SKIPPED`, which is expected. Nothing to resume the next morning. Never 23:30-23:59. Ollama must be running from step 4 on. About 3 hours for Feyza in all, most of it labeling; steps marked **Claude** happen in the chat in between.
 
 ```
 cd ~/projects/kap-explore && git switch main && git pull -q

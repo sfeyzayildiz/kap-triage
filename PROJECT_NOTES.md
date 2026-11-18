@@ -298,6 +298,9 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-18: Capital-increase pull moved to today (before any pull)
+- Feyza's choice (goal: finish early; she has the day for labeling): pull Wed 18 Nov daytime instead of Sat 21 Nov. Window end 2026-11-17, Matriks record end 2026-11-18 (`capital_collect.py`). Recorded before the pull as Note 1b of the pilot rule and Note 4 of the forward-test rule: no seal for 18 Nov, 21 Nov sealed again; sealed days 15-16 and 19-25 Nov.
+
 ## 2026-11-18: Nightly run of 17 Nov missed (Mac switched off)
 - No `KAP collector` alert for 17 Nov: the Mac was off at 23:43, so launchd did not start the job (launchd runs a missed calendar job after sleep, not after shutdown).
 - No hand pull: it would be that day's only pull and make the 18 Nov night skip too. The 3-day lookback of the 18 Nov night collects 17-18 Nov.
