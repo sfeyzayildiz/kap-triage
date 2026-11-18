@@ -103,6 +103,18 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 
 History: Set A (dev) 0/100 → Set B frozen v3 4/100 FAIL → code checks from the error analysis → Set C 1/100 PASS. Every other result, adopted or not: `docs/results.md`.
 
+## Second disclosure type: capital-increase pilot (18 Nov, report only)
+
+The same method on a form-based type, measured once on 30 held-out disclosures (`docs/capital_increase_rule.md`): a code-only form reader (F) and the LLM (L) read each disclosure, code checks run on the combined values, and a disagreement between the two readers is flagged, not resolved.
+
+| System | Silent errors | Flagged | Resolved |
+|---|---|---|---|
+| F, form reader (code only) | 3/30 | 3 | 24 |
+| L, LLM only | 1/30 | 21 | 8 |
+| C, both, disagreement flagged | **0/30** (95% upper 9.5%) | 16 (bar 9) | 14 |
+
+Decision by the pre-written rule: not adopted (too many flags); the LLM adds value as a cross-check. On free text ("Yeni İş İlişkisi") the LLM is the extractor; on a structured form, code reads and the LLM checks. Nothing of this pilot is on the nightly path.
+
 ## Not measured (stated as limits)
 
 - Importance score: rules are judgment, not fitted. Checked once against the analyst's blind choice: better than chance, equal to sorting by amount (AUC 0.681 both).
