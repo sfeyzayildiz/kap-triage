@@ -93,6 +93,9 @@ TESTS={
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
+    'fdv_collect':'--self-test',
+    'sample_fdv':'--self-test',
+    'label_fdv':'--self-test',
     'kap_kart_check':'--self-test',
     'kap_kart_leak_scan':'--self-test',
 }
