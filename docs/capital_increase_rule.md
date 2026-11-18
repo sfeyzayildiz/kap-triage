@@ -95,6 +95,12 @@ Dev run 1 (8 texts, prompt v1, form reader v1, checks v1): F 3 silent (2 wrong s
 - Prompt unchanged (v1). L's own `arith_mismatch` flags (L's amounts do not add up on 5/8) are left as they are: they caught every L error on dev.
 - Versions used so far: prompt 1 of 3, form reader 2 of 3. Dev run 2 follows; then the freeze.
 
+## Note 6 (2026-11-18, after dev run 2; this commit is the FREEZE)
+Dev run 2 (prompt v1, form reader v2, checks v2): F 3 silent, 0 flagged; L 1 silent, 5 flagged; C 0 silent, 6 flagged. Diagnosed with counts only:
+- **Form reader v3 (the last of three):** both cancelled dev texts contain "geri çek" and none of the other six do; "iptal edil" is useless (the form's own label "İptal Edilen Pay Tutarı" carries it). Withdrawal wording ("geri çek", and the guideline's "vazgeç", written before any text) anywhere in the disclosure sets stage `cancelled`.
+- **System C:** a reader's own codes (prompt review codes, `group_rates_differ`) are kept, but code-check codes computed on a reader's values (`arith_mismatch`, `rate_mismatch`, `ceiling_as_value`, `rate_not_in_text`, `no_component`, `long_text`) are not carried into C: the checks run again on C's own values. In dev run 2, C carried L's `arith_mismatch` / `rate_mismatch` although C used F's amounts, which add up.
+- **Frozen for the held-out run:** prompt `extract_ci_v1` (1 of 3), form reader v3 (3 of 3), checks v2 with `long_text` 8,000, C as in Notes 5-6, guideline v0.2. Dev run 3 is run once only to meet the rule that the held-out version is one tried on dev; its result is reported and **changes nothing**, whatever it shows. Then the held-out run, once, then scoring, once.
+
 ## Note 2 (2026-11-16, before any pull; descriptive, no decision changes)
 - First drafts of the two readers were written before the pull, from the public form layout and synthetic examples only: `scripts/capital_form.py` (form reader F, 28 self-test checks) and `prompts/extract_ci_v1.txt` (the prompt this rule calls `prompts/cap_v1.txt`; the file name follows `extract_v3.txt`). The order above puts this step after labeling; writing it earlier exposes no text, since none exists yet.
 - These drafts are **version 1 of the three** allowed for each reader. Any change after the dev texts are seen is version 2.
