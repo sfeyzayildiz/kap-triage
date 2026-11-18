@@ -82,6 +82,11 @@ The three lines cannot hold together. Each is a reportable answer to "could it b
 - Cost for the forward test, stated before the day: no list is sealed for 18 Nov (a weekday with real items); 21 Nov is sealed again. See Note 4 of `docs/forward_test_rule.md`.
 - Nothing else changes: seed, draw, sizes, systems, measures and decision lines are as written above.
 
+## Note 4 (2026-11-18, after the pull and the counts-only profile, before any sample or label)
+- Pull: 213 disclosures (2026-08-03..2026-11-17), **80 symbols**, so no fallback; 296 `v1/capital-increase` records (233 symbols, 53 shared with the disclosures). Every text has a form table, 212/213 a multi-column one; the "Açıklama" cell exists in 1/213 (trap T19 confirmed; readers use `text`, not `aciklama`). `is_update` is 0 for all: the update question has another label in this form; not used by any measure.
+- **Long-text threshold:** prompt 2,838 tokens; the 10 longest texts have 2.70-3.09 characters per token. With a 2,048-token answer reserve, 3,306 tokens are left for the text, about 8,900 characters at the lowest ratio. `LONG_TEXT_CHARS` is set to **8,000** (10% margin); 4 of 213 texts are longer. The 2,048 reserve is an estimate (thinking length varies); an answer that does not fit becomes a run error, which counts as flagged.
+- Nothing else changes.
+
 ## Note 2 (2026-11-16, before any pull; descriptive, no decision changes)
 - First drafts of the two readers were written before the pull, from the public form layout and synthetic examples only: `scripts/capital_form.py` (form reader F, 28 self-test checks) and `prompts/extract_ci_v1.txt` (the prompt this rule calls `prompts/cap_v1.txt`; the file name follows `extract_v3.txt`). The order above puts this step after labeling; writing it earlier exposes no text, since none exists yet.
 - These drafts are **version 1 of the three** allowed for each reader. Any change after the dev texts are seen is version 2.
