@@ -1,6 +1,6 @@
 # System card: KAP Bildirim Önceliklendirme Asistanı
 
-One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-12. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
+One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-16 (limits line on the score fields updated; the rest as of 2026-11-12). Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
 
 ## Purpose
 Morning triage of KAP "Yeni İş İlişkisi" (new business relationship) disclosures for a brokerage equity analyst: which ones to read first, why, and how reliable the extracted facts are. Every item carries its KAP link.
@@ -29,9 +29,9 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 | Speed | extraction about 15 s per disclosure; everything else under 0.01 s; a company brief about 18 s |
 
 ## Known limits (say them first)
-- Fields other than amount and currency (duration, counterparty origin, related party) are **not measured**, although the ordering and the score use them.
+- Fields other than amount and currency were measured once on 50 Set C texts (13 Nov): long contract 3/50 errors (kept), foreign counterparty 7/50 and related party 5/50 (both switched off in the score).
 - One person labeled the gold data and wrote most questions; no second-rater agreement yet.
-- Small test sets, wide bounds. Single disclosure type. Nightly, not real time.
+- Small test sets, wide bounds. Single disclosure type in production; a capital-increase pilot (18 Nov, 30 held-out) had 0 silent errors but flagged 16/30 and was not adopted. Nightly, not real time.
 - The chat cannot always say "the data cannot answer this"; an out-of-scope question with a company name can get an unrelated card (the guided form avoids it; two scope guards failed their bars).
 - Desk = Matriks sector; whether that desk is the right recipient is not measured.
 - Search's typical miss is the right company's wrong disclosure; a card belongs to the first hit only.

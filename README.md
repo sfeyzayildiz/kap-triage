@@ -2,6 +2,14 @@
 
 (KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts who follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, Borsa İstanbul's public disclosure platform.
 
+## In 30 seconds
+- **What:** every night it reads the day's KAP disclosures (licensed Matriks data), extracts the deal facts with a local LLM, checks them in code, and gives the analyst a ranked morning list: what to read first, why, and which numbers to double-check. Every item links to the KAP source.
+- **How reliable:** on 100 disclosures it had never seen, 1 wrong amount or currency went through unflagged (95% upper bound 4.7%); the best rule-based baseline let 25 through. A hidden instruction in the text changed the amount silently in 9 of 18 attacks; after the defence, in 0.
+- **How it was built:** every decision rule was committed before its measurement, test sets were held out and scored once, and failures are published next to successes (`docs/results.md`, `docs/known_issues.md`).
+- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker; about 70 modules with self-tests, run in GitHub Actions on every pull request.
+- **Runs on one laptop.** Data never leaves the machine (licence and compliance), so there is no public demo link; `docs/docker.md` reproduces it with your own Matriks token.
+- **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)). Built during the BTK Akademi AI workshop at Entertech İstanbul Teknokent, Oct-Nov 2026.
+
 ## The problem
 An analyst sees several of these disclosures every day and has to decide which ones matter:
 - Is the deal big for this company?
@@ -81,7 +89,7 @@ Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also
 - All models run locally (Ollama, sentence-transformers). No disclosure text or result is sent to an external service. n8n and Mailpit run locally with telemetry and update checks switched off; desk e-mails carry no amounts.
 
 ## Limits
-- Scope is only "Yeni İş İlişkisi" disclosures.
+- Scope is only "Yeni İş İlişkisi" disclosures. A second type (capital increases) was tested once as a pilot on 18 Nov: 0/30 silent errors but 16/30 flagged, so not adopted by its pre-written bar (`docs/capital_increase_rule.md`).
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
 - The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.
 - The money regex of the code checks did not read "ABD Doları" (10 of 81 Set B amounts). Closed on 15 Nov by `amount_checks_v2.py`; no flag changed on any measured set, so no effect was observed. Other spellings ("US Doları") are still not read.
