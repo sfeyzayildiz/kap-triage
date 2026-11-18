@@ -72,6 +72,8 @@ ollama pull gemma4:e4b
 
 # desk panel -> http://127.0.0.1:8765 (chat), /form (guided), /days, /themes, /guvenilirlik
 .venv/bin/python scripts/panel.py --serve
+# demo mode (screen recordings, talks): Matriks-licensed values hidden on every page (docs/demo_mode_rule.md)
+.venv/bin/python scripts/panel.py --serve --demo --port 8766
 ```
 
 With Docker: `docker compose up --build` (Ollama stays on the host; `data/` is mounted, never baked in). See `docs/docker.md`. The same command starts n8n (`127.0.0.1:5678`) and the local mail inbox Mailpit (`127.0.0.1:8025`); importing the desk workflow once: `docs/n8n_guide.md`.

@@ -25,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import chat
+import demo_mode
 import form
 import reliability
 import themes
@@ -197,7 +198,7 @@ form.guided .wide{grid-column:1/-1}form.guided input[type=text]{width:100%}form.
 def page(title,body):
     return (f'<!doctype html><html lang="tr"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title>'
-            f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{body}</main></body></html>')
+            f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{demo_mode.BANNER if demo_mode.ON else ""}{body}</main></body></html>')
 
 
 def sources_for_items(items,db=DB_PATH):
@@ -239,7 +240,8 @@ def render_item(item,day,review,chart='',source=None):
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
     imp=item['importance']
     cls='flag' if imp['needs_review'] else ('high' if imp['level']=='high' else '')
-    badges=f'<span class="badge {"high" if imp["level"]=="high" else ""}">{e(LEVEL_TR.get(imp["level"],imp["level"]))} · skor {e(imp["score"])}</span>'
+    score='' if demo_mode.ON else f' · skor {e(imp["score"])}'  # demo: the score sums Matriks-based points
+    badges=f'<span class="badge {"high" if imp["level"]=="high" else ""}">{e(LEVEL_TR.get(imp["level"],imp["level"]))}{score}</span>'
     if imp['needs_review']:
         badges+=(f'<a class="badge flag" href="#r{e(item["news_id"])}">kontrol et ↓</a>' if not review
                  else '<span class="badge flag">kontrol edildi</span>')
@@ -250,11 +252,13 @@ def render_item(item,day,review,chart='',source=None):
         out.append(f'<div>Tutar: {e(tr_num(item["amount"],0))} {e(item.get("currency"))}</div>')
         out.append(source_html(source))
     reasons=[reason_text(r) for r in imp.get('reasons',[])]
+    if demo_mode.ON:
+        reasons=demo_mode.reasons(reasons)
     if reasons:
         out.append(f'<div>Neden: {e("; ".join(reasons))}</div>')
     if item.get('reaction'):
-        out.append(f'<div class="muted">Fiyat: {e(reaction_text(item["reaction"]))}</div>')
-    out.append(chart or '')  # built by price_chart from numbers only
+        out.append(f'<div class="muted">Fiyat: {e(demo_mode.PLACEHOLDER if demo_mode.ON else reaction_text(item["reaction"]))}</div>')
+    out.append('' if demo_mode.ON else (chart or ''))  # built by price_chart from numbers only (Matriks prices)
     if imp['needs_review']:
         codes='; '.join(REVIEW_TR.get(c,c) for c in imp['needs_review_reasons'])
         if review:
@@ -273,6 +277,8 @@ def render_item(item,day,review,chart='',source=None):
 
 
 def render_day(day,items,sectors,desks,reviews,charts=None,sources=None):
+    if demo_mode.ON:
+        desks=demo_mode.desk_map(sectors,desks)  # "Masa N", never the sector name
     groups=by_desk(items,sectors,desks)
     flagged=[i for i in items if i['importance']['needs_review']]
     done=sum(i['news_id'] in reviews for i in flagged)
@@ -325,8 +331,12 @@ def render_week(start,view,sectors,urls):
         notes=[f'normalde haftada {fmt1(v["avg_per_week"])} bildirim',f'tüm dönemde {v["companies_all"]} şirket']
         if v['companies_all']==1:
             notes.append('tek şirketin bildirim şablonu (şablon etkisi)')
-        sec=Counter(desk_of(a['symbol'],sectors,{}) for a in v['items'])
-        notes.append('sektörler: '+', '.join(f'{s} {c}' for s,c in sec.most_common()))
+        if demo_mode.ON:  # same desk numbers as the day pages
+            sec=Counter(desk_of(a['symbol'],sectors,demo_mode.desk_map(sectors,DESKS)) for a in v['items'])
+            notes.append('masalar: '+', '.join(f'{s} ({c})' for s,c in sorted(sec.items(),key=lambda sc:(-sc[1],sc[0]==UNASSIGNED,sc[0]))))
+        else:
+            sec=Counter(desk_of(a['symbol'],sectors,{}) for a in v['items'])
+            notes.append('sektörler: '+', '.join(f'{s} {c}' for s,c in sec.most_common()))
         body.append(f'<p class="muted">{e("; ".join(notes))}</p><ul>')
         body+= [f'<li>{e(a["symbol"])} · {e(a["published_at"][:10])} · {kap_link(urls.get(a["news_id"]))}</li>'
                 for a in v['items']]
@@ -379,7 +389,8 @@ class Handler(BaseHTTPRequestHandler):
             if items is None:
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             from price_chart import charts_for_items
-            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts_for_items(items),
+            charts={} if demo_mode.ON else charts_for_items(items)  # demo: prices are not even read
+            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts,
                                             sources_for_items(items)))
         m=re.match(r'^/api/desks/(\d{4}-\d{2}-\d{2}|latest)$',path)
         if m:  # docs/n8n_routing_rule.md: read-only JSON for n8n (no amounts, no disclosure text)
@@ -579,7 +590,10 @@ def main():
     ap.add_argument('--stats',action='store_true')
     ap.add_argument('--self-test',action='store_true')
     ap.add_argument('--review-log',help='another review log, e.g. data/review_log_test.jsonl for a clean test (the real log stays untouched)')
+    ap.add_argument('--demo',action='store_true',help='demo mode: hide Matriks-licensed values on every page (docs/demo_mode_rule.md)')
     args=ap.parse_args()
+    if args.demo:
+        demo_mode.ON=True
     if args.review_log:
         global LOG_PATH
         LOG_PATH=args.review_log
@@ -591,7 +605,7 @@ def main():
             print(f'  {code} confirm={c["confirm"]} reject={c["reject"]}')
     elif args.serve:
         print(f'panel on http://127.0.0.1:{args.port} (bind {HOST}; Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())} '
-              f'review log={LOG_PATH}')
+              f'review log={LOG_PATH} demo={"on" if demo_mode.ON else "off"}')
         ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
     else:
         ap.error('give --serve, --stats or --self-test')

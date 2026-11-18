@@ -171,7 +171,8 @@ def render_body(symbols,names,last,nav,render_answer,kind=None):
         meta=f'{e(last["at"])} · {last["seconds"]:.1f} sn'.replace('.',',')
         out.append(f'<div class="msg a{" err" if last["error"] else ""}" id="son">{render_answer(last["answer"])}'
                    f'<div class="muted">{meta}</div></div>')
-        out.append(last.get('chart') or '')
+        import demo_mode
+        out.append('' if demo_mode.ON else (last.get('chart') or ''))  # demo: no price chart
         out.append('<p><a href="/form">Yeni soru</a></p>')
     out.append('<p class="muted">Kaynak: KAP bildirimleri ve Matriks verisi. Karar öncesi KAP metnini okuyun.</p>')
     return ''.join(out)

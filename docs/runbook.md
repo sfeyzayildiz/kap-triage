@@ -110,6 +110,7 @@ Paste 11 (last three lines) and 12. No scoring while 11 is running.
 ```
 cd ~/projects/kap-explore
 .venv/bin/python scripts/panel.py --serve      # http://127.0.0.1:8765 = chat, /days = morning lists; Ctrl+C to stop (holds no DB lock while idle)
+.venv/bin/python scripts/panel.py --serve --demo --port 8766   # demo mode for video/talk: Matriks values hidden (8766: works while the Docker panel holds 8765)
 .venv/bin/python scripts/panel.py --stats      # review decisions per flag type
 .venv/bin/python scripts/agent.py "Bugün neye bakmalıyım?"
 ```

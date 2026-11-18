@@ -57,6 +57,9 @@ def linkify(line):
 
 
 def render_answer(text):
+    import demo_mode
+    if demo_mode.ON:  # docs/demo_mode_rule.md: Matriks-based lines replaced at display time
+        text=demo_mode.redact_answer(text)
     lines=[]
     for raw in (text or '').splitlines():
         s=raw.rstrip()

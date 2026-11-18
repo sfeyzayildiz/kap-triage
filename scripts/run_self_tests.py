@@ -46,6 +46,8 @@ TESTS={
     'form':'--self-test',
     'panel':'--self-test',
     'chat':'--self-test',
+    'demo_mode':'--self-test',
+    'demo_leak_check':'--self-test',
     'answer':'--self-test',
     'eval_answers':'--self-test',
     'regex_baseline':'--self-test',
