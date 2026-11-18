@@ -78,11 +78,36 @@ With Docker: `docker compose up --build` (Ollama stays on the host; `data/` is m
 
 MCP (local clients only): `.venv/bin/python scripts/mcp_client.py --list`, `scripts/mcp_agent.py --ask "ASELS son 3 ayda hangi işleri aldı?"`, or the official Inspector: `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python scripts/mcp_server.py`. Never connect a cloud client: tool results contain licensed data.
 
-Each script has a `--self-test`; `scripts/run_self_tests.py` runs them all (also in CI on every pull request). Operations: `docs/runbook.md`. Architecture: `docs/architecture.md`. Other entry points:
+Modules with a `--self-test` are run by `scripts/run_self_tests.py` (also in CI on every pull request). Operations: `docs/runbook.md`. Architecture: `docs/architecture.md`. Other entry points:
 - `scripts/price_collect.py`: daily price bars.
 - `scripts/rag_index.py --build`: search index.
 - `scripts/price_moves.py --scan DATE`: abnormal moves.
 - `scripts/score_silent.py`: evaluation scoring.
+
+## Repository map
+| path | what is there |
+|---|---|
+| `scripts/` | All Python modules (flat folder; 75 of 98 have a `--self-test`, the rest are early probes and one-off tools). Grouped below. |
+| `prompts/` | Extraction prompts. `extract_v3.txt` is live and frozen; `extract_ci_v1.txt` is the capital-increase pilot. |
+| `docs/` | Decision rules, results, architecture, runbook. Index: [`docs/README.md`](docs/README.md). |
+| `deploy/` | launchd job for the nightly run (23:43). |
+| `n8n/` | Desk e-mail workflow and the local Mailpit credential (no secrets). |
+| `mcp/smtp/` | Pinned third-party e-mail MCP server (`@ni-c/smtp-mcp`). |
+| `.github/workflows/` | CI: all self-tests on every pull request. |
+| `Dockerfile`, `docker-compose.yml` | Panel container, n8n and Mailpit (`docs/docker.md`). |
+| `PROJECT_NOTES.md` | Development log: every decision and result, in order. |
+| `data/` | Local only, never committed (licensed Matriks data, results). |
+
+**Scripts by role**
+- **Nightly path:** `daily_collect.py` (entry point) → `collector.py`, `pull_guard.py` → `morning_job.py` → `morning.py` → `pipeline.py` (`llm_extract.py`, `amount_checks.py`, `amount_checks_v2.py`, `currency_check.py`, `matriks_crosscheck.py`, `source_check.py`), `importance.py`, `price_moves.py`, `rag_index.py`, `forward_seal.py`. `deploy_check.py` checks the environment.
+- **Analyst tools:** `panel.py` (with `chat.py`, `form.py`, `themes.py`, `reliability.py`, `price_chart.py`), `agent.py` (`names.py`, `periods.py`), `mcp_server.py` / `mcp_client.py` / `mcp_agent.py`, `desk_mail.py`, `mail_mcp.py`.
+- **Data collection (Matriks, run by Feyza only):** `collector.py`, `price_collect.py`, `sector_collect.py`, `prod_refresh.py`, `capital_collect.py`; early probes `explore.py`, `kap_probe.py`.
+- **Search index:** `build_docs.py`, `normalize.py`, `rag_index.py`, `clusters.py`.
+- **Labeling and sampling:** `label_set_b.py`, `label_capital.py`, `sample_*.py`, `check_gold_amounts.py`, `check_vat_rule.py`, `check_first20.py`.
+- **Evaluation and experiments:** `score_silent.py`, `score_adjudicated.py`, `evaluate.py`, `eval_*.py`, `*_eval.py`, `drift_check.py`, `repeat_check.py`, `revenue_check.py`, `importance_check.py`, `desk_route_check.py`, `tcmb_check.py`, `set_d.py`, `injection_test.py`, `injection_checks.py`, `regex_baseline.py`, `forward_score.py`, `capital_*.py`, `vendor_audit.py` (data-vendor auditor, report only), `answer.py`, `build_chunks.py`, `latency.py`. Each one names its rule file in its first line.
+- **One-off data profiles (counts only):** `corpus_stats.py`, `text_artifacts.py`, `unmatched_*.py`, `baseline.py`, `show_case.py`.
+
+Three evaluation modules are also imported by the live path: `pipeline.py` uses `norm_cur` from `eval_vs_matriks.py`, `agent.py` uses `word_date` from `route_eval.py`, and `importance.py` imports `tcmb_check.py` (its rate fill is switched off, `TCMB_FILL=False`). Moving the experiment scripts into their own folder (planned after the forward test, 26 Nov) has to move these helpers first.
 
 ## Data and privacy
 - Data comes from the Matriks API (new-business data, KAP disclosure texts, daily bars), used with Matriks' permission. Raw data stays in `data/` and is never committed.
