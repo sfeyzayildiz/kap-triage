@@ -65,8 +65,8 @@ def render_answer(text):
         s=raw.rstrip()
         if not s:
             continue
-        if s.startswith('# '):
-            lines.append(f'<div class="ah">{linkify(s[2:])}</div>')
+        if s.startswith('# ') or s.startswith('## '):   # brief sections ("## 1. Son bildirim") are headings too
+            lines.append(f'<div class="ah">{linkify(s.lstrip("#").strip())}</div>')
         else:
             lines.append(f'<div>{linkify(s)}</div>')
     return ''.join(lines)
@@ -166,7 +166,9 @@ def _self_test():
     empty=render_body([])
     assert 'Örnek sorular' in empty and empty.count('action="/chat"')==1+len(EXAMPLES)
     assert 'kart olarak' in empty and 'Fonet' in empty
-    print('self-test ok: 11 checks')
+    h=render_answer('## 1. Son bildirim\n# Başlık\nsatır')
+    assert '##' not in h and '<div class="ah">1. Son bildirim</div>' in h and '<div class="ah">Başlık</div>' in h
+    print('self-test ok: 12 checks')
 
 
 if __name__=='__main__':

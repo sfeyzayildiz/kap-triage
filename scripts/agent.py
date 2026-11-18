@@ -477,7 +477,9 @@ def card_lines(hit,data):
     v=lambda x:x if x not in (None,'') else 'belirtilmemiş'
     lines.append(f'Konu: {v(data.get("subject"))}')
     lines.append(f'Tür: {EVENT_TR.get(data.get("event_type"),v(data.get("event_type")))}')
-    lines.append(f'Karşı taraf: {v(data.get("counterparty_name"))} ({ORIGIN_TR.get(data.get("counterparty_origin"),"belirtilmemiş")})')
+    origin=data.get('counterparty_origin')
+    origin_txt='yurt içi/dışı belirtilmemiş' if origin in (None,'unknown') else ORIGIN_TR.get(origin,origin)
+    lines.append(f'Karşı taraf: {v(data.get("counterparty_name"))} ({origin_txt})')
     lines.append(f'Süre / teslim: {v(data.get("duration"))}')
     if data.get('amount') is not None:
         amt=f'Tutar: {tr_num(data["amount"],0)} {data.get("currency") or ""}'.rstrip()
@@ -772,6 +774,7 @@ def _self_test():
     t=out['text']
     assert seen==['ASELS'] and 'Süre / teslim: 36 ay' in t and 'Tutar: 1.500.000 USD' in t and 'sözleşme' in t
     assert 'Karşı taraf: belirtilmemiş (yurt dışı)' in t and 'KONTROL ET: para birimi belirsiz' in t
+    assert any('(yurt içi/dışı belirtilmemiş)' in l for l in card_lines(hit(1),{**data,'counterparty_origin':'unknown'}))
     assert 'miktarlar' not in t                                                   # no quantities -> no line
     global SHOW_QUANTITIES
     saved,qd=SHOW_QUANTITIES,{**data,'quantities':['20 adet','505 MWm']}

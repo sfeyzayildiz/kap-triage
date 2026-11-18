@@ -176,7 +176,7 @@ a{color:var(--accent)}
 .flag{border-left:4px solid var(--red)}.high{border-left:4px solid var(--amber)}
 .badge{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:10px;border:1px solid var(--line);
 color:var(--muted);margin-left:6px}.badge.high{color:var(--amber);border-color:var(--amber)}
-.badge.flag{color:var(--red);border-color:var(--red)}a.badge{text-decoration:none}
+.badge.flag{color:var(--red);border-color:var(--red)}.badge.done{color:var(--green);border-color:var(--green)}a.badge{text-decoration:none}
 .muted{color:var(--muted);font-size:.9rem}
 .review{background:var(--tint-red);padding:8px;border-radius:6px;margin-top:6px}.done{background:var(--tint-green)}
 button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;margin-right:6px;cursor:pointer}
@@ -259,6 +259,18 @@ def source_html(source):
     return f'<div class="src">Kaynak cümle: “{"".join(parts)}”</div>'
 
 
+TR_MONTHS=('Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara')
+
+
+def tr_time(at):
+    '''"2026-11-10T00:41:50" -> "10 Kas 2026 00:41"; anything unreadable is shown as it is.'''
+    try:
+        t=datetime.fromisoformat(str(at))
+    except ValueError:
+        return str(at)
+    return f'{t.day} {TR_MONTHS[t.month-1]} {t.year} {t:%H:%M}'
+
+
 def render_item(item,day,review,chart='',source=None):
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
     imp=item['importance']
@@ -267,7 +279,7 @@ def render_item(item,day,review,chart='',source=None):
     badges=f'<span class="badge {"high" if imp["level"]=="high" else ""}">{e(LEVEL_TR.get(imp["level"],imp["level"]))}{score}</span>'
     if imp['needs_review']:
         badges+=(f'<a class="badge flag" href="#r{e(item["news_id"])}">kontrol et ↓</a>' if not review
-                 else '<span class="badge flag">kontrol edildi</span>')
+                 else '<span class="badge done">kontrol edildi ✓</span>')
     from names import company_label
     out=[f'<div class="card {cls}"><b>{e(company_label(item["symbol"],short=True))}</b> '
          f'<span class="muted">{e(item["symbol"])}</span>{badges} · {kap_link(item.get("kap_url"))}']
@@ -286,7 +298,7 @@ def render_item(item,day,review,chart='',source=None):
         codes='; '.join(REVIEW_TR.get(c,c) for c in imp['needs_review_reasons'])
         if review:
             out.append(f'<div class="review done">Kontrol edildi: {e(DECISIONS[review["decision"]])} '
-                       f'({e(review["at"])}){" - "+e(review["note"]) if review.get("note") else ""}</div>')
+                       f'({e(tr_time(review["at"]))}){" - "+e(review["note"]) if review.get("note") else ""}</div>')
         else:
             out.append(f'<div class="review" id="r{e(item["news_id"])}"><b>KONTROL ET:</b> {e(codes)}<br>'
                        f'<form method="post" action="/review">'
@@ -616,7 +628,10 @@ def _self_test():
         assert all(window_block(p,q,t) is None for p,q in free_routes)
     assert all(window_block(p,q,t) is None for p,q in db_routes for t in (at(23,39),at(23,51),at(7,30)))
     assert '23:50' in window_block('/day/2026-11-09','',at(23,45))[1] and window_block('/api/desks/latest','',at(23,45))[2].startswith('application/json')
-    print('self-test ok: 39 checks')
+    # UI polish 19 Nov: Turkish review time, green "kontrol edildi"
+    assert tr_time('2026-11-10T00:41:50')=='10 Kas 2026 00:41' and tr_time('x')=='x'
+    assert '.badge.done{color:var(--green)' in CSS
+    print('self-test ok: 41 checks')
 
 
 def main():

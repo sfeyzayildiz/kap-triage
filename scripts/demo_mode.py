@@ -199,7 +199,9 @@ def pages_hash(pages):
 
 
 # demo-off fixture pages rendered by main 6bf5e9c (before demo mode); change only with a change meant to alter the pages
-OFF_SHA256='98f6bf3fc8ea3057'
+# 98f6bf3fc8ea3057 = code before demo mode (measurement 1, ADOPT round 1). 19 Nov UI polish (headings, green
+# "kontrol edildi", Turkish review time, counterparty origin wording) changed demo-off pages on purpose:
+OFF_SHA256='065ed4472500212a'
 
 
 def _self_test():
@@ -238,7 +240,7 @@ def _self_test():
     assert 'Masa 2' not in d   # Beta (not on the day) keeps number 2: Gama is 3 on every day
     assert 'masalar: Masa 1 (1), Masa 3 (1), Atanmamış (1)' in w and PLACEHOLDER in body(on['form'])
     for visible in ('Tutar: 1.500.000 USD','Kaynak cümle:','Önem: yüksek; '+PLACEHOLDER+'; döviz (USD); süre 3,0 yıl',
-                    f'| yeni | {PLACEHOLDER} |','Olağandışı mı: '+PLACEHOLDER,'## 1. ZQXA - yüksek</div>',
+                    f'| yeni | {PLACEHOLDER} |','Olağandışı mı: '+PLACEHOLDER,'<div class="ah">1. ZQXA - yüksek</div>',
                     '2 bildirim, 1 güncelleme/düzeltme.','Önceki 4 günde 1 yeni iş ilişkisi bildirimi var'):
         assert visible in c,visible
     assert on['reliability']==off['reliability'].replace('<main>','<main>'+BANNER,1)   # no licensed value on it
