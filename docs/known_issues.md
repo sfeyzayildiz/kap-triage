@@ -41,7 +41,7 @@ Written 2026-11-12 after a review of the whole project (PROJECT_NOTES.md, docs/r
 | C2 | Nightly runs of 6-7 Nov failed on a DB lock; the first live morning list failed on a missing package in the deploy environment. | **Fixed:** lock logging and retries; `pip install` after every deploy pull; `deploy_check`. |
 | C3 | Agent output with Matriks amounts was pasted into the chat with the assistant twice (10 Nov), against our data rule. | **Fixed by habit:** only counts and short observations come back. |
 | C4 | The assistant (Claude) gave wrong diagnoses twice on 12 Nov (name matching, review statistics) and once blocked a branch checkout with its own worktree. | **Fixed:** each corrected in the notes the same day; rule: reproduce before fixing, close own worktrees before handing over. |
-| C6 | `panel.sources_for_items` reads the DB when a day page opens, without the 23:40-23:50 guard the chat context has. | **Accepted, low risk:** a short read-only connection, and the collector retries on a lock; a guard would be a small code change after 26 Nov. |
+| C6 | `panel.sources_for_items` reads the DB when a day page opens, without the 23:40-23:50 guard the chat context has. | **Fixed 19 Nov:** every GET route that reads the DB (day page, desks JSON, themes, form step 2 with a company) answers 503 "Gece toplama penceresi" during 23:40-23:50 and opens nothing; self-test covers 5 DB routes × 3 times in the window, 6 other routes, 3 times outside. |
 | C5 | "Today" questions answered "no disclosures" before the night's collection. | **Fixed:** shows the last collected day with a note. |
 
 ## What this means for the presentation

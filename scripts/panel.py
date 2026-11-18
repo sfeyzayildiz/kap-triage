@@ -201,6 +201,29 @@ def page(title,body):
             f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{demo_mode.BANNER if demo_mode.ON else ""}{body}</main></body></html>')
 
 
+WINDOW_MSG='Gece toplama penceresi (23:40-23:50): veritabanına dokunulmuyor. 23:50\'den sonra tekrar deneyin.'
+
+
+def reads_db(path,query=''):
+    '''GET routes that open the DB (day page: sectors, prices, source sentences; desks JSON: sectors;
+    form step 2 with a company: symbols; themes: counts, sectors, links).'''
+    if re.match(r'^/(day|api/desks)/',path) or path=='/themes' or path.startswith('/themes/'):
+        return True
+    if path=='/form':
+        kind=(parse_qs(query).get('type') or [None])[0]
+        return kind in form.TYPES and 'symbol' in form.FIELDS[kind]
+    return False
+
+
+def window_block(path,query,now):
+    '''known_issues C6: no DB read during the nightly collection; the page says so (503) instead.'''
+    if not chat.in_collection_window(now) or not reads_db(path,query):
+        return None
+    if path.startswith('/api/'):
+        return (503,json.dumps({'error':'collection window','retry_after':'23:50'}),'application/json; charset=utf-8')
+    return (503,page('Gece toplama',f'<p>{WINDOW_MSG}</p>'))
+
+
 def sources_for_items(items,db=DB_PATH):
     '''{news_id: (sentence, spans)} for items with an amount (one short read-only connection); errors -> {}.'''
     import duckdb
@@ -379,6 +402,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path=urlparse(self.path).path
+        blocked=window_block(path,urlparse(self.path).query,datetime.now())
+        if blocked:
+            return self.send(*blocked)
         if path=='/':
             return self.send(200,page('KAP asistanı',chat.render_body(chat.HISTORY)))
         if path=='/days':
@@ -580,7 +606,17 @@ def _self_test():
     assert 'aynen geçmiyor' in source_html((None,[])) and source_html(None)==''
     assert 'Kaynak cümle: “a <mark>5</mark>”' in render_day('2026-11-09',[dict(items[0],amount=5.0)],sectors,{},{},sources={items[0]['news_id']:('a 5',[(2,3)])})
     assert sources_for_items([{'news_id':'1','amount':None}])=={} and sources_for_items([dict(items[0],amount=1.0)],db='/nonexistent.duckdb')=={}
-    print('self-test ok: 35 checks')
+    # C6: nightly window blocks every DB-reading GET route (503, no DB read); other pages and other times are untouched
+    at=lambda h,m:datetime(2026,11,20,h,m)
+    sym_kind=next(k for k in form.TYPES if 'symbol' in form.FIELDS[k])
+    db_routes=[('/day/2026-11-09',''),('/api/desks/latest',''),('/themes',''),('/themes/2026-11-09',''),('/form',f'type={sym_kind}')]
+    free_routes=[('/',''),('/days',''),('/guvenilirlik',''),('/form',''),('/tema',''),('/nope','')]
+    for t in (at(23,40),at(23,45),at(23,50)):
+        assert all(window_block(p,q,t) and window_block(p,q,t)[0]==503 for p,q in db_routes)
+        assert all(window_block(p,q,t) is None for p,q in free_routes)
+    assert all(window_block(p,q,t) is None for p,q in db_routes for t in (at(23,39),at(23,51),at(7,30)))
+    assert '23:50' in window_block('/day/2026-11-09','',at(23,45))[1] and window_block('/api/desks/latest','',at(23,45))[2].startswith('application/json')
+    print('self-test ok: 39 checks')
 
 
 def main():
