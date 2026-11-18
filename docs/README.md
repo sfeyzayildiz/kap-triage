@@ -86,3 +86,7 @@ Each file states the measurement, the bar and what happens on pass or fail. The 
 
 **Data-vendor auditor (Matriks record vs. KAP text, not adopted)**
 - [vendor_audit_rule.md](vendor_audit_rule.md): M1 (existing blind gold) and M2 (new blind pool); strict precision 6/14 is below the 50% bar, so it stays a report tool (`AUDITOR_OFF`).
+
+**Showing the system without licensed data**
+- [demo_mode_rule.md](demo_mode_rule.md): panel display flag that hides Matriks-licensed values; leaks 0, adopted in round 1.
+- [kap_kart_rule.md](kap_kart_rule.md): stand-alone card from pasted KAP text (`kap_kart/`); copies hash-checked, leaks 0 in round 3, trap examples 12/12, adopted (private until Matriks replies).

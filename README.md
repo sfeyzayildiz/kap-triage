@@ -3,12 +3,18 @@
 (KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts who follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, Borsa İstanbul's public disclosure platform.
 
 ## In 30 seconds
-- **What:** every night it reads the day's KAP disclosures (licensed Matriks data), extracts the deal facts with a local LLM, checks them in code, and gives the analyst a ranked morning list: what to read first, why, and which numbers to double-check. Every item links to the KAP source.
-- **How reliable:** on 100 disclosures it had never seen, 1 wrong amount or currency went through unflagged (95% upper bound 4.7%); the best rule-based baseline let 25 through. A hidden instruction in the text changed the amount silently in 9 of 18 attacks; after the defence, in 0.
-- **How it was built:** every decision rule was committed before its measurement, test sets were held out and scored once, and failures are published next to successes (`docs/results.md`, `docs/known_issues.md`).
-- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker; about 70 modules with self-tests, run in GitHub Actions on every pull request.
-- **Runs on one laptop.** Data never leaves the machine (licence and compliance), so there is no public demo link; `docs/docker.md` reproduces it with your own Matriks token.
+- **Problem:** an analyst sees several "Yeni İş İlişkisi" disclosures every day and has to decide which ones matter: is the deal big for this company, in foreign currency, multi-year, real new business? Reading them by hand is slow, and the traps are real: TL/USD confusion, a revision read as a new order, a one-year revenue estimate read as the contract value.
+- **Solution:** every night a local LLM reads the day's disclosures (licensed Matriks data) and extracts the deal facts; code checks them and flags what is unclear instead of guessing; the analyst gets a ranked morning list (what to read first, why, which numbers to double-check, KAP link on every item), and each sector desk gets its part by e-mail at 07:30. A panel, a guided form and a chat agent answer follow-up questions from the database.
+- **Proof:** on 100 disclosures it had never seen, 1 wrong amount or currency went through without a warning (95% upper bound 4.7%); the best rule-based baseline let 25 through. A hidden instruction in the text changed the amount silently in 9 of 18 attacks; after the defence, in 0. Every decision rule was committed before its measurement, test sets were held out and scored once, and failures are published next to successes (`docs/results.md`, `docs/known_issues.md`).
+- **Run it:** the live system needs a Matriks token and runs on one laptop; data never leaves the machine, so there is no public demo link (`docs/docker.md` reproduces it with your own token). **Without any data:** [`kap_kart/`](kap_kart/) runs the same extraction code on a KAP text you paste, on your own computer (`./kap_kart/run.sh`, needs Ollama).
+- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker; 79 modules with self-tests, run in GitHub Actions on every pull request.
 - **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)). Built during the BTK Akademi AI workshop at Entertech İstanbul Teknokent, Oct-Nov 2026.
+
+| Morning list per desk | Guided form: company brief | Reliability page |
+|---|---|---|
+| ![Day page in demo mode](docs/img/day_demo.png) | ![Company brief in demo mode](docs/img/brief_demo.png) | ![Reliability page](docs/img/reliability.png) |
+
+Screens in demo mode: values licensed from Matriks (revenue ratio, FX rate, sector names, prices) are replaced by "Matriks verisi, lisans gereği gizli"; what is shown comes from the public KAP text (`docs/demo_mode_rule.md`).
 
 ## The problem
 An analyst sees several of these disclosures every day and has to decide which ones matter:
@@ -49,6 +55,7 @@ An agent built with LangGraph answers questions such as "What should I look at t
 | Analyst review of flags, one demo day | 3 of 6 flags were real extraction errors | First real use of the panel; small sample. |
 | Relative periods ("geçen hafta", "son 3 ay"), 15 new questions + 205 earlier | exact period 10/10; false period 1/5; wrong fires 0/9 | Adopted. Parsed by code from a fixed phrase table. |
 | Desk e-mails via n8n, all 15 saved days | 43 items, 33 e-mails: 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks; 0.2 s per day | Adopted. Measures the delivery, not whether the sector desk is the right recipient. |
+| kap-kart (card from pasted text, no Matriks data), 4 synthetic trap examples × 3 | 12/12 as expected; median 27 s per card (two readings + judge); leak scan 0 | Adopted. Same code as the nightly path (hash-checked); no Matriks cross-check, so its injection defence is the judge alone (not measured alone). |
 | Latency | median 14.6 s per disclosure (LLM); all other stages 0.003 s | A busy day takes about 3 minutes, overnight. |
 | Abnormal price moves, 493 trading days | 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before | So for most moves the agent says the cause may be elsewhere. |
 
@@ -89,7 +96,8 @@ Modules with a `--self-test` are run by `scripts/run_self_tests.py` (also in CI 
 ## Repository map
 | path | what is there |
 |---|---|
-| `scripts/` | All Python modules (flat folder; 75 of 98 have a `--self-test`, the rest are early probes and one-off tools). Grouped below. |
+| `scripts/` | All Python modules (flat folder; 79 of 102 have a `--self-test`, the rest are early probes and one-off tools). Grouped below. |
+| `kap_kart/` | Stand-alone card tool without Matriks data: hash-checked copies of the extraction code, paste page, four synthetic trap examples (`docs/kap_kart_rule.md`). |
 | `prompts/` | Extraction prompts. `extract_v3.txt` is live and frozen; `extract_ci_v1.txt` is the capital-increase pilot. |
 | `docs/` | Decision rules, results, architecture, runbook. Index: [`docs/README.md`](docs/README.md). |
 | `deploy/` | launchd job for the nightly run (23:43). |
@@ -106,7 +114,7 @@ Modules with a `--self-test` are run by `scripts/run_self_tests.py` (also in CI 
 - **Data collection (Matriks, run by Feyza only):** `collector.py`, `price_collect.py`, `sector_collect.py`, `prod_refresh.py`, `capital_collect.py`; early probes `explore.py`, `kap_probe.py`.
 - **Search index:** `build_docs.py`, `normalize.py`, `rag_index.py`, `clusters.py`.
 - **Labeling and sampling:** `label_set_b.py`, `label_capital.py`, `sample_*.py`, `check_gold_amounts.py`, `check_vat_rule.py`, `check_first20.py`.
-- **Evaluation and experiments:** `score_silent.py`, `score_adjudicated.py`, `evaluate.py`, `eval_*.py`, `*_eval.py`, `drift_check.py`, `repeat_check.py`, `revenue_check.py`, `importance_check.py`, `desk_route_check.py`, `tcmb_check.py`, `set_d.py`, `injection_test.py`, `injection_checks.py`, `regex_baseline.py`, `forward_score.py`, `capital_*.py`, `vendor_audit.py` (data-vendor auditor, report only), `answer.py`, `build_chunks.py`, `latency.py`. Each one names its rule file in its first line.
+- **Evaluation and experiments:** `score_silent.py`, `score_adjudicated.py`, `evaluate.py`, `eval_*.py`, `*_eval.py`, `drift_check.py`, `repeat_check.py`, `revenue_check.py`, `importance_check.py`, `desk_route_check.py`, `tcmb_check.py`, `set_d.py`, `injection_test.py`, `injection_checks.py`, `regex_baseline.py`, `forward_score.py`, `capital_*.py`, `vendor_audit.py` (data-vendor auditor, report only), `kap_kart_check.py` and `kap_kart_leak_scan.py` (kap-kart copies and leak scan), `answer.py`, `build_chunks.py`, `latency.py`. Each one names its rule file in its first line.
 - **One-off data profiles (counts only):** `corpus_stats.py`, `text_artifacts.py`, `unmatched_*.py`, `baseline.py`, `show_case.py`.
 
 Three evaluation modules are also imported by the live path: `pipeline.py` uses `norm_cur` from `eval_vs_matriks.py`, `agent.py` uses `word_date` from `route_eval.py`, and `importance.py` imports `tcmb_check.py` (its rate fill is switched off, `TCMB_FILL=False`). Moving the experiment scripts into their own folder (planned after the forward test, 26 Nov) has to move these helpers first.
