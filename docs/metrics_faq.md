@@ -51,6 +51,12 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 ## Human in the loop
 - Panel, one demo day: 6 flags reviewed on KAP, 3 were real extraction errors.
 
+## Second disclosure type: capital increase pilot (18 Nov, held-out 30, rule first)
+- Combined (form reader + LLM, disagreement flagged): **0/30 silent** (95% upper 9.5%), but **16/30 flagged** (bar 9) → **not adopted**. Median 21.2 s.
+- Code-only form reader: 3/30 silent (upper 23.9%), 3 flagged, 24/30 resolved. LLM alone: 1/30 silent, 21 flagged, 8 resolved.
+- "Could it be done without an LLM?" For this form-based type, code reads most of it; the LLM's value is the cross-check that catches the code's 3 silent errors (`LLM_ADDS`), at the price of many flags. For free-text "Yeni İş İlişkisi" it was the other way round (regex 25/100 silent).
+- Pull to score in one day; the method transferred, the Matriks cross-check did not (no KAP link in that record; 11/20 rates found).
+
 ## Speed
 - Extraction median 14.6 s per disclosure (p90 20.6 s); all other stages 0.003 s; busy day ~3 min overnight. Routing 3.2 s.
 

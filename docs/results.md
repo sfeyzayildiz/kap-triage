@@ -1,6 +1,6 @@
 # Results on one page
 
-Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in `PROJECT_NOTES.md`). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-16.
+Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in `PROJECT_NOTES.md`). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-18.
 
 ## Extraction (the core)
 | what | set | result | decision |
@@ -63,6 +63,14 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 | Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice) |
 | Clustering k = 27 vs. Matriks sectors | 1288 disclosures | company-level ARI 0.144 vs. shuffled p99 0.032; ARI vs. company 0.298 | reflects sector, weakly; desks use the sector label, clusters only for the weekly themes page |
 | Analyst review of flags in the panel | one day | 3 of 6 flags were real extraction errors | first real use, small sample |
+
+## Second disclosure type: capital increase pilot (`docs/capital_increase_rule.md`)
+| what | set | result | decision |
+|---|---|---|---|
+| Combined system C (form reader + LLM, disagreement flagged) | held-out 30 (80 companies in the pool, one per company) | silent **0/30** (95% upper 9.5%), flagged **16/30** (bar 9), run errors 0, median 21.2 s | **PILOT_NOT_ADOPTED** |
+| Form reader F (code only) / LLM L alone | held-out 30 | F: silent 3 (upper 23.9%), flagged 3, resolved 24; L: silent 1, flagged 21, resolved 8 | **LLM_ADDS** (as a cross-check: silent F 3 → C 0) |
+| Report only | held-out 30 | stage exact F 27, L 23, C 27; rights price 6/6; bonus source split C 12/14; Matriks record has the gold rate for 11/20; price bridge 0/13 split days | reported |
+| Dev (8 texts, 3 rounds) | dev | form reader v1 → v3, checks v1 → v2 (a word check with 4/8 false alarms removed), prompt v1 kept | frozen before the held-out run |
 
 ## Speed and data
 - Extraction: median 14.6 s, p90 20.6 s per disclosure; every other stage 0.003 s; a busy day takes about 3 minutes overnight.

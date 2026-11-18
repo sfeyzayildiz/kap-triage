@@ -22,6 +22,10 @@ The prototype covers one KAP disclosure type on purpose (agreed scope; measured 
 ## Rough cost per new type
 Schema, prompt and checks: 1-2 days. Labeling 200 disclosures blind: about 6-8 hours of an analyst. Measurement and fixes: 1-2 days. So about a week per type for one person, most of it labeling and measuring, not code.
 
+## Tested once: capital increases (pilot, 18 Nov 2026)
+The claim above was tested on one type, "sermaye artırımı" (`docs/capital_increase_rule.md`, results in `docs/results.md`). Design and code before the data (16 Nov), then pull, profile, sample, 38 blind labels, two dev rounds and the held-out run in **one day**. Result on 30 held-out texts: combined system 0 silent errors (95% upper 9.5%) but 16/30 flagged (bar 9) → `PILOT_NOT_ADOPTED`; code-only form reader 3 silent, 24/30 resolved; `LLM_ADDS` as a cross-check, not as the extractor.
+What transferred: rule first, blind gold, code checks that flag, the scorer, the pull guard, the runner. What did not: the injection layer and the Matriks cross-check (no KAP link in the Matriks record, so no exact join; 11/20 rates found in it), and the prompt's arithmetic (the LLM's amounts did not add up on most texts). Labeling 38 texts fitted in the same day, because the form is structured.
+
 ## Scale
 About 15 s per disclosure on one Mac is enough for 1-2 a day; all KAP types are hundreds a day. Options, each to be measured: a GPU server (vLLM or Ollama, batched), a smaller model per type, or extracting only the types an analyst follows. Collection stays one pull per day per provider rule unless Matriks agrees otherwise.
 

@@ -298,6 +298,14 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
   - **Run 3, qwen3:14b thinking on: did not finish.** Stopped by the runner's error-streak guard at 65/100 (3 invalid outputs in a row). 66 rows attempted: 10 run errors, all the same shape: empty output after two attempts, because the thinking uses up the fixed `NUM_PREDICT 2048` budget before the JSON starts (about 240 s per failed row, 66-78 s per good one). Raw on the 66 attempted: amount 49/66, currency 51/66, llm_null 11. Not scored (incomplete, and the rule fixed the budget before the run; raising it afterwards would be tuning). Same fate as 26b thinking on in October (timeouts), by a different wall: for this prompt, thinking on only pays off in the e4b size class.
   - Limits: Set A only (dev), one run each, Q4_K_M, judge call unchanged.
 
+## 2026-11-18: Capital-increase pilot → PILOT_NOT_ADOPTED, LLM_ADDS (held-out 30, scored once)
+- Day: pull (213 texts, 80 symbols, 296 Matriks records) → profile → Note 4 (`long_text` 8,000) → sample (seed 20261116) → 8 dev labels → guideline v0.2 → 30 held-out labels → dev runs 1-3 (Notes 5-6: form reader v3, checks v2, C per record with checks recomputed on its own values; prompt v1) → freeze `c6d0524` → held-out run → scorer crash in a report-only line before writing (Note 7, fixed `dbd6bf0`) → score.
+- **C:** silent 0/30 (95% upper 9.5%), flagged 16 (bar 9), run errors 0, median 21.2 s → **PILOT_NOT_ADOPTED** (flag bar). **F:** silent 3 (missed, wrong component, wrong subject), flagged 3, resolved 24. **L:** silent 1 (wrong component), flagged 21, resolved 8. **LLM_ADDS** (silent F − C = 3).
+- Report only: stage exact F 27 / L 23 / C 27; rights price 6/6; bonus source split C 12/14; Matriks record has the gold rate for 11/20 (9 ids without); price bridge 0/13. Gold mix: bonus 14, restricted 10, rights 6; needs_review 0.
+- Reading: on a form-based type, code alone resolves 80% but lets 3/30 through unflagged; the LLM as a second reader removes them at the cost of flags. The LLM's own amounts often did not add up (L's `arith_mismatch`), so here it is a checker, not the extractor. Opposite of "Yeni İş İlişkisi" (free text, regex 25/100).
+- Labeler's note (C5): "2025 yılı kârı" read as internal source; affects only the report-only source split, not the primary key (rates are summed).
+- Docs: `results.md`, `metrics_faq.md`, `extending.md` (claim tested once), `matriks_feedback.md` (coverage 11/20, field questions).
+
 ## 2026-11-18: Capital-increase pull moved to today (before any pull)
 - Feyza's choice (goal: finish early; she has the day for labeling): pull Wed 18 Nov daytime instead of Sat 21 Nov. Window end 2026-11-17, Matriks record end 2026-11-18 (`capital_collect.py`). Recorded before the pull as Note 1b of the pilot rule and Note 4 of the forward-test rule: no seal for 18 Nov, 21 Nov sealed again; sealed days 15-16 and 19-25 Nov.
 
