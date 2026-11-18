@@ -87,6 +87,14 @@ The three lines cannot hold together. Each is a reportable answer to "could it b
 - **Long-text threshold:** prompt 2,838 tokens; the 10 longest texts have 2.70-3.09 characters per token. With a 2,048-token answer reserve, 3,306 tokens are left for the text, about 8,900 characters at the lowest ratio. `LONG_TEXT_CHARS` is set to **8,000** (10% margin); 4 of 213 texts are longer. The 2,048 reserve is an estimate (thinking length varies); an answer that does not fit becomes a run error, which counts as flagged.
 - Nothing else changes.
 
+## Note 5 (2026-11-18, after the first dev run, before any reader touched a held-out text)
+Dev run 1 (8 texts, prompt v1, form reader v1, checks v1): F 3 silent (2 wrong subject, 1 cancelled missed), 4 flagged; L 0 silent, 7 flagged; C 0 silent, 8 flagged. Diagnosed with counts and our own field names only (no text, no amount):
+- **Checks v2:** the `simultaneous_decrease` word check fired on 4/8 texts while the gold has it on 0/8 (the words occur outside the form labels, in wording every such form carries). Removed; the prompt's own review code of that name stays. Other checks unchanged; `long_text` 8,000 (Note 4).
+- **Form reader v2:** in 2 of the 3 dev forms with a tahsis section the nominal amount cell is empty, so v1 found no component at all (both wrong-subject errors). A filled tahsis / kısıtlama cell (not unused or cancelled shares) now marks `restricted`; the amount stays empty.
+- **System C, read per record:** "F's values where F has them" now means: if F found anything, every field a form can give, the component flags and the subject come from F (None included) and L fills only the fields F cannot give. Field-by-field mixing counted one bonus twice on a dev text (F read it as dividend-sourced, L as internal) and raised `arith_mismatch`.
+- Prompt unchanged (v1). L's own `arith_mismatch` flags (L's amounts do not add up on 5/8) are left as they are: they caught every L error on dev.
+- Versions used so far: prompt 1 of 3, form reader 2 of 3. Dev run 2 follows; then the freeze.
+
 ## Note 2 (2026-11-16, before any pull; descriptive, no decision changes)
 - First drafts of the two readers were written before the pull, from the public form layout and synthetic examples only: `scripts/capital_form.py` (form reader F, 28 self-test checks) and `prompts/extract_ci_v1.txt` (the prompt this rule calls `prompts/cap_v1.txt`; the file name follows `extract_v3.txt`). The order above puts this step after labeling; writing it earlier exposes no text, since none exists yet.
 - These drafts are **version 1 of the three** allowed for each reader. Any change after the dev texts are seen is version 2.
