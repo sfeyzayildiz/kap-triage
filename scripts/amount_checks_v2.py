@@ -61,7 +61,7 @@ def _self_test():
     assert not cumulative_total(usd,3867260,'USD')
     same=['Şirketimiz 50.000.000 TL tutarında sözleşme imzalamıştır.',
           "Önceki siparişe ek olarak 74.480.297 TL tutarında sipariş alınmış, toplam sipariş tutarı 124.938.460 TL'ye ulaşmıştır.",
-          '2.600.000,00 USD tutarında (yaklaşık 92.981.720,00 TL) sözleşme. İlave talepler ile nihai tutar 4.750.000,00 USD olmuştur.']
+          'Anlaşma bedeli 2.600.000,00 USD (aşağı yukarı 90.000.000,00 TL). İlave işlerle son bedel 4.100.000,00 USD oldu.']  # synthetic (19 Nov: was a real fragment)
     for t in same:                                                             # no 'ABD Doları': identical to v1
         assert money_values(t)==v1.money_values(t)
         for a,c in ((74480297,'TRY'),(2600000,'USD'),(50000000,'TRY')):

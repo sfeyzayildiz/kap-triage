@@ -93,6 +93,8 @@ TESTS={
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
+    'kap_kart_check':'--self-test',
+    'kap_kart_leak_scan':'--self-test',
 }
 SKIP={}
 

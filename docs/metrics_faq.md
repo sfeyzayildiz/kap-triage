@@ -63,6 +63,12 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Recall is low by design: records where our own checks are unsure are not audited (M1 on the gold sets: 1 of 9 Matriks errors caught; the other 8 were in texts we also flag).
 - Say: "we measured it, it missed its pre-written bar, so it is a report tool, not a nightly feature."
 
+## kap-kart: can anyone try it without your data? (19 Nov, rule first, adopted)
+- Paste a public KAP text, get the card on your own computer (local model, nothing sent or saved). Same extraction code as the nightly job (copies checked by hash, 26/26 synthetic cases equal), minus the Matriks cross-check and the importance score.
+- Leak scan before showing it: 3 rounds. Rounds 1-2 found one real disclosure fragment in the self-tests of two copied modules; fixed (synthetic text in v2; v1 is frozen, so its copy leaves the test out). Round 3: 0.
+- Trap examples (clean, unclear currency, revision, hidden instruction): 12/12; median 27 s per card (two readings + judge).
+- Say: "the injection defence here is the judge alone; the 9 → 0 result was with both layers, so this one is not measured on its own."
+
 ## Speed
 - Extraction median 14.6 s per disclosure (p90 20.6 s); all other stages 0.003 s; busy day ~3 min overnight. Routing 3.2 s.
 
