@@ -58,6 +58,8 @@ V2=True  # docs/router_v2_rule.md: company names, two-company note, date filter 
 # Code kept as a record; a v2 list needs new questions and its own rule.
 SCOPE_SWITCH=False
 SCOPE_V2=False  # docs/scope_guard_v2_rule.md: measured 13 Nov, SCOPE_V2_OFF (F_old 29/185, bar 3); code kept as a record
+SCOPE_V3=False  # docs/scope_guard_v3_rule.md: measured 19 Nov, SCOPE_V3_OFF (A 10/10, F_old 28/185, bar 3); code kept as a record
+CONTENT_INTENTS=('company','detail','search','brief')  # v3: the judge runs only where a card or list would be shown
 PERIODS=True  # docs/relative_periods_rule.md: ADOPT_PERIODS 13 Nov (exact 10/10, false 1/5, wrong fires 0/9)
 PERIOD_TOOLS=('company','search','detail','morning')
 PERIOD_LIST_MAX=30
@@ -105,6 +107,24 @@ class RouteV2(BaseModel):
     symbol: Optional[str]
     date: Optional[str]
     query: Optional[str]
+
+
+# docs/scope_guard_v3_rule.md: fixed in the rule commit (aa32565), one version
+SCOPE_JUDGE_PROMPT='''You check one question an equity analyst typed into an assistant. The assistant can only answer from
+Turkish "Yeni İş İlişkisi" (new business relationship) disclosures: orders, contracts and tenders a
+company announced, with their amount, currency, counterparty, duration, subject and date, and the
+stock's price move around them.
+Answer "out_of_scope" only if the question asks for something these disclosures do not contain:
+- other disclosure types: dividend, capital increase, share buyback, general assembly, public offering;
+- valuation or advice: target price, buy / sell / hold, valuation ratios such as P/E or P/B;
+- financial statements or results: balance sheet, profit, revenue, EBITDA, quarterly results;
+- macro or the general market: interest rates, FX outlook, index forecast.
+Otherwise answer "in_scope". If you are unsure, answer "in_scope".
+Question: {question}'''
+
+
+class ScopeLabel(BaseModel):
+    label: Literal['in_scope','out_of_scope']
 
 
 class State(TypedDict,total=False):
@@ -241,6 +261,34 @@ def out_of_scope(question):
 def scope_v2(question,route):
     '''docs/scope_guard_v2_rule.md: the v1 word list or the router's out_of_scope intent.'''
     return out_of_scope(question) or (route or {}).get('intent')=='out_of_scope'
+
+
+def call_scope_judge(question):
+    '''docs/scope_guard_v3_rule.md: one judge call (source-judge settings). Returns the label or None on any error.'''
+    from llm_extract import CLIENT, MODEL
+    try:
+        resp=CLIENT.chat(model=MODEL,messages=[{'role':'user','content':SCOPE_JUDGE_PROMPT.replace('{question}',question)}],
+                         format=ScopeLabel.model_json_schema(),think=False,
+                         options={'temperature':0,'num_ctx':2048,'num_predict':64})
+        return ScopeLabel.model_validate_json(resp.message.content).label
+    except Exception:
+        return None
+
+
+def scope_v3(question,v,judge=call_scope_judge):
+    '''docs/scope_guard_v3_rule.md: (blocked, how). Word list first; the judge only on content intents;
+    a judge error (None) does not block. how: word_list / not_called / in_scope / out_of_scope / judge_error.'''
+    if out_of_scope(question):
+        return True,'word_list'
+    if (v or {}).get('intent') not in CONTENT_INTENTS:
+        return False,'not_called'
+    label=judge(question)
+    if label is None:
+        return False,'judge_error'
+    return label=='out_of_scope',label
+
+
+OUT_ROUTE={'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
 
 
 def detail_switch(v,question):
@@ -624,15 +672,22 @@ TOOLS={'morning':tool_morning,'company':tool_company,'why_moved':tool_why_moved,
 
 def build_graph(router,tools,ctx,steps=BRIEF_STEPS):
     '''route -> one tool -> END; intent brief -> the step chain -> compose -> END (docs/brief_rule.md).'''
+    # v3 runs with the real router (or a judge given in ctx, self-tests); graphs with a fake router skip it
+    judge=ctx.get('scope_judge') or (call_scope_judge if router is llm_route else None)
+    v3=SCOPE_V3 and judge is not None
+
     def _route(state):
         if state.get('intent'):  # guided form (scripts/form.py): the route is chosen by the analyst, no LLM
             return {'intent':state['intent']}
-        if SCOPE_SWITCH and out_of_scope(state['question']):  # docs/scope_guard_rule.md: no router call
+        if (SCOPE_SWITCH or v3) and out_of_scope(state['question']):  # word list first (v1; v3 step 1): no router call
             return {'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
         r=router(state['question'],ctx['today'])
         if SCOPE_V2 and scope_v2(state['question'],r):  # docs/scope_guard_v2_rule.md
             return {'intent':'out_of_scope','symbol':None,'day':None,'query':None,'note':None}
-        return route_question(r,state['question'],ctx)
+        v=route_question(r,state['question'],ctx)
+        if v3 and scope_v3(state['question'],v,judge)[0]:  # docs/scope_guard_v3_rule.md
+            return dict(OUT_ROUTE)
+        return v
 
     def tool_node(name):
         def run(state):
@@ -844,7 +899,37 @@ def _self_test():
         assert g8.invoke({'question':'ASELS hedef fiyatı ne?'})['intent']=='company'
     finally:
         SCOPE_V2=saved
-    print('self-test ok: 82 checks')
+    # scope guard v3 (docs/scope_guard_v3_rule.md): fake judges only, no Ollama
+    calls3=[]
+    jo=lambda q:calls3.append(q) or 'out_of_scope'
+    assert scope_v3('ASELS temettüsü ne kadar?',{'intent':'company'},jo)==(True,'word_list') and calls3==[]
+    assert scope_v3('Faiz ne olur?',{'intent':'unknown'},jo)==(False,'not_called') and calls3==[]
+    assert scope_v3('ASELS ne zaman düştü?',{'intent':'why_moved'},jo)==(False,'not_called')
+    assert all(scope_v3('X',{'intent':i},jo)==(True,'out_of_scope') for i in CONTENT_INTENTS) and len(calls3)==4
+    assert scope_v3('X',{'intent':'company'},lambda q:'in_scope')==(False,'in_scope')
+    assert scope_v3('X',{'intent':'company'},lambda q:None)==(False,'judge_error')   # fails open
+    assert '{question}' in SCOPE_JUDGE_PROMPT and SCOPE_JUDGE_PROMPT.count('out_of_scope')==1
+    seen3=[]
+    ctx3={**ctx,'scope_judge':lambda q:seen3.append(q) or ('out_of_scope' if 'kâr' in q else 'in_scope')}
+    routed3=[]
+    global SCOPE_V3
+    saved3=SCOPE_V3
+    try:
+        SCOPE_V3=True   # the guard's path is tested even while it is off in production (19 Nov: SCOPE_V3_OFF)
+        g9=build_graph(lambda q,t:routed3.append(q) or {'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx3,steps=fake)
+        g10=build_graph(lambda q,t:{'intent':'unknown','symbol':None,'date':None,'query':None},tools,ctx3,steps=fake)
+        assert g9.invoke({'question':'ASELS kâr ne oldu?'})['intent']=='out_of_scope'
+        assert g9.invoke({'question':'ASELS son bir yılda hangi işleri aldı?'})['intent']=='company'
+        assert g9.invoke({'question':'ASELS hedef fiyatı ne?'})['intent']=='out_of_scope' and len(routed3)==2   # word list: no router call
+        assert g10.invoke({'question':'Piyasa nasıl?'})['intent']=='unknown' and len(seen3)==2   # judge not called on unknown
+        g11=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx,steps=fake)
+        assert g11.invoke({'question':'ASELS hedef fiyatı ne?'})['intent']=='company'   # fake router, no judge: v3 not applied
+        SCOPE_V3=False
+        g12=build_graph(lambda q,t:{'intent':'company','symbol':'ASELS','date':None,'query':None},tools,ctx3,steps=fake)
+        assert g12.invoke({'question':'ASELS kâr ne oldu?'})['intent']=='company' and len(seen3)==2   # off: judge never called
+    finally:
+        SCOPE_V3=saved3
+    print('self-test ok: 95 checks')
 
 
 def main():

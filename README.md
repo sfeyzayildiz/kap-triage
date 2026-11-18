@@ -129,7 +129,7 @@ Three evaluation modules are also imported by the live path: `pipeline.py` uses 
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
 - The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.
 - The money regex of the code checks did not read "ABD Doları" (10 of 81 Set B amounts). Closed on 15 Nov by `amount_checks_v2.py`; no flag changed on any measured set, so no effect was observed. Other spellings ("US Doları") are still not read.
-- The agent has no scope check (two designs failed their bars): an out-of-scope question (dividend, target price) that names a company and asks a detail can get an unrelated disclosure card. Two-company comparisons are not supported. Relative periods outside the phrase table ("önceki hafta", "son günlerde") are not read.
+- The agent has no scope check (three designs failed their bars; the small-model judge over-blocks about 15% of real questions): an out-of-scope question (dividend, target price) that names a company and asks a detail can get an unrelated disclosure card. Two-company comparisons are not supported. Relative periods outside the phrase table ("önceki hafta", "son günlerde") are not read.
 - Desk = Matriks sector (27 desks); a firm would group sectors into its own desks (a config change).
 - Test sets are small (100 / 48 / 20 / 18 items), so the bounds are wide. The injection test used one attack wording.
 - Disclosure texts come from the Matriks test environment (same counts as prod); new-business data from prod.
