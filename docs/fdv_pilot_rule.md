@@ -76,6 +76,22 @@ Dev run 1 (prompt v1, form reader v1, checks v1): F 1 silent (wrong direction), 
 Dev run 2 (prompt v2, form reader v2, checks v1, guideline v0.2 with 6811796 relabeled `currency_unstated`): F 1 silent (the negotiation-stage text: a filled form, gold `none`; F cannot read that), 2 flagged; L 0 silent, 2 flagged; C 0 silent, 3 flagged, resolved 5. Nothing changed after this run, so no dev run 3 is needed: the held-out version is the one run on dev.
 **Frozen for the held-out run:** prompt `extract_fdv_v2` (2 of 3), form reader v2 (2 of 3), checks v1, C as in the rule, guideline v0.2. Then 30 held-out labels (blind, v0.2), the held-out run once, scoring once.
 
+## Result (19 Nov 2026, held-out 30, run once at the freeze, scored once)
+| System | Silent (95% upper) | Types | Flagged | Resolved | Median s |
+|---|---|---|---|---|---|
+| F | 4/30 (28.0%) | missed 1, wrong currency 1, wrong direction 1, wrong number 1 | 2 | 24 | 0.0 |
+| L | 4/30 (28.0%) | fabricated 1, wrong direction 1, wrong number 2 | 1 | 25 | 9.9 |
+| **C** | **2/30 (19.5%)** | wrong direction 1, wrong number 1 | **6** | 22 | 9.9 |
+Run errors 0. Report only: target name F 28 / L 29 / C 28; stake after F 27 / L 26 / C 27. Gold mix: acquisition 20, sale 9, none 1; amount written 27; related party yes 6; needs_review 6.
+
+**Decision: `PILOT_NOT_ADOPTED`** (C silent 2 > bar 1; flagged 6 ≤ 9, run errors 0, median 9.9 s pass) and **`LLM_ADDS`** (silent F − C = 2).
+
+Reading:
+- The two readers err on different texts (F 4, L 4, overlap 2); combining them halves the silent errors and costs 6 flags out of 30. Unlike the capital pilot (16/30 flagged), the flag rate is within the bar here.
+- **Both remaining silent errors of C are texts where F and L agree on the same wrong answer** (one direction, one amount): a disagreement check cannot see an error both readers share.
+- Feyza's notes while labeling (observations, rule numbers and company names only): companies fill the form wrong at times (the seller written as the target; the nominal capital written as "Toplam Tutar"; a different stake in the form than in the text), the form's amount cell often lacks the currency the text gives, multi-entity stakes are written as free text in a number cell, and routine registration updates are not revisions. So the form alone is not reliable on this type; the text must be read.
+- Not changed afterwards: no reader, prompt or check is edited to rescue the number; a v3 would need new held-out texts.
+
 ## Honest limits
 - 30 records bound little (0/30 → upper 9.5%; 1/30 → 14.9%). The headline reliability numbers stay those of "Yeni İş İlişkisi".
 - One labeler; guideline written blind and adjusted on 8 dev texts; readers written in a day by the same person.

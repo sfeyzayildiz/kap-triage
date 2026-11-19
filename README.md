@@ -135,7 +135,7 @@ Three evaluation modules are also imported by the live path: `pipeline.py` uses 
 - All models run locally (Ollama, sentence-transformers). No disclosure text or result is sent to an external service. n8n and Mailpit run locally with telemetry and update checks switched off; desk e-mails carry no amounts.
 
 ## Limits
-- Scope is only "Yeni İş İlişkisi" disclosures. A second type (capital increases) was tested once as a pilot on 18 Nov: 0/30 silent errors but 16/30 flagged, so not adopted by its pre-written bar (`docs/capital_increase_rule.md`).
+- Scope is only "Yeni İş İlişkisi" disclosures. Two more types were tested once each as pilots, by the same method in one day each, and neither passed its pre-written bar: capital increases (18 Nov: 0/30 silent errors but 16/30 flagged, `docs/capital_increase_rule.md`) and stake acquisitions and sales (19 Nov: 2/30 silent with 6/30 flagged; both errors were cases where the form reader and the LLM agreed on the same wrong value, `docs/fdv_pilot_rule.md`). In both, the LLM added value as a cross-check of a code form reader.
 - A data-vendor auditor (which Matriks records disagree with the KAP text) was measured once on 18 Nov: 6 of 14 flagged records were real Matriks errors (43%, bar 50%), so it stays a report tool, not a nightly feature (`docs/vendor_audit_rule.md`).
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
 - The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.

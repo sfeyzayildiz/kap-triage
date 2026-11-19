@@ -96,6 +96,15 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Report only | held-out 30 | stage exact F 27, L 23, C 27; rights price 6/6; bonus source split C 12/14; Matriks record has the gold rate for 11/20; price bridge 0/13 split days | reported |
 | Dev (8 texts, 3 rounds) | dev | form reader v1 → v3, checks v1 → v2 (a word check with 4/8 false alarms removed), prompt v1 kept | frozen before the held-out run |
 
+## Second disclosure type 2: stake acquisitions and sales (`docs/fdv_pilot_rule.md`, 19 Nov)
+| what | set | result | decision |
+|---|---|---|---|
+| Pull by the documented `headline` filter (no tag exists) | Aug-Nov 2026 | 107 returned, 101 kept, 0 dropped by the local headline check; 72 companies | enough (bar 38) |
+| Combined system C | held-out 30, one per company | silent **2/30** (95% upper 19.5%), flagged **6/30** (bar 9), run errors 0, median 9.9 s | **PILOT_NOT_ADOPTED** (bar: silent ≤ 1) |
+| Form reader F / LLM L alone | held-out 30 | F: silent 4 (28.0%), flagged 2, resolved 24; L: silent 4, flagged 1, resolved 25 | **LLM_ADDS** (silent F 4 → C 2) |
+| Where C still fails | held-out 30 | both remaining errors are texts where F and L agree on the same wrong value (one direction, one amount); companies sometimes fill the form wrong and the text says otherwise | reported |
+| Dev (8 texts, 2 rounds) | dev | form reader v2 (currency from the same number in the text), prompt v2 (negotiation stage = none), guideline v0.2 | frozen before the held-out run |
+
 ## Speed and data
 - Extraction: median 14.6 s, p90 20.6 s per disclosure; every other stage 0.003 s; a busy day takes about 3 minutes overnight.
 - Abnormal price moves: 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before, so for most moves the agent says the cause may be elsewhere.

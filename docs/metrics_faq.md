@@ -57,6 +57,12 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - "Could it be done without an LLM?" For this form-based type, code reads most of it; the LLM's value is the cross-check that catches the code's 3 silent errors (`LLM_ADDS`), at the price of many flags. For free-text "Yeni İş İlişkisi" it was the other way round (regex 25/100 silent).
 - Pull to score in one day; the method transferred, the Matriks cross-check did not (no KAP link in that record; 11/20 rates found).
 
+## Second disclosure type 2: stake acquisitions and sales (19 Nov, held-out 30, rule first)
+- No Matriks tag for this type: pulled by the documented `headline` filter; a local check kept only real subject headlines (101 kept, 0 dropped, 72 companies).
+- Combined: **2/30 silent** (95% upper 19.5%), **6/30 flagged** (bar 9), median 9.9 s → **not adopted** (bar: at most 1 silent). Form reader alone 4/30 silent, LLM alone 4/30, on different texts → combining halves them: **LLM_ADDS**.
+- The lesson to say: both remaining errors are cases where the form reader and the LLM agree on the same wrong value. Companies sometimes fill the KAP form wrong (nominal capital in "Toplam Tutar", the seller in the target cell); a disagreement check cannot catch an error both readers share. The form alone is not reliable; the text must be read.
+- Two pilots, one method, one day each: capital increase 0/30 silent but 16/30 flagged; stake deals 2/30 silent with 6/30 flagged. Neither passed its pre-written bar; both answered "LLM or not" the same way (the LLM adds as a cross-check).
+
 ## Data-vendor auditor: is a Matriks record wrong? (18 Nov, rule first, not adopted)
 - 641 unseen disclosures, 14 records flagged (2.2%). Blind check of all 14 + 14 random controls: **6/14 real Matriks errors** (3 pre-revision amounts, 2 wrong currency, 1 wrong scale), 8 convention differences (VAT, TL equivalent, share), 0 consistent. Strict precision 43% (95% CI 18-71%) < bar 50% → **AUDITOR_OFF**.
 - Random controls: 0/14 errors, so the list is far richer than random, but the bar was "one real error per two candidates" and it missed.
