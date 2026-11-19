@@ -36,3 +36,9 @@ Not blind to the system output: the shown sentence and the amount are what is ju
 - One labeler, who built the system; items from the saved lists only (live nightly lists and demo days), not a random draw from all disclosures.
 - Correctness of the amount itself is not re-measured here (Set C is the measurement for that).
 - Amounts written in another form than the extracted number (for example "15 milyon" when the code looks for 15.000.000) are found by the number parser, but a sentence that states the amount only in words would be missed; such items appear as `None` and are counted.
+
+## Result (20 Nov 2026 ~02:40; sample, labels and score by Feyza, once; code at main 4f02895)
+- `--plan`: days 19 (<= 2026-11-19), items 46, with amount 34, sentence `None` 0, pool 34 → census.
+- `--score`: sample 34: right 32, wrong 0, amount wrong 2, unsure 0 → right **32/32**; wrong rate 95% upper bound 8.9%.
+- **Decision: `SOURCE_OK`** (n = 32 ≥ 20, wrong 0 ≤ 1). Applied as written: `docs/results.md` row, `docs/known_issues.md` B9, `docs/metrics_faq.md`. No panel change before the submission.
+- Post-hoc, not part of this rule: of the 2 items labeled "amount wrong", 1 carried a review flag and 1 did not (counts only; `docs/known_issues.md` B13).

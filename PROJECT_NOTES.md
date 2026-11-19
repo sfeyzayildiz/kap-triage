@@ -13,6 +13,7 @@
 > | 14-15 Nov | MCP v2 adopted; sealed forward test started; Set D: two-run flag adopted |
 > | 16-18 Nov | Capital-increase pilot (not adopted, LLM_ADDS); data-vendor auditor off; demo mode adopted |
 > | 19 Nov | kap-kart adopted; scope guard v3 off; new deadlines (submission 24 Nov); stake-acquisition pilot; independent review fixes |
+> | 20 Nov | Pre-submission check (no errors); related work in the README; source sentence measured → `SOURCE_OK` ("Source sentence on the card, measured") |
 
 - Maximum 1 request per second (1 req/sec) to the API.
 - Raw data must never be uploaded to GitHub.
@@ -320,6 +321,12 @@ The Turkish lira sign (₺) never appears in the collected texts: in 18 disclosu
 - **Voice: NOT before the final (final decision).** Reasons: the real voice needs in this sector (earnings calls, recorded order lines for compliance, squawk) need data we cannot get (paid platforms, private recordings, real time); the feasible ones (spoken brief, voice question) solve no analyst problem and would be added for the jury; two other AIs asked independently also said not to; a half-measured add-on weakens the "measured system" story. Correction (Feyza, same night): voice is not part of this project before or after the final; the Matriks permission (two months) ends soon after the final, so there is no post-final continuation with this data. A voice project, if any, is a separate learning project unrelated to Matriks data, Feyza's choice. Not built: theme map, own-MCP spoken brief, panel paste page in the panel.
 - **Update 19 Nov (Feyza): the Matriks permission runs to the end of December 2026.** Open: must the data be deleted then (asked in the morning message of 19-20 Nov, together with the video question; kap-kart only as information, not a permission request). Screenshots and video still before that date.
 - Consequence of the permission ending: the live system stops; what remains to show is demo-mode screenshots + video, `kap-kart` (needs no Matriks data) and the docs. Screenshots and video are therefore NOT cuttable. Open question for Feyza: exact end date and whether the data must be deleted (if yes, capture screenshots/video before that date).
+
+## 2026-11-20: Source sentence on the card, measured → SOURCE_OK
+- Rule `docs/source_sentence_rule.md` (commit e0d9d79, before code, sample and labels; Feyza's request after the related-work look). Tool `scripts/source_eval.py` (#184, 11 self-test checks). It measures the sentence the panel shows today (`panel.sources_for_items` → `source_check.source_sentence`); no LLM, no Matriks request, no panel or nightly change.
+- Plan: 19 saved days up to 19 Nov, 46 items, 34 with an amount, sentence `None` 0 → census of 34. Sample, labels (Feyza, her terminal) and score once, ~02:40.
+- **Result:** right **32/32**, wrong 0 (95% upper bound on the wrong rate 8.9%), amount wrong 2, unsure 0 → **`SOURCE_OK`**. Recorded in `docs/results.md`, `docs/known_issues.md` B9, `docs/metrics_faq.md`. The card keeps its wording until after the submission (a panel change would change the demo-mode hash and need a new leak check).
+- Post-hoc (counts only, not in the rule): of the 2 wrong amounts, 1 was flagged and 1 was not, so one silent error was seen on the saved lists (`docs/known_issues.md` B13). Not analysed further before the submission; the measured silent-error rate stays Set C 1/100.
 
 ## 2026-11-20: Pre-submission check (read-only) and two doc notes
 - #181 (19 Nov): README and system card got the English title "KAP Disclosure Triage Assistant"; the Turkish name stays, the user interface stays Turkish. The public copy was rebuilt with it (178 commits).
