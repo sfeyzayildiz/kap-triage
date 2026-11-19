@@ -35,4 +35,17 @@ $FR --force --invert-paths --path CLAUDE.md --path docs/matriks_feedback.md --pa
 $FR --force --invert-paths --path-glob '*.pyc' --path-glob '*/__pycache__/*'
 python3 ~/projects/kap-public-tools/check_public.py ~/projects/kap-public
 ```
-Then the self-tests and the kap-kart leak scan above, add the README note, show the counts to Feyza, and only after her "aç" and the repository name: create an empty public GitHub repository and push `main`. On submission day (Tue 24 Nov) this is done by about 15:00 (`docs/runbook.md`, "Submission day").
+Then the self-tests and the kap-kart leak scan above, add the README note, show the counts to Feyza.
+
+## Publishing (private first)
+The repository `sfeyzayildiz/kap-disclosure-triage` was created **private** on 19 Nov with the trial copy, so the pages can be checked on GitHub before anyone else sees them. On submission day (Tue 24 Nov, by about 15:00; `docs/runbook.md`, "Submission day") the copy is rebuilt as above and replaces it:
+```
+cd ~/projects/kap-public
+git config user.name 'Feyza Yildiz' && git config user.email '192357242+sfeyzayildiz@users.noreply.github.com'
+python3 ~/projects/kap-public-tools/add_readme_note.py ~/projects/kap-public
+git commit -qam 'Public copy: history rewritten, internal parts removed (note at the top of README)'
+python3 ~/projects/kap-public-tools/check_public.py ~/projects/kap-public      # all 0 again, shown to Feyza
+git remote add origin https://github.com/sfeyzayildiz/kap-disclosure-triage.git
+git push --force -u origin main
+```
+Only after Feyza's "aç": `gh repo edit sfeyzayildiz/kap-disclosure-triage --visibility public --accept-visibility-change-consequences`. Then the link goes to the instructor and LinkedIn.
