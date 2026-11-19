@@ -77,7 +77,7 @@ def bars(rows,vmax,unit):
             out.append(f'<line x1="{end:.1f}" x2="{xu:.1f}" y1="{y+BAR/2}" y2="{y+BAR/2}" style="stroke:var(--ink);stroke-width:1.5"/>'
                        f'<line x1="{xu:.1f}" x2="{xu:.1f}" y1="{y+2}" y2="{y+BAR-2}" style="stroke:var(--ink);stroke-width:1.5"/>')
             end=xu
-        out.append(f'<text x="{end+6:.1f}" y="{y+BAR-2}" style="fill:var(--ink);font-size:12px">{e(vt)}</text></g>')
+        out.append(f'<text x="{end+6:.1f}" y="{y+BAR-2}" style="fill:var(--ink);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round">{e(vt)}</text></g>')
     out.append('</svg>')
     return ''.join(out)
 
@@ -99,7 +99,7 @@ def paired(rows):
             w=max(x_of(v/n*100,100)-LABEL,2)
             out.append(f'<g><title>{e(label)}, {word}: {v}/{n} sessiz başarı</title>'
                        f'<rect x="{LABEL}" y="{yy}" width="{w:.1f}" height="{BAR}" rx="3" style="fill:{colour}"/>'
-                       f'<text x="{LABEL+w+6:.1f}" y="{yy+BAR-2}" style="fill:var(--ink);font-size:12px">{v}/{n} {word}</text></g>')
+                       f'<text x="{LABEL+w+6:.1f}" y="{yy+BAR-2}" style="fill:var(--ink);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round">{v}/{n} {word}</text></g>')
     out.append('</svg>')
     return ''.join(out)
 
@@ -148,7 +148,7 @@ def render_body(nav):
 CSS='''.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:14px 0 6px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:2px}
 .tile b{font-size:1.6rem;color:var(--ink)}.tile span{font-weight:600}.tile small{color:var(--muted)}
-.rel{margin:6px 0}.rel svg{width:100%;max-width:680px;height:auto;display:block}
+.rel{margin:6px 0}.rel svg{width:100%;max-width:960px;height:auto;display:block}
 table.t{border-collapse:collapse;margin:6px 0}table.t td,table.t th{border-bottom:1px solid var(--line);padding:3px 10px;text-align:left}'''
 
 

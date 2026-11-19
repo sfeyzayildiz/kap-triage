@@ -281,7 +281,7 @@ def render_item(item,day,review,chart='',source=None):
         badges+=(f'<a class="badge flag" href="#r{e(item["news_id"])}">kontrol et ↓</a>' if not review
                  else '<span class="badge done">kontrol edildi ✓</span>')
     from names import company_label
-    out=[f'<div class="card {cls}"><b>{e(company_label(item["symbol"],short=True))}</b> '
+    out=[f'<div class="card {cls}" id="c{e(item["news_id"])}"><b>{e(company_label(item["symbol"],short=True))}</b> '
          f'<span class="muted">{e(item["symbol"])}</span>{badges} · {kap_link(item.get("kap_url"))}']
     if item.get('amount') is not None:
         out.append(f'<div>Tutar: {e(tr_num(item["amount"],0))} {e(item.get("currency"))}</div>')
@@ -311,6 +311,31 @@ def render_item(item,day,review,chart='',source=None):
     return ''.join(out)
 
 
+LOOK_FIRST_MAX=3
+
+
+def look_first_box(items,reviews):
+    '''"Önce bak": up to 3 look-first items (high or flagged) in the morning list's order, each with its reasons
+    through the same path as the cards (demo mode hides Matriks-based reasons there too) and a link to its card.'''
+    from morning import REVIEW_TR, priority, reason_text
+    from names import company_label
+    look=sorted([i for i in items if i['importance']['needs_review'] or i['importance']['level']=='high'],key=priority)
+    if not look:
+        return ''
+    rows=[]
+    for i in look[:LOOK_FIRST_MAX]:
+        imp=i['importance']
+        why=[reason_text(r) for r in imp.get('reasons',[])]
+        if demo_mode.ON:
+            why=demo_mode.reasons(why)
+        if imp['needs_review'] and i['news_id'] not in reviews:
+            why=['kontrol et: '+', '.join(REVIEW_TR.get(c,c) for c in imp['needs_review_reasons'])]+why
+        rows.append(f'<li><a href="#c{e(i["news_id"])}"><b>{e(company_label(i["symbol"],short=True))}</b></a> '
+                    f'<span class="muted">{e(i["symbol"])}</span>: {e("; ".join(why) or "yüksek önem")}</li>')
+    more=f'<p class="muted">ve {len(look)-LOOK_FIRST_MAX} bildirim daha (aşağıda)</p>' if len(look)>LOOK_FIRST_MAX else ''
+    return f'<div class="card high look"><b>Önce bak ({len(look)})</b><ol>{"".join(rows)}</ol>{more}</div>'
+
+
 def render_day(day,items,sectors,desks,reviews,charts=None,sources=None):
     if demo_mode.ON:
         desks=demo_mode.desk_map(sectors,desks)  # "Masa N", never the sector name
@@ -321,6 +346,7 @@ def render_day(day,items,sectors,desks,reviews,charts=None,sources=None):
           f'<p>{len(items)} bildirim, {len(groups)} masa; kontrol gereken {len(flagged)}, kontrol edilen {done}.</p>']
     if not items:
         body.append('<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
+    body.append(look_first_box(items,reviews))
     for desk,its in groups.items():
         body.append(f'<h2>{e(desk)} ({len(its)})</h2>')
         body+= [render_item(i,day,reviews.get(i['news_id']),(charts or {}).get(i['news_id'],''),(sources or {}).get(i['news_id']))
@@ -631,7 +657,11 @@ def _self_test():
     # UI polish 19 Nov: Turkish review time, green "kontrol edildi"
     assert tr_time('2026-11-10T00:41:50')=='10 Kas 2026 00:41' and tr_time('x')=='x'
     assert '.badge.done{color:var(--green)' in CSS
-    print('self-test ok: 41 checks')
+    # "Önce bak" box: look-first items (high or flagged) in priority order, linked to their cards
+    box=look_first_box(items,{})
+    assert 'Önce bak (2)' in box and box.index('href="#c1"')>=0 and 'href="#c2"' in box and 'href="#c4"' not in box
+    assert 'kontrol et:' in box and look_first_box([items[3]],{})=='' and 'id="c1"' in render_day('2026-11-09',items,sectors,{},{})
+    print('self-test ok: 43 checks')
 
 
 def main():

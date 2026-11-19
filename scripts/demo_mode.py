@@ -19,9 +19,9 @@ import os
 import re
 
 ON=os.environ.get('PANEL_DEMO')=='1'
-PLACEHOLDER='Matriks verisi, lisans gereği gizli'
+PLACEHOLDER='[gizli]'   # 19 Nov UI polish: short tag; the banner says once what it means (was the full sentence on every line)
 BANNER=('<p class="muted"><span class="badge">Demo modu</span> Matriks verileri (gelir oranı, kur, fiyat, sektör, '
-        'Matriks tutarları) lisans gereği gizli; KAP metni ve ondan çıkarılanlar gösteriliyor.</p>')
+        'Matriks tutarları) lisans gereği gizli ve <b>[gizli]</b> olarak gösteriliyor; KAP metni ve ondan çıkarılanlar açık.</p>')
 # importance reasons computed from Matriks values (importance.py): history ratio and TL size use Matriks
 # amounts and its FX rate, the revenue ratio uses its revenue, "kur yok" says Matriks gave no rate
 HIDDEN_REASONS=('size_vs_history','size_vs_revenue','size_absolute','no_rate')
@@ -200,8 +200,9 @@ def pages_hash(pages):
 
 # demo-off fixture pages rendered by main 6bf5e9c (before demo mode); change only with a change meant to alter the pages
 # 98f6bf3fc8ea3057 = code before demo mode (measurement 1, ADOPT round 1). 19 Nov UI polish (headings, green
-# "kontrol edildi", Turkish review time, counterparty origin wording) changed demo-off pages on purpose:
-OFF_SHA256='065ed4472500212a'
+# "kontrol edildi", Turkish review time, counterparty origin wording) changed demo-off pages on purpose (065ed4472500212a);
+# 19 Nov UI polish 2/2 ("Önce bak" box, card anchors, wider charts with label halo) again on purpose:
+OFF_SHA256='92e18915f63b1d79'
 
 
 def _self_test():
