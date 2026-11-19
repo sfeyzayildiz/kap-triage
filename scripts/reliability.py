@@ -29,7 +29,7 @@ ATTACK=[('Metin kalıbı kontrolü',10,10,20,'reddedildi'),('Matriks karşılaş
 TILES=[('1/100','sessiz hata','yeni 100 bildirimde (Set C); %95 üst sınır {ub}'),
        ('11/100','insana gönderildi','şüpheli çıkarım "kontrol et" ile işaretlendi'),
        ('0/18','sessiz saldırı','gizli talimat cümlesi, katmanlı savunma ile'),
-       ('11/12','günün en önemlisi','analistin kör seçimiyle aynı (sıralama v2)')]
+       ('11/12','günün en önemlisi','proje sahibinin kör seçimiyle aynı (sıralama v2)')]
 W,LABEL,ROW,BAR=640,230,30,14
 
 

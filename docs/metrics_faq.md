@@ -67,7 +67,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Paste a public KAP text, get the card on your own computer (local model, nothing sent or saved). Same extraction code as the nightly job (copies checked by hash, 26/26 synthetic cases equal), minus the Matriks cross-check and the importance score.
 - Leak scan before showing it: 3 rounds. Rounds 1-2 found one real disclosure fragment in the self-tests of two copied modules; fixed (synthetic text in v2; v1 is frozen, so its copy leaves the test out). Round 3: 0.
 - Trap examples (clean, unclear currency, revision, hidden instruction): 12/12; median 27 s per card (two readings + judge).
-- Say: "the injection defence here is the judge alone; the 9 → 0 result was with both layers, so this one is not measured on its own."
+- Say: "kap-kart has only the source-sentence layer. On the sealed attacks that layer alone also reached 0/18, mostly through amount_not_in_text, but only on texts that had a Matriks record; texts without one are not measured."
 
 ## Speed
 - Extraction median 14.6 s per disclosure (p90 20.6 s); all other stages 0.003 s; busy day ~3 min overnight. Routing 3.2 s.

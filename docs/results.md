@@ -2,6 +2,27 @@
 
 Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in `PROJECT_NOTES.md`). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-18.
 
+## What Matriks already gives, and what this system adds (existing measurements, no new run)
+The first question a data company asks: Matriks sells a structured `new_business` record per disclosure, so why extract anything?
+| | Matriks `new_business` record | This system |
+|---|---|---|
+| Coverage | **205 of 1,269 disclosures (16%) have no record**; Matriks creates one almost only when an amount is written (87% of matched texts mention an amount, 14% of unmatched) | every disclosure is read |
+| Fields | amount, currency, a short description, ratios (deal / revenue, cumulative, market cap), the FX rate used | amount, currency **plus** revision and previous amount, related party, counterparty and origin, duration, subject, the **source sentence** with the amount marked, and review flags (`needs_review`) with reasons |
+| Amount + currency agreement with our extraction | Set C 72/78 (92.3%); after Set C 35/40 (87.5%). Matriks is a reference here, not gold | — |
+| Errors in the vendor record | 9 Matriks errors in our blind gold sets B/C/D (`docs/vendor_audit_rule.md`, M1); 6 real errors among 14 auditor flags in 641 newer disclosures (M2) | silent errors 1/100 on held-out Set C |
+| FX rate | 93.0% within 0.5% of the official TCMB rate under Matriks' own convention (`docs/tcmb_rule.md`) | uses Matriks' rate for TL sizes; the difference is reported to Matriks |
+| Flags what is uncertain | no | yes: unclear currency, projection, cumulative total, revision, injection, two readings disagree |
+
+Reading: the vendor record is good where it exists (~92% agreement), but it is missing for 1 in 6 disclosures, carries no context fields (revision, related party, duration) and never says when it is unsure. The system reads the text for all of them, shows where each number comes from and flags what a person must check. The Matriks record is used as a second opinion (injection cross-check), not replaced.
+
+## How to read these numbers
+- **Bounds.** Small sets are reported with a one-sided 95% upper bound on errors: 1/100 → 4.7%; 0/38 → 7.6%; 0/30 → 9.5%; 0/18 → 15.3%. Differences of 1-2 items on 16-20 questions (rerank 15 → 17/20, router 17 → 18/20, constrained 14/16 vs free 12/16, ordering 11/12 vs amount 12/12) are **directional**, not statistically shown.
+- **Held-out means unseen disclosures, not unseen companies.** No disclosure appears in two sets (A/B/C/D overlaps 0), but companies repeat: 35 of Set C's 59 companies also appear in Set B, 24 of Set D's 32 in Set C. Repeat issuers write similar boilerplate, so "held-out" is at disclosure level.
+- **Labels and questions.** All gold labels, blind choices and evaluation questions are by one person (Feyza, the author), not by an external analyst; no LLM produced any gold label. Retrieval questions were written by her with the disclosure in view, which favours lexical overlap. No second annotator (cancelled) and no inter-annotator agreement.
+- **Injection batches.** Each defence was measured on its own sealed batch of Set C texts that have a Matriks record (78 of 100): no defence on texts 1-20, text patterns on 21-40, Matriks cross-check on 41-60, the layered defence on **61-78, hence 18**. No case was dropped. On 61-78 each layer alone also reached 0/18 (the source-sentence layer mostly through `amount_not_in_text`); on texts without a Matriks record only the source-sentence layer exists, and that case is not measured.
+- **Embeddings.** Three embedding models were compared on 66 dev questions by a pre-written rule before `turkish-e5-large` was chosen (Search table below); BM25, hybrid, chunking and rerank depth were tested against it.
+- **Model versions.** `gemma4:e4b` via Ollama (thinking on, temperature 0); `ytu-ce-cosmos/turkish-e5-large` at revision `02e2362d503bbdeafcb17143b2165c0743f9fdb1`; `BAAI/bge-reranker-v2-m3` at `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`.
+
 ## Extraction (the core)
 | what | set | result | decision |
 |---|---|---|---|
@@ -62,7 +83,7 @@ Every row below was decided by a rule committed before the run (`docs/*_rule.md`
 | what | set | result | decision |
 |---|---|---|---|
 | Revenue ratio data gates | prod archive | semantics 99.2%, coverage 84%, scale 0.6% | **on** |
-| Importance score vs. the analyst's blind look-first choice | 10 unseen days, 49 disclosures, 47 pairs | AUC 0.681 (random p95 0.670) = amount only 0.681; top pick amount 7/10, score 3/10 | **AMOUNT_EXPLAINS**, weights unchanged |
+| Importance score vs. the author's blind look-first choice (Feyza, not an external analyst) | 10 unseen days, 49 disclosures, 47 pairs | AUC 0.681 (random p95 0.670) = amount only 0.681; top pick amount 7/10, score 3/10 | **AMOUNT_EXPLAINS**, weights unchanged |
 | Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice) |
 | Clustering k = 27 vs. Matriks sectors | 1288 disclosures | company-level ARI 0.144 vs. shuffled p99 0.032; ARI vs. company 0.298 | reflects sector, weakly; desks use the sector label, clusters only for the weekly themes page |
 | Analyst review of flags in the panel | one day | 3 of 6 flags were real extraction errors | first real use, small sample |

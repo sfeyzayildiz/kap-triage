@@ -43,6 +43,17 @@ Written 2026-11-12 after a review of the whole project (PROJECT_NOTES.md, docs/r
 | C4 | The assistant (Claude) gave wrong diagnoses twice on 12 Nov (name matching, review statistics) and once blocked a branch checkout with its own worktree. | **Fixed:** each corrected in the notes the same day; rule: reproduce before fixing, close own worktrees before handing over. |
 | C6 | `panel.sources_for_items` reads the DB when a day page opens, without the 23:40-23:50 guard the chat context has. | **Fixed 19 Nov:** every GET route that reads the DB (day page, desks JSON, themes, form step 2 with a company) answers 503 "Gece toplama penceresi" during 23:40-23:50 and opens nothing; self-test covers 5 DB routes × 3 times in the window, 6 other routes, 3 times outside. |
 | C5 | "Today" questions answered "no disclosures" before the night's collection. | **Fixed:** shows the last collected day with a note. |
+| C7 | Independent review (19 Nov): the nightly job runs on one laptop; if the Mac is off at 23:43 that night is missed (happened 17 Nov). | **Accepted, stated.** launchd does not catch up; the next night's 3-day lookback collects the missed days, but no list is made for them, and the 07:30 desk e-mail then carries the last saved list. A firm would run it on an always-on server (ours cannot reach Matriks: network block, open question to Matriks). |
+| C8 | Pilot pulls cost the forward test three sealed days (17 Nov Mac off, 18 Nov capital pilot, 19 Nov FDV pilot). | **By design, stated before each pull:** one pull per day is enforced in code (`pull_guard`), so a pilot pull skips that night; each skip was written into `docs/forward_test_rule.md` before any outcome existed. Sealed weekdays left: 16, 20, 23, 24, 25 Nov. |
+
+## D. Found by an independent review (19 Nov; another AI read a project brief, not the code)
+| # | Point | Status |
+|---|---|---|
+| D1 | Indirect prompt injection through the chat: retrieved disclosure text reaches the agent. | **Limited by design, not measured:** the LLM only picks a tool and a ticker; every number, list and link in an answer comes from the database through code, and the guided form needs no free text. A hidden instruction can at most change which tool runs. No red-team test of this path. |
+| D2 | "Held-out" sets share companies (35 of Set C's 59 companies are in Set B). | **Stated** in `docs/results.md` ("How to read"): held-out means unseen disclosures, not unseen companies; no disclosure is in two sets. |
+| D3 | The forward test (5 sealed weekdays, ~5-10 disclosures) cannot validate importance as a financial signal. | **Stated:** it is an anti-lookahead check of the live pipeline (the list is sealed before prices exist), scored once; it is not an alpha claim. |
+| D4 | One annotator; questions written with the text in view; the "blind choice" is the author's. | **Stated** in `docs/results.md`; wording "analyst's blind choice" corrected to "the author's blind choice" everywhere it was a claim. |
+| D5 | Local web pages and secrets. | **Checked 19 Nov:** panel and kap-kart bind to 127.0.0.1; pasted / KAP text is HTML-escaped (self-tests); full git history has 0 committed `data/` files, 0 `.env`, 0 token-like strings. |
 
 ## What this means for the presentation
 Say A1-A3 as the story (it is the strongest part), A4-A6 and B1-B4 as limits before anyone asks, and C1 as an honest process slip that we turned into code.

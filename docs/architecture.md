@@ -121,7 +121,7 @@ Decision by the pre-written rule: not adopted (too many flags); the LLM adds val
 
 ## Not measured (stated as limits)
 
-- Importance score: rules are judgment, not fitted. Checked once against the analyst's blind choice: better than chance, equal to sorting by amount (AUC 0.681 both).
+- Importance score: rules are judgment, not fitted. Checked once against the author's blind choice (Feyza; no external analyst): better than chance, equal to sorting by amount (AUC 0.681 both).
 - Agent: routing, router v2 and the brief were measured (see `docs/results.md`), but on 10-20 questions each, written by one person. Red team: out-of-scope questions and two-company questions are not handled (relative periods now are, within the phrase table).
 - Desk routing: delivery measured, not whether the sector desk is the right recipient.
 - Document-to-document similarity ("similar earlier disclosures"): no measured quality.

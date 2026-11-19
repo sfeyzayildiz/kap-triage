@@ -25,6 +25,15 @@ An analyst sees several of these disclosures every day and has to decide which o
 
 Doing this by hand is slow and error-prone. Our error analysis found TL/USD confusion, revisions read as new orders, and projections read as contract values.
 
+**Why not just use the vendor's structured record?** Matriks' `new_business` record is good where it exists (~92% agreement with our extraction on held-out Set C), but 1 in 6 disclosures (205 of 1,269) has no record, it carries no revision, related-party, duration or counterparty field, and it never says when it is unsure; our blind gold sets contain 9 vendor errors. The system reads every text, shows the sentence each number comes from and flags what needs a person; the vendor record stays as a second opinion. Details: `docs/results.md`, first section.
+
+## The system in three layers
+| Layer | What | Status |
+|---|---|---|
+| **Core (measured)** | Nightly extraction + code checks + injection defence + two readings, ordering, morning list with KAP links | every part adopted or rejected by a pre-written rule (`docs/results.md`) |
+| **Delivery** | Desk panel (demo mode for screens), guided form, chat agent (LangGraph), MCP server, desk e-mails via n8n to a local Mailpit test inbox, Docker | delivery measured where it can fail (routing, e-mail 0 lost / 0 wrong desk, leaks 0); Mailpit stands in for a real mail server |
+| **Pilots and tools** | Capital-increase and stake-acquisition pilots, data-vendor auditor, kap-kart (no vendor data), weekly themes (clusters: weak, ARI 0.144) | report-only or separately labeled; nothing here is on the nightly path |
+
 ## What it does
 For each day's disclosures:
 1. **Extraction (local LLM).** Amount, currency, counterparty, duration, revision and related-party flags.
@@ -50,12 +59,12 @@ An agent built with LangGraph answers questions such as "What should I look at t
 | Amount injection attack, 18 new texts, sealed attack wording | silent successes 9 → **0** with the layered defence; 3/200 extra flags on real texts | Adopted. Two weaker defences were rejected by their bars. |
 | Without an LLM, same Set C | best regex 25 silent errors out of 100 | So the LLM is needed where the text is free Turkish. |
 | Agent routing with company names (router v2), 20 questions | intended link in the top 5: 18/20 (was 11/20) | Company brief flow: 9/10 routed, 10/10 right ticker, median 18.5 s. |
-| Importance score vs. the analyst's blind choice, 10 unseen days | AUC 0.681, same as sorting by amount | Better than chance, but the extra components did not show added value. |
+| Importance score vs. the author's blind choice (Feyza, not an external analyst), 10 unseen days | AUC 0.681, same as sorting by amount | Better than chance, but the extra components did not show added value. |
 | Ordering v2 (long contract, then amount), 12 new days | top pick 11/12 (v1 5.5), AUC 0.877 (v1 0.792) | Adopted. Amount alone did even better (12/12) but was not the dev choice. |
 | Analyst review of flags, one demo day | 3 of 6 flags were real extraction errors | First real use of the panel; small sample. |
 | Relative periods ("geçen hafta", "son 3 ay"), 15 new questions + 205 earlier | exact period 10/10; false period 1/5; wrong fires 0/9 | Adopted. Parsed by code from a fixed phrase table. |
 | Desk e-mails via n8n, all 15 saved days | 43 items, 33 e-mails: 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks; 0.2 s per day | Adopted. Measures the delivery, not whether the sector desk is the right recipient. |
-| kap-kart (card from pasted text, no Matriks data), 4 synthetic trap examples × 3 | 12/12 as expected; median 27 s per card (two readings + judge); leak scan 0 | Adopted. Same code as the nightly path (hash-checked); no Matriks cross-check, so its injection defence is the judge alone (not measured alone). |
+| kap-kart (card from pasted text, no Matriks data), 4 synthetic trap examples × 3 | 12/12 as expected; median 27 s per card (two readings + judge); leak scan 0 | Adopted. Same code as the nightly path (hash-checked); no Matriks cross-check: its injection defence is the source-sentence layer, which alone also stopped 18/18 sealed attacks, but only measured on texts with a Matriks record. |
 | Latency | median 14.6 s per disclosure (LLM); all other stages 0.003 s | A busy day takes about 3 minutes, overnight. |
 | Abnormal price moves, 493 trading days | 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before | So for most moves the agent says the cause may be elsewhere. |
 

@@ -202,7 +202,8 @@ def pages_hash(pages):
 # 98f6bf3fc8ea3057 = code before demo mode (measurement 1, ADOPT round 1). 19 Nov UI polish (headings, green
 # "kontrol edildi", Turkish review time, counterparty origin wording) changed demo-off pages on purpose (065ed4472500212a);
 # 19 Nov UI polish 2/2 ("Önce bak" box, card anchors, wider charts with label halo) again on purpose:
-OFF_SHA256='92e18915f63b1d79'
+# 19 Nov review fixes: reliability tile says 'proje sahibinin kör seçimi' (was 'analistin'): 92e18915f63b1d79 ->
+OFF_SHA256='324bb603b3585996'
 
 
 def _self_test():

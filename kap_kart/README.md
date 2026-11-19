@@ -25,7 +25,7 @@ Fields and flags come from the LLM and from code; business rules live in code, a
 - Run to run, 3 of 100 texts changed amount or currency, which is why the card reads every text twice.
 
 ## Limits (read before trusting a card)
-- **The vendor cross-check is not here.** The measured numbers above were taken with it. The injection defence here is the source-sentence judge alone, which was not measured on its own.
+- **The vendor cross-check is not here.** The measured numbers above were taken with it. The injection defence here is the source-sentence layer alone. In the source project that layer alone also stopped 18 of 18 sealed attacks (mostly by noticing that the injected amount is not in the text), but only on texts that also had a vendor record; texts without one were not tested.
 - **No importance score**, revenue ratio, FX conversion, sector or price: those need licensed market data.
 - Only "Yeni İş İlişkisi" disclosures in Turkish were tested. Other disclosure types will give cards that look right and may not be.
 - A card with no warning is not a guarantee. Check the source sentence and the KAP page.

@@ -57,7 +57,7 @@ Each file states the measurement, the bar and what happens on pass or fail. The 
 
 **Importance and the morning list**
 - [importance_score.md](importance_score.md): importance score v1.
-- [importance_check_rule.md](importance_check_rule.md): score vs. the analyst's blind choice.
+- [importance_check_rule.md](importance_check_rule.md): score vs. the author's blind choice (Feyza labeled; not an external analyst).
 - [importance_v2_rule.md](importance_v2_rule.md): ordering v2 (adopted).
 - [revenue_ratio_rule.md](revenue_ratio_rule.md): gates for the revenue ratio.
 - [tcmb_rule.md](tcmb_rule.md): Matriks' FX rate vs. official TCMB rates.
