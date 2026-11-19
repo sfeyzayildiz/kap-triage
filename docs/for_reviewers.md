@@ -13,7 +13,7 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 
 ## Minutes 6-8: how it is built
 6. `docs/architecture.md` (Turkish summary: `docs/mimari_ozet.md`): nightly path, analyst tools, where the LLM is used and where code decides.
-7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). Every module has `--self-test`; CI runs all of them on every pull request (`.github/workflows/`).
+7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). Every module has `--self-test`; CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake.
 
 ## Minutes 8-10: try it without our data
 8. `kap_kart/`: paste a public KAP "Yeni İş İlişkisi" text and get the same card the nightly job builds, on your own computer (`./kap_kart/run.sh`, needs Ollama). Four made-up trap examples included.
