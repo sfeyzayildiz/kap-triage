@@ -90,6 +90,7 @@ TESTS={
     'names':'--self-test',
     'v2_eval':'--self-test',
     'quantities':'--self-test',
+    'source_eval':'--self-test',
     'write_route_questions':'--self-test',
     'price_collect':'--self-test',
     'prod_refresh':'--self-test',
