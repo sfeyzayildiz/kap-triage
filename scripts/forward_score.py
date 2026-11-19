@@ -11,7 +11,8 @@ Decision   at least 4 items in each group, difference > 0 and p <= 0.10 -> SUPPO
            otherwise NOT_SUPPORTED.
 Reported   the same on the reaction day (price_moves.reaction_day), signed mean AR, counts per group.
 
-INCOMPLETE (nothing scored) until XU100 has a bar on or after 2026-11-26. Scores once: the result goes to
+Rule Note 7 (19 Nov): the scored window ends with the list of 2026-11-20 (submission Tue 24 Nov); seals of
+21-25 Nov are still written by the nightly job but not scored. INCOMPLETE until XU100 has a bar on or after 2026-11-23. Scores once: the result goes to
 data/forward_score.txt and a second call only prints it.
 
 Usage:
@@ -25,11 +26,12 @@ import random
 import statistics
 from datetime import date, datetime, timedelta
 
-from forward_seal import FIRST_DAY, LAST_DAY, LOG, SEAL_DIR, sha, verify
+from forward_seal import FIRST_DAY, LOG, SEAL_DIR, sha, verify
 from price_moves import DB_PATH, INDEX, SPLIT_JUMP, abnormal, daily_returns, reaction_day
 
 OUT='data/forward_score.txt'
-NEED_BAR=date(2026,11,26)
+LAST_DAY='2026-11-20'        # rule Note 7: last scored list (forward_seal.LAST_DAY stays 2026-11-25, nightly path untouched)
+NEED_BAR=date(2026,11,23)    # first trading day after 20 Nov
 SEED=20261114
 SHUFFLES=10000
 MIN_GROUP=4
@@ -229,7 +231,7 @@ def _self_test():
         seal('2026-11-14',[item(3)],sd,lg)                                   # outside the window: ignored
         s,bad,missing,prefix=load_seals(sd,lg)
         ok(sorted(d.isoformat() for d in s)==['2026-11-16','2026-11-17'] and bad==[] and prefix['2026-11-16']==h)
-        ok('2026-11-21' in missing and len(missing)==9 and s[date(2026,11,16)][0]['look_first'] is True)
+        ok('2026-11-20' in missing and '2026-11-21' not in missing and len(missing)==4 and s[date(2026,11,16)][0]['look_first'] is True)
         with open(os.path.join(sd,'2026-11-17.json'),'ab') as f:
             f.write(b' ')
         s,bad,missing,_=load_seals(sd,lg)

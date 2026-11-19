@@ -19,6 +19,9 @@ Date: 2026-11-14 (22:30). Every earlier measurement used past data. This one is 
 ## Limits (said in the presentation)
 About 8 trading days and perhaps 10-30 disclosures: a signal, not proof. Direction is not predicted (the list says "look", not "buy"). Prices are unadjusted. The list ranks attention, so `NOT_SUPPORTED` is a valid, reportable result.
 
+## Note 7 (2026-11-19 ~17:40, before any price after the first seal exists; Feyza's choice)
+The project must be finished by the submission on **Tue 24 Nov**. The scored window therefore **ends with the list of 20 Nov** (was 25 Nov). One price pull on **Tue 24 Nov, daytime** (bars to Mon 23 Nov, the first trading day after 20 Nov), then scoring once, the same day. Sealed weekdays inside the window: 16 and 20 Nov (15 is a Sunday; 17-19 have no seal, Notes 3-6). Expected: very few items, most likely `TOO_FEW` under the unchanged decision line (at least 4 look-first and 4 other items); that is the honest outcome and is reported as such: the test then shows that sealing, the later price pull and the one-time scoring work end to end, not that the ordering predicts moves. The nightly job keeps sealing 21-25 Nov (`forward_seal.py` is on the nightly path and is not changed); those seals are not scored. `forward_score.py`: `LAST_DAY` 2026-11-20, `NEED_BAR` 2026-11-23. Nothing else changes.
+
 ## Note 6 (2026-11-19 15:10, before the pull and before any outcome exists; replaces Note 5)
 The second pilot pull moves from Sat 21 Nov to **today, Thu 19 Nov, daytime**: the project submission deadline moved to Tue 24 Nov (instructor, 19 Nov), and Sat 21 Nov is a class day. The nightly job skips tonight under the one-pull-per-day guard, so **no list is sealed for 19 Nov** (the next night's lookback collects it, unsealed); 21 Nov is sealed again. Cost, stated before: one weekday with real items. Sealed days: **15-16, 20-25 Nov** (weekdays 16, 20, 23, 24, 25). Nothing else changes.
 

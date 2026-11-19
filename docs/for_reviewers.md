@@ -22,7 +22,7 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 - No user or time study; analyst time saved is not measured.
 - One person labeled every gold set; held-out sets are new disclosures, not new companies.
 - The importance score did not beat sorting by amount; the live order is a simple, measured rule.
-- The forward test (lists sealed 15-25 Nov) is scored once on 27 Nov, after the submission date; it checks the live pipeline without hindsight, it is not a trading claim.
+- The forward test (lists sealed each night before prices exist) was shortened to end with 20 Nov so it could be scored once on 24 Nov (rule Note 7); with so few items the expected answer is `TOO_FEW`. It checks the live pipeline without hindsight; it is not a trading claim.
 - Running the full system needs a Matriks token; screens are shown in demo mode because the licence forbids showing vendor values.
 
 ## Submission checklist (for the author)
@@ -30,5 +30,5 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 - [ ] `README.md` and `docs/results.md` current (pilot 2 result added when scored).
 - [ ] CI green on `main`.
 - [ ] Gist (`docs/mimari_ozet.md`) updated if the architecture text changed.
-- [ ] Forward-test status written as "running, scored 27 Nov".
+- [ ] Tue 24 Nov morning: price pull (`price_collect.py --pull --yes`, then `--load`), then `forward_score.py --score` once; result into `docs/results.md`.
 - [ ] Demo mode screenshots in `docs/img/` current.
