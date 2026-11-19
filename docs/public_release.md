@@ -42,10 +42,10 @@ The repository `sfeyzayildiz/kap-disclosure-triage` was created **private** on 1
 ```
 cd ~/projects/kap-public
 git config user.name 'Feyza Yildiz' && git config user.email '192357242+sfeyzayildiz@users.noreply.github.com'
-python3 ~/projects/kap-public-tools/add_readme_note.py ~/projects/kap-public
+python3 ~/projects/kap-public-tools/add_readme_note.py ~/projects/kap-public   # badges (tests, Python, MIT) + the copy note
 git commit -qam 'Public copy: history rewritten, internal parts removed (note at the top of README)'
 python3 ~/projects/kap-public-tools/check_public.py ~/projects/kap-public      # all 0 again, shown to Feyza
 git remote add origin https://github.com/sfeyzayildiz/kap-disclosure-triage.git
 git push --force -u origin main
 ```
-Only after Feyza's "aç": `gh repo edit sfeyzayildiz/kap-disclosure-triage --visibility public --accept-visibility-change-consequences`. Then the link goes to the instructor and LinkedIn.
+Only after Feyza's "aç": `gh repo edit sfeyzayildiz/kap-disclosure-triage --visibility public --accept-visibility-change-consequences`. Then open the repository in a private browser window (not logged in) and check that the README demo video plays: it was uploaded as a GitHub attachment while the repository was private. If it does not play, Feyza uploads `kap_demo_v5_github.mp4` again (drag it into a new issue box, do not create the issue) and the README line gets the new link. Then the link goes to the instructor and LinkedIn.

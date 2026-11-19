@@ -4,6 +4,10 @@
 
 > This is a research prototype, not investment advice. It shows which disclosures to read first and how sure it is about each one. It does not predict prices or recommend trades.
 
+**Demo video** (73 seconds, demo mode: values licensed from Matriks are hidden):
+
+https://github.com/user-attachments/assets/d761e92d-e9a2-4a59-906a-a508464bbb25
+
 Reviewing in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md). Day-by-day development log (generated from git): [`docs/timeline.md`](docs/timeline.md).
 
 ## In 30 seconds
