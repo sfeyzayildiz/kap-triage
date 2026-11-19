@@ -70,3 +70,6 @@ The leak is fixed at the source instead of stripping the copy, so the copies sta
 - Any leak in (2) or (4): fix, re-run all of (1), (2), (4); the result is reported with the number of rounds.
 - **Public** only after Matriks replies and Feyza says go: a new repo built from the `kap_kart/` folder with a fresh history (no history from this repo), the leak scan re-run on the exported folder first. Until then the folder stays in this private repo.
 - No nightly-path file changes; no kap-deploy pull needed. If a frozen source file ever changes, check (1a) fails until the copy is refreshed on purpose.
+
+## Note 1 (2026-11-19 evening, before any publication; Feyza's choice)
+The publication route changes. Matriks agreed on 19 Nov, and the whole project is published as one public copy with its history kept (`docs/public_release.md`), not as a separate fresh-history repository of this folder. The condition stays: before the public push, the leak scan is re-run on the folder as it is inside the public copy (`.venv/bin/python scripts/kap_kart_leak_scan.py --dir ~/projects/kap-public/kap_kart`, run by Feyza from `kap-explore`, which has the database); all three counts must be 0. Any hit: no push until it is fixed and scanned again. Nothing else changes.

@@ -126,7 +126,7 @@ def _self_test():
         assert (res['files'],res['pattern'],res['overlap'])==(0,0,0),res
         (d/'examples'/'1_temiz.txt').write_text('ÖRNEK\nBİR iki üç dört beş altı\nyedi sekiz dokuz on onbir oniki\n',encoding='utf-8')
         (d/'notes.jsonl').write_text('{}\n',encoding='utf-8')
-        (d/'kap_kart.py').write_text("U='https://<MATRIKS_API_HOST>/x'\nT='KAP_TOKEN'\nIP='94.1.2.3'\nM='a@b.com'\nP='/Users/x'\nD='kap-deploy'\n",encoding='utf-8')
+        (d/'kap_kart.py').write_text("U='https://example.invalid/dumrul/x'\nT='KAP_TOKEN'\nIP='94.1.2.3'\nM='a@b.com'\nP='/Users/x'\nD='kap-deploy'\n",encoding='utf-8')
         res=scan(d,[doc])
         assert res['files']==1 and res['extra']==['notes.jsonl']
         assert res['pattern']==6 and {h[2] for h in res['pattern_hits']}=={n for n,_ in FORBIDDEN}

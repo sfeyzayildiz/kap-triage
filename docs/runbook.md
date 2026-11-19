@@ -106,6 +106,19 @@ git pull -q
 ```
 Paste 11 (last three lines) and 12. No scoring while 11 is running.
 
+### Submission day (Tue 24 Nov 2026; submission closes at 18:00, nothing after it)
+Rule: `docs/forward_test_rule.md`, Notes 7-8. The nightly job stays loaded; it sends `SKIPPED` that night (one pull per day).
+```
+cd ~/projects/kap-explore && git switch main && git pull -q
+.venv/bin/python scripts/pull_guard.py                                    # last pull must not be today
+.venv/bin/python scripts/price_collect.py --pull --yes                    # ~10:00; that day's only pull; after a failure it may be re-run the same day (resume)
+.venv/bin/python scripts/price_collect.py --load                          # counts and last bar date: must reach 2026-11-23
+.venv/bin/python scripts/forward_score.py --score                         # once; INCOMPLETE = bars to 23 Nov missing
+.venv/bin/python scripts/two_run_count.py --start 2026-11-15 --end 2026-11-23   # report only (known_issues A12)
+```
+Paste the `--load` summary, the score lines and the last `two_run_count` line. **14:00 cutoff:** if the bars or the score are not there by then, stop trying; the submission says "forward test not scored" with the failed step (Note 8).
+Then, by about 15:00: Claude records the result (results, notes, metrics_faq), re-runs `scripts/make_timeline.py`, merges; rebuilds the public copy and shows its check counts (`docs/public_release.md`); Feyza runs the kap-kart leak scan on the copy (`docs/kap_kart_rule.md`, Note 1); Feyza says "aç" and the repository name; Claude creates the public repository and pushes. 15:00-18:00 is spare time.
+
 ## Daily use
 ```
 cd ~/projects/kap-explore

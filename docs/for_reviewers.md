@@ -13,7 +13,7 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 
 ## Minutes 6-8: how it is built
 6. `docs/architecture.md` (Turkish summary: `docs/mimari_ozet.md`): nightly path, analyst tools, where the LLM is used and where code decides.
-7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). 89 of the 112 modules have a `--self-test` (the rest are early probes and one-off tools); CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake.
+7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). 90 of the 113 modules have a `--self-test` (the rest are early probes and one-off tools); CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake.
 
 ## Minutes 8-10: try it without our data
 8. `kap_kart/`: paste a public KAP "Yeni İş İlişkisi" text and get the same card the nightly job builds, on your own computer (`./kap_kart/run.sh`, needs Ollama). Four made-up trap examples included.
@@ -30,5 +30,5 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 - [x] `README.md` and `docs/results.md` current (pilot 2 result added 19 Nov).
 - [ ] CI green on `main`.
 - [ ] Gist (`docs/mimari_ozet.md`) updated if the architecture text changed.
-- [ ] Tue 24 Nov morning: price pull (`price_collect.py --pull --yes`, then `--load`), then `forward_score.py --score` once; result into `docs/results.md`.
+- [ ] Tue 24 Nov (submission closes at 18:00; steps in `docs/runbook.md`, "Submission day"): ~10:00 price pull (`price_collect.py --pull --yes`, then `--load`), `forward_score.py --score` once and `two_run_count.py`; results into `docs/results.md`. If the pull or the score is not done by 14:00, submit without the forward-test score and say so (`docs/forward_test_rule.md`, Note 8). By ~15:00 notes, `make_timeline.py`, public copy rebuilt, checked and pushed; until 18:00 spare time.
 - [ ] Demo mode screenshots in `docs/img/` current.

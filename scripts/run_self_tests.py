@@ -61,6 +61,7 @@ TESTS={
     'drift_check':'--self-test',
     'forward_seal':'--self-test',
     'forward_score':'--self-test',
+    'two_run_count':'--self-test',
     'amount_checks_v2':'',
     'sample_set_d':'--self-test',
     'set_d':'--self-test',

@@ -20,7 +20,7 @@ DB_PATH='data/kap.duckdb'
 USE_REVENUE=True  # gates passed on refreshed prod data 2026-11-10 (docs/revenue_ratio_rule.md, PROJECT_NOTES)
 EXTREME_RATIO=5.0
 RATE_DAYS=10
-TCMB_FILL=False  # docs/tcmb_rule.md: switch on 26 Nov (after the last forward-test seal) only if Part 1 agrees
+TCMB_FILL=False  # docs/tcmb_rule.md: Part 1 gave MATRIKS_RATE_DIFFERS (16 Nov) -> FILL_OFF; stays off
 MIN_HISTORY=3
 TRY_CODES=('TRY','TL')
 
