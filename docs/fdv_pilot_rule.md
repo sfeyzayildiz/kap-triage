@@ -72,6 +72,10 @@ Dev run 1 (prompt v1, form reader v1, checks v1): F 1 silent (wrong direction), 
 - **Guideline v0.2** (Feyza's notes F1, F3, F4, rule numbers only): see its "Versions". The labeling tool accepts `-` for currency; dev labels touched by F4 are redone under v0.2.
 - Versions used: prompt 2 of 3, form reader 2 of 3, checks unchanged. Dev run 2 follows; then the freeze.
 
+## Note 4 (2026-11-19, after dev run 2; this commit is the FREEZE)
+Dev run 2 (prompt v2, form reader v2, checks v1, guideline v0.2 with 6811796 relabeled `currency_unstated`): F 1 silent (the negotiation-stage text: a filled form, gold `none`; F cannot read that), 2 flagged; L 0 silent, 2 flagged; C 0 silent, 3 flagged, resolved 5. Nothing changed after this run, so no dev run 3 is needed: the held-out version is the one run on dev.
+**Frozen for the held-out run:** prompt `extract_fdv_v2` (2 of 3), form reader v2 (2 of 3), checks v1, C as in the rule, guideline v0.2. Then 30 held-out labels (blind, v0.2), the held-out run once, scoring once.
+
 ## Honest limits
 - 30 records bound little (0/30 → upper 9.5%; 1/30 → 14.9%). The headline reliability numbers stay those of "Yeni İş İlişkisi".
 - One labeler; guideline written blind and adjusted on 8 dev texts; readers written in a day by the same person.
