@@ -203,7 +203,8 @@ def pages_hash(pages):
 # "kontrol edildi", Turkish review time, counterparty origin wording) changed demo-off pages on purpose (065ed4472500212a);
 # 19 Nov UI polish 2/2 ("Önce bak" box, card anchors, wider charts with label halo) again on purpose:
 # 19 Nov review fixes: reliability tile says 'proje sahibinin kör seçimi' (was 'analistin'): 92e18915f63b1d79 ->
-OFF_SHA256='324bb603b3585996'
+# 19 Nov: chart label halo removed (it drew light blobs over the labels in the dark theme): 324bb603b3585996 ->
+OFF_SHA256='aab4a6dc9387972c'
 
 
 def _self_test():
