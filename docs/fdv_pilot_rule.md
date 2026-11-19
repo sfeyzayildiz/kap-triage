@@ -65,6 +65,13 @@ No held-out text goes through any reader before step 6. No scoring while a run i
 - **Readers v1, written from this profile and synthetic rows only** (no text read): `scripts/fdv_form.py` (F reads the template labels; several numbers in a cell → `form_multi_value`, unreadable → `form_unreadable_*`, neither or both directions → `form_direction_unclear`), `prompts/extract_fdv_v1.txt` (L), `scripts/fdv_checks.py` (checks `amount_not_in_text`, `currency_missing`, `stake_out_of_range`, `stake_inconsistent`, `long_text`; C as in the rule), `scripts/fdv_extract.py`, `scripts/fdv_score.py`. **`long_text` = 8,000 characters**, the capital pilot's budget (same `num_ctx`, similar prompt length).
 - A form-heavy type makes F a strong competitor here; that is what the LLM-or-not lines measure.
 
+## Note 3 (2026-11-19, after dev run 1, before any reader touched a held-out text)
+Dev run 1 (prompt v1, form reader v1, checks v1): F 1 silent (wrong direction), 4 flagged; L 1 silent (the same text, wrong direction), 2 flagged; C 0 silent, 6 flagged. Diagnosed with codes and field names only:
+- 3 of C's flags: the "Toplam Tutar" cell has the number without a currency, F returned none (`currency_missing`), L took it from the text (`reader_disagree`). **Form reader v2:** no currency in the cell → the currency written right after the same number elsewhere in the text (same line, 20 characters).
+- The silent case of both readers: the form is filled in but the text describes negotiations only (gold `none`; Feyza's F1 note). **Prompt v2:** says so explicitly, and states the F4 currency rule as in the guideline. F cannot read this from the form; C caught it (`reader_disagree`).
+- **Guideline v0.2** (Feyza's notes F1, F3, F4, rule numbers only): see its "Versions". The labeling tool accepts `-` for currency; dev labels touched by F4 are redone under v0.2.
+- Versions used: prompt 2 of 3, form reader 2 of 3, checks unchanged. Dev run 2 follows; then the freeze.
+
 ## Honest limits
 - 30 records bound little (0/30 → upper 9.5%; 1/30 → 14.9%). The headline reliability numbers stay those of "Yeni İş İlişkisi".
 - One labeler; guideline written blind and adjusted on 8 dev texts; readers written in a day by the same person.

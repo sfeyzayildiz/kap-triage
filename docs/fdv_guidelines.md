@@ -1,5 +1,5 @@
 # Annotation Guidelines: Finansal Duran Varlık Edinimi / Satışı (pilot)
-Version 0.1 (2026-11-19), written before any text of this type was pulled or seen. Defines the gold label for `docs/fdv_pilot_rule.md`.
+Version 0.2 (2026-11-19), after the 8 dev texts; frozen for the held-out set. Version 0.1 was written before any text of this type was pulled or seen. Defines the gold label for `docs/fdv_pilot_rule.md`.
 
 ## Principle
 Label what this disclosure writes. Do not calculate, convert or complete from memory or another disclosure. A figure in a form cell counts as written. You see only the text: no reader output. If you know the deal from the news, label the text anyway.
@@ -25,6 +25,7 @@ Label what this disclosure writes. Do not calculate, convert or complete from me
 - `acquisition`: the disclosing company acquires shares of another company: a purchase, founding a new company, or joining another company's capital increase.
 - `sale`: it sells or transfers shares of another company it holds.
 - `none`: no acquisition or sale is described (only an intention, negotiations without a decision, an unrelated notice). All other fields `-`.
+- (v0.2) The form may be filled in even then. If the text says the parties are only negotiating or signed only a non-binding letter of intent, and no decision to buy or sell was taken, it is `none`.
 - A cancelled transaction: the direction of the cancelled plan, note `cancelled`.
 
 ### F2. Target
@@ -36,10 +37,11 @@ The company whose shares change hands, as written (short form is fine). Report o
 - Not the amount: the target's capital, the nominal value of shares bought for a different price, the company's total assets, a valuation report figure that is not the price.
 - Upper limit ("… TL'ye kadar", "azami") → the limit, note `up_to`. Price to be set later → `-`, note `price_later`. Payment in shares or other non-cash form with no value written → `-`, note `non_cash`.
 - Installments or several payments: the total if the text writes it; otherwise `-`, note `no_total`.
+- (v0.2) The value covers more than the shares (for example a receivable transferred with them): the total as written, note `other_items`.
 - Write the number fully: "15 milyon" → `15000000`, "1.250.000,50" → `1250000.5`.
 
 ### F4. Currency
-The currency of the amount as written, ISO code (TL → `TRY`). An amount given in a foreign currency with a TL equivalent: label the foreign currency and its amount, note `try_equivalent`. Two currencies and you cannot tell which is the price → `needs_review`, note `mixed_currency`. Amount `-` → currency `-`.
+The currency of the amount as written, ISO code (TL → `TRY`). (v0.2) If the form cell gives the number without a currency, use the currency written with the same number elsewhere in the text. Written nowhere → `-`, note `currency_unstated`. An amount given in a foreign currency with a TL equivalent: label the foreign currency and its amount, note `try_equivalent`. Two currencies and you cannot tell which is the price → `needs_review`, note `mixed_currency`. Amount `-` → currency `-`.
 
 ### F5. Stake in this transaction
 - The share of the target's capital acquired or sold in this transaction, in percent: "%25" → `25`, "% 33,33" → `33.33`.
@@ -70,7 +72,9 @@ Set it when two readings stay possible after the rules. Tags that always set it:
 | `price_later` | F3 | Price to be set later |
 | `non_cash` | F3 | Non-cash payment, no value written |
 | `no_total` | F3 | Several payments, no total written |
+| `other_items` | F3 | Value covers more than the shares; total labeled |
 | `try_equivalent` | F4 | Foreign amount labeled, TL equivalent also written |
+| `currency_unstated` | F4 | Amount written, its currency nowhere |
 | `mixed_currency` | F4 | Price currency unclear (review) |
 | `after_only` | F5 | Only the stake after is written |
 | `revised` | F8 | Terms changed; current ones labeled |
@@ -78,4 +82,5 @@ Set it when two readings stay possible after the rules. Tags that always set it:
 | `two_readings_possible` | F10 | Two readings remain (review) |
 
 ## Versions
+- 0.2 (2026-11-19): after the 8 dev texts (Feyza's notes, rule numbers only): F1 negotiation stage with a filled form is `none`; F3 value covering other items (`other_items`); F4 currency from the same number elsewhere in the text, else `-` (`currency_unstated`); the labeling tool accepts `-` for currency. Dev labels touched by F4 are redone under v0.2. Frozen from here.
 - 0.1 (2026-11-19): written blind from the structure of the KAP form and the capital-increase pilot's lessons. Shakedown on the 8 dev texts (Feyza reports rule numbers and tags only, never text); changes go into v0.2 before the first held-out label, then frozen.
