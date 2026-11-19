@@ -25,9 +25,8 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 ## For readers outside the project
 | file | what it is |
 |---|---|
-| [matriks_prototype.md](matriks_prototype.md) | Turkish one-pager for Matriks: the prototype as a terminal feature. |
-| [matriks_feedback.md](matriks_feedback.md) | Turkish data-feedback note for Matriks (10 findings with counts). |
 | [extending.md](extending.md) | How the system would extend to other disclosure types. |
+| [public_release.md](public_release.md) | How the public copy is built from the private repository (history kept, internal parts removed) and checked. |
 | [demo_script.md](demo_script.md) | Demo steps. |
 | [talk_plan.md](talk_plan.md) | 10-minute talk plan and hard questions. |
 
@@ -38,6 +37,7 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 | [set_c_plan.md](set_c_plan.md) | Set C, the held-out test of the combined system. |
 | [set_c_labeling_guide.xlsx](set_c_labeling_guide.xlsx) | Labeling sheet guide for Set C. |
 | [capital_increase_guidelines.md](capital_increase_guidelines.md) | Labeling guideline for the capital-increase pilot. |
+| [fdv_guidelines.md](fdv_guidelines.md) | Labeling guideline for the stake acquisition / sale pilot. |
 
 ## Decision rules, by part of the system
 Each file states the measurement, the bar and what happens on pass or fail. The outcome is in `results.md`.
@@ -77,7 +77,7 @@ Each file states the measurement, the bar and what happens on pass or fail. The 
 - [route_rule.md](route_rule.md), [router_v2_rule.md](router_v2_rule.md): question routing.
 - [detail_card_rule.md](detail_card_rule.md), [brief_rule.md](brief_rule.md): detail card and company brief.
 - [relative_periods_rule.md](relative_periods_rule.md): "geçen hafta", "son 3 ay".
-- [scope_guard_rule.md](scope_guard_rule.md), [scope_guard_v2_rule.md](scope_guard_v2_rule.md): scope guard (both not adopted).
+- [scope_guard_rule.md](scope_guard_rule.md), [scope_guard_v2_rule.md](scope_guard_v2_rule.md), [scope_guard_v3_rule.md](scope_guard_v3_rule.md): scope guard (all three not adopted).
 - [mcp_rule.md](mcp_rule.md), [mcp_v2_rule.md](mcp_v2_rule.md): own MCP server.
 - [smtp_mcp_rule.md](smtp_mcp_rule.md): third-party e-mail MCP server with human approval.
 - [n8n_routing_rule.md](n8n_routing_rule.md): desk e-mails through n8n.
@@ -86,9 +86,12 @@ Each file states the measurement, the bar and what happens on pass or fail. The 
 - [capital_increase_pilot.md](capital_increase_pilot.md): design.
 - [capital_increase_rule.md](capital_increase_rule.md): measurement rule.
 
+**Stake acquisition / sale pilot (third disclosure type, not adopted)**
+- [fdv_pilot_rule.md](fdv_pilot_rule.md): design and measurement rule; C 2/30 silent (bar 1), 6/30 flagged (`PILOT_NOT_ADOPTED`, `LLM_ADDS`).
+
 **Data-vendor auditor (Matriks record vs. KAP text, not adopted)**
 - [vendor_audit_rule.md](vendor_audit_rule.md): M1 (existing blind gold) and M2 (new blind pool); strict precision 6/14 is below the 50% bar, so it stays a report tool (`AUDITOR_OFF`).
 
 **Showing the system without licensed data**
 - [demo_mode_rule.md](demo_mode_rule.md): panel display flag that hides Matriks-licensed values; leaks 0, adopted in round 1.
-- [kap_kart_rule.md](kap_kart_rule.md): stand-alone card from pasted KAP text (`kap_kart/`); copies hash-checked, leaks 0 in round 3, trap examples 12/12, adopted (private until Matriks replies).
+- [kap_kart_rule.md](kap_kart_rule.md): stand-alone card from pasted KAP text (`kap_kart/`); copies hash-checked, leaks 0 in round 3, trap examples 12/12, adopted (Matriks agreed to publishing the code, 19 Nov).

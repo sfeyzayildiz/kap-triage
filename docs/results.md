@@ -75,7 +75,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Desk e-mails via n8n + local Mailpit | all 15 saved days, 43 items, 33 e-mails | lost 0, duplicated 0, wrong desk 0, amount leaks 0; median 0.2 s per day (bar 10 s) | **adopted** |
 | Relative periods (code phrase table) | 15 new + 205 earlier questions | exact period 10/10 (bar 9); false period 1/5 (bar 1); wrong fires 0/9 of 205 earlier (bar 2) | **adopted** |
 | Data-vendor auditor: which Matriks records disagree with the KAP text (`docs/vendor_audit_rule.md`) | M2: 641 unseen disclosures, all 14 flags + 14 random controls, labeled blind | strict precision **6/14 = 43%** (95% CI 18-71%, bar 50%); every flag a real difference (14/14 incl. 8 convention differences); controls 0/14 errors; M1 on gold sets B/C/D: 1 of 2 flags right, 1 of 9 Matriks errors caught | **AUDITOR_OFF** (report tool only) |
-| kap-kart: card from pasted public KAP text, no Matriks data (`docs/kap_kart_rule.md`) | synthetic checks + leak scan on 1,296 texts + 4 trap examples × 3 + visual check | copies identical, equivalence with the nightly path 26/26, sockets / raw tags / outside imports 0; leaks 0 in round 3 (rounds 1-2 found a real fragment in two self-tests); examples **12/12**, median 27.0 s per card (max 31.5 s) | **adopted** (private until Matriks replies) |
+| kap-kart: card from pasted public KAP text, no Matriks data (`docs/kap_kart_rule.md`) | synthetic checks + leak scan on 1,296 texts + 4 trap examples × 3 + visual check | copies identical, equivalence with the nightly path 26/26, sockets / raw tags / outside imports 0; leaks 0 in round 3 (rounds 1-2 found a real fragment in two self-tests); examples **12/12**, median 27.0 s per card (max 31.5 s) | **adopted** (Matriks agreed to publishing the code, 19 Nov) |
 | Scope guard v2 (word list or router `out_of_scope`) | 20 new + 185 earlier questions | blocked 10/10 out-of-scope (bar 9); false blocks 0/10 new, **29/185** earlier (bar 3), 1/14 correctly routed (bar 1); median 4.4 s | **off** |
 | Scope guard v3 (router untouched; separate yes/no judge only where a card or list would be shown) | 20 new + 185 earlier questions | out-of-scope without disclosure content 10/10 (blocked 6/10); false blocks 1/10 new, **28/185** earlier (bar 3), 1/14 correctly routed; median 3.2 s | **off** |
 
@@ -106,7 +106,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Dev (8 texts, 2 rounds) | dev | form reader v2 (currency from the same number in the text), prompt v2 (negotiation stage = none), guideline v0.2 | frozen before the held-out run |
 
 ## Speed and data
-- Extraction: median 14.6 s, p90 20.6 s per disclosure; every other stage 0.003 s; a busy day takes about 3 minutes overnight.
+- Extraction: median 14.6 s, p90 20.6 s per reading; live the nightly list reads every disclosure twice (Set D median 30.9 s for both); every other stage 0.003 s; a busy day (8 disclosures) takes about 4-6 minutes overnight (computed, not measured).
 - Abnormal price moves: 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before, so for most moves the agent says the cause may be elsewhere.
 
 ## Exploration (not a measurement)

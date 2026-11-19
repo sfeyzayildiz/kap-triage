@@ -18,8 +18,8 @@ flowchart TD
     DB[("DuckDB<br/>disclosures, new_business, daily_bars")]:::store
 
     LLM["1 Extraction (LLM)<br/>gemma4:e4b, prompt v3"]:::llm
-    CHK["2 Code checks, flag only<br/>needs_review: currency, projection, cumulative<br/>+ injection defence: Matriks 2x band, source-sentence judge (LLM)"]:::code
-    IMP["3 Importance score (code)<br/>size, FX, foreign, duration, related party"]:::code
+    CHK["2 Code checks, flag only<br/>needs_review: currency, projection, cumulative<br/>+ second reading: disagreement flag<br/>+ injection defence: Matriks 2x band, source-sentence judge (LLM)"]:::code
+    IMP["3 Importance score (code)<br/>size vs history / revenue, FX, long contract<br/>order: long contract, then amount"]:::code
     PM["4 Price reaction (code)<br/>abnormal return vs XU100"]:::code
     IDX["5 Similar earlier disclosures<br/>turkish-e5-large index"]:::code
 
@@ -66,7 +66,7 @@ flowchart LR
     SW --> B --> A
 ```
 
-The LLM only reads the question. It never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Two scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9) and an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
+The LLM only reads the question. It never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Three scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9), an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3) and a separate yes/no judge only where a card or list would be shown (28/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
 
 **MCP (`scripts/mcp_server.py`, `docs/mcp_v2_rule.md`):** the same tools are also an MCP server (official Python SDK, stdio only, read-only). Each MCP tool enters the graph like the guided form (intent preset), so the output is the measured tool's own text (exact 10/10, overhead 0.011 s). Clients are local only, because results hold licensed data: `mcp_client.py`, the official MCP Inspector for demos, and `mcp_agent.py`, where the local model chooses the tool itself (native tool calling). That free agent picked the right tool 12/16; the constrained router 14/16, so production keeps the router.
 
@@ -97,7 +97,8 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 | Search, + rerank (adopted) | recall@5 20/20, recall@1 17/20 (embedding 19/20, 15/20); +0.7 s per question | Set D questions (second use) |
 | Latency, extraction | median 14.6 s, p90 20.6 s, max 24.3 s per disclosure; 0 run errors | Set C run (100) |
 | Latency, all other stages | 0.0025 s per disclosure + 7.4 s index check once per run | demo day, 4 disclosures |
-| Busy day (8 disclosures) | about 3 min (computed from p90, not measured) | |
+| Live, two readings per disclosure | median 30.9 s per disclosure (both readings) | Set D (50) |
+| Busy day (8 disclosures) | about 4-6 min with two readings (computed from the median and p90, not measured) | |
 | Desk e-mails (n8n → Mailpit) | 43 items, 33 e-mails: 0 lost / dup / wrong desk / leaks; 0.2 s per day | all 15 saved days |
 | Relative periods | exact 10/10, false 1/5, wrong fires 0/9 of 205 earlier | 15 new questions |
 
@@ -119,7 +120,7 @@ A third type, stake acquisitions and sales (19 Nov, `docs/fdv_pilot_rule.md`), w
 
 ## Data-vendor auditor (18 Nov, report tool only)
 
-`scripts/vendor_audit.py` compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were Matriks errors by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand and its findings went into `docs/matriks_feedback.md`.
+`scripts/vendor_audit.py` compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were Matriks errors by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand and its findings went into the data-feedback note sent to Matriks.
 
 ## Not measured (stated as limits)
 

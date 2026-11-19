@@ -13,7 +13,7 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 
 ## Minutes 6-8: how it is built
 6. `docs/architecture.md` (Turkish summary: `docs/mimari_ozet.md`): nightly path, analyst tools, where the LLM is used and where code decides.
-7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). Every module has `--self-test`; CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake.
+7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). 89 of the 112 modules have a `--self-test` (the rest are early probes and one-off tools); CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake.
 
 ## Minutes 8-10: try it without our data
 8. `kap_kart/`: paste a public KAP "Yeni İş İlişkisi" text and get the same card the nightly job builds, on your own computer (`./kap_kart/run.sh`, needs Ollama). Four made-up trap examples included.
@@ -26,8 +26,8 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 - Running the full system needs a Matriks token; screens are shown in demo mode because the licence forbids showing vendor values.
 
 ## Submission checklist (for the author)
-- [ ] Repository access for the instructor: read-only collaborator on the private repo (licence: no public copy).
-- [ ] `README.md` and `docs/results.md` current (pilot 2 result added when scored).
+- [ ] Repository access for the instructor: link to the public copy (Matriks agreed 19 Nov; built by `docs/public_release.md` after the last commit).
+- [x] `README.md` and `docs/results.md` current (pilot 2 result added 19 Nov).
 - [ ] CI green on `main`.
 - [ ] Gist (`docs/mimari_ozet.md`) updated if the architecture text changed.
 - [ ] Tue 24 Nov morning: price pull (`price_collect.py --pull --yes`, then `--load`), then `forward_score.py --score` once; result into `docs/results.md`.

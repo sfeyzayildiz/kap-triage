@@ -1,6 +1,6 @@
 # Metrics cheat sheet (for questions from the instructor or a company)
 
-Every number here was measured with a rule written before the run, unless marked. "dev" = the set used to build or choose; "held-out" = never seen before the run. Updated 2026-11-12. All results on one page: `docs/results.md`.
+Every number here was measured with a rule written before the run, unless marked. "dev" = the set used to build or choose; "held-out" = never seen before the run. Updated 2026-11-19. All results on one page: `docs/results.md`.
 
 ## Search (RAG retrieval)
 Hit@k = recall@k = share of answerable questions whose correct disclosure is in the top k.
@@ -41,7 +41,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Layered defence (adopted): silent attacks **9 → 0** on 18 new texts (95% upper bound 15.3%), 3/200 extra flags on real texts.
 
 ## Generation (cited answers): tried, not adopted
-- Citations right 45/46 when shown; but 3 of 7 unanswerable questions answered (bar ≥ 5/7 stay silent). Median 3.4 s. Off.
+- Citations right 44/45 when shown (v1); but 3 of 7 unanswerable questions answered (bar ≥ 5/7 stay silent). Median 3.4 s. Off.
 
 ## Importance score vs. the analyst (blind, report only)
 - 10 unseen days, 49 disclosures, Feyza labeled blind, 47 within-day pairs. AUC score **0.681** (random p95 0.670, p 0.042), amount-only **0.681**, margin 0 → `AMOUNT_EXPLAINS`: better than chance, but sorting by amount does as well. Day's top pick: amount 7/10, score 3/10 (random 2.1). Level high: 9 of 11 were her picks, but it caught 9 of her 29.
@@ -76,7 +76,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Say: "kap-kart has only the source-sentence layer. On the sealed attacks that layer alone also reached 0/18, mostly through amount_not_in_text, but only on texts that had a Matriks record; texts without one are not measured."
 
 ## Speed
-- Extraction median 14.6 s per disclosure (p90 20.6 s); all other stages 0.003 s; busy day ~3 min overnight. Routing 3.2 s.
+- Extraction median 14.6 s per reading (p90 20.6 s); live the list reads each disclosure twice (Set D median 30.9 s for both); all other stages 0.003 s; busy day of 8 ~4-6 min overnight (computed). Routing 3.2 s.
 
 ## Data
 - ~1288 disclosures since 2024-10-31 (new-business data back to 2024-01), 1-2 new per day; 129 symbols with deals.

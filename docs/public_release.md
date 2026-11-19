@@ -1,6 +1,6 @@
 # Making the public copy (history kept, internal parts removed)
 
-The private repository stays the working copy (full history, internal notes, vendor-facing documents); the instructor gets read access to it. The public copy for GitHub / LinkedIn is built from it with `git filter-repo`, **only after Matriks agrees** (e-mail of 19 Nov).
+The private repository stays the working copy (full history, internal notes, vendor-facing documents). The public copy for GitHub / LinkedIn (and the link for the instructor) is built from it with `git filter-repo`. Matriks agreed on 19 Nov (reply in the same e-mail thread: described use with vendor values hidden is fine).
 
 ## What the rewrite does (every commit, not only the last one)
 - Removes three files from all commits: `CLAUDE.md` (the assistant's working rules, server details), `docs/matriks_feedback.md` and `docs/matriks_prototype.md` (written for the vendor).

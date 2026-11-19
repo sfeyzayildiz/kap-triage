@@ -9,7 +9,7 @@ Reviewing in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md). Day-b
 - **Solution:** every night a local LLM reads the day's disclosures (licensed Matriks data) and extracts the deal facts; code checks them and flags what is unclear instead of guessing; the analyst gets a ranked morning list (what to read first, why, which numbers to double-check, KAP link on every item), and each sector desk gets its part by e-mail at 07:30. A panel, a guided form and a chat agent answer follow-up questions from the database.
 - **Proof:** on 100 disclosures it had never seen, 1 wrong amount or currency went through without a warning (95% upper bound 4.7%); the best rule-based baseline let 25 through. A hidden instruction in the text changed the amount silently in 9 of 18 attacks; after the defence, in 0. Every decision rule was committed before its measurement, test sets were held out and scored once, and failures are published next to successes (`docs/results.md`, `docs/known_issues.md`).
 - **Run it:** the live system needs a Matriks token and runs on one laptop; data never leaves the machine, so there is no public demo link (`docs/docker.md` reproduces it with your own token). **Without any data:** [`kap_kart/`](kap_kart/) runs the same extraction code on a KAP text you paste, on your own computer (`./kap_kart/run.sh`, needs Ollama).
-- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker; 79 modules with self-tests, run in GitHub Actions on every pull request.
+- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker; 89 modules with self-tests, run in GitHub Actions on every pull request.
 - **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)). Built during the BTK Akademi AI workshop at Entertech İstanbul Teknokent, Oct-Nov 2026.
 
 | Morning list per desk | Guided form: company brief | Reliability page |
@@ -41,7 +41,7 @@ For each day's disclosures:
 1. **Extraction (local LLM).** Amount, currency, counterparty, duration, revision and related-party flags.
 2. **Code checks.** Rules flag contradictions (`needs_review`) instead of silently fixing them: unclear currency, projected amounts, cumulative totals.
 3. **Injection defence.** Disclosure text is external input. The extracted amount is cross-checked against Matriks' own record, and a one-sentence judge checks that the amount comes from a statement of fact, not from an instruction hidden in the text.
-4. **Importance score (code).** Size against the company's own earlier deals, plus foreign currency, foreign counterparty, contract length and related party. Every point comes with its reason.
+4. **Importance score (code).** Size against the company's own earlier deals and its annual revenue, plus foreign currency and contract length (points for foreign counterparty and related party were measured and switched off: the model misses those facts too often). The morning list is ordered by ordering v2 (long contract first, then amount). Every point comes with its reason.
 5. **Price reaction.** Return against XU100 on the first trading day the market could react.
 6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
 7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
@@ -67,7 +67,7 @@ An agent built with LangGraph answers questions such as "What should I look at t
 | Relative periods ("geçen hafta", "son 3 ay"), 15 new questions + 205 earlier | exact period 10/10; false period 1/5; wrong fires 0/9 | Adopted. Parsed by code from a fixed phrase table. |
 | Desk e-mails via n8n, all 15 saved days | 43 items, 33 e-mails: 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks; 0.2 s per day | Adopted. Measures the delivery, not whether the sector desk is the right recipient. |
 | kap-kart (card from pasted text, no Matriks data), 4 synthetic trap examples × 3 | 12/12 as expected; median 27 s per card (two readings + judge); leak scan 0 | Adopted. Same code as the nightly path (hash-checked); no Matriks cross-check: its injection defence is the source-sentence layer, which alone also stopped 18/18 sealed attacks, but only measured on texts with a Matriks record. |
-| Latency | median 14.6 s per disclosure (LLM); all other stages 0.003 s | A busy day takes about 3 minutes, overnight. |
+| Latency | one reading: median 14.6 s per disclosure (LLM); live, with the second reading: median 30.9 s (Set D); all other stages 0.003 s | A busy day (8 disclosures) takes about 4-6 minutes, overnight (computed, not measured). |
 | Abnormal price moves, 493 trading days | 92 of 1378 (6.7%) had a new-business disclosure in the 4 days before | So for most moves the agent says the cause may be elsewhere. |
 
 Decision rules are committed before each measurement (`docs/*_rule.md`), and results are recorded as they come out, including failures. Tried and not adopted, with numbers: text-pattern injection checks, the Matriks cross-check alone, BM25 / hybrid search, chunking, quantities on the card, a word-list scope guard (blocked 7 of 10 out-of-scope questions, bar 9), a router-based scope guard (blocked 10 of 10 but also 29 of 185 normal questions, bar 3), and LLM-written answers with citations (citations were right, but the model answered unanswerable questions). Every result on one page: `docs/results.md`.
@@ -107,7 +107,7 @@ Modules with a `--self-test` are run by `scripts/run_self_tests.py` (also in CI 
 ## Repository map
 | path | what is there |
 |---|---|
-| `scripts/` | All Python modules (flat folder; 79 of 102 have a `--self-test`, the rest are early probes and one-off tools). Grouped below. |
+| `scripts/` | All Python modules (flat folder; 89 of 112 have a `--self-test`, the rest are early probes and one-off tools). Grouped below. |
 | `kap_kart/` | Stand-alone card tool without Matriks data: hash-checked copies of the extraction code, paste page, four synthetic trap examples (`docs/kap_kart_rule.md`). |
 | `prompts/` | Extraction prompts. `extract_v3.txt` is live and frozen; `extract_ci_v1.txt` and `extract_fdv_v1/v2.txt` are the two pilots. |
 | `docs/` | Decision rules, results, architecture, runbook. Index: [`docs/README.md`](docs/README.md). |
@@ -120,15 +120,16 @@ Modules with a `--self-test` are run by `scripts/run_self_tests.py` (also in CI 
 | `data/` | Local only, never committed (licensed Matriks data, results). |
 
 **Scripts by role**
-- **Nightly path:** `daily_collect.py` (entry point) → `collector.py`, `pull_guard.py` → `morning_job.py` → `morning.py` → `pipeline.py` (`llm_extract.py`, `amount_checks.py`, `amount_checks_v2.py`, `currency_check.py`, `matriks_crosscheck.py`, `source_check.py`), `importance.py`, `price_moves.py`, `rag_index.py`, `forward_seal.py`. `deploy_check.py` checks the environment.
-- **Analyst tools:** `panel.py` (with `chat.py`, `form.py`, `themes.py`, `reliability.py`, `price_chart.py`), `agent.py` (`names.py`, `periods.py`), `mcp_server.py` / `mcp_client.py` / `mcp_agent.py`, `desk_mail.py`, `mail_mcp.py`.
-- **Data collection (Matriks, run by Feyza only):** `collector.py`, `price_collect.py`, `sector_collect.py`, `prod_refresh.py`, `capital_collect.py`; early probes `explore.py`, `kap_probe.py`.
+- **Nightly path:** `daily_collect.py` (entry point) → `collector.py` (`parse_form.py`), `pull_guard.py` → `morning_job.py` → `morning.py` → `pipeline.py` (`llm_extract.py`, `amount_checks.py`, `amount_checks_v2.py`, `currency_check.py`, `matriks_crosscheck.py`, `source_check.py`), `importance.py`, `price_moves.py`, `rag_index.py`, `forward_seal.py`. `deploy_check.py` checks the environment.
+- **Analyst tools:** `panel.py` (with `chat.py`, `form.py`, `themes.py`, `reliability.py`, `price_chart.py`, `demo_mode.py`), `agent.py` (`names.py`, `periods.py`), `mcp_server.py` / `mcp_client.py` / `mcp_agent.py`, `desk_mail.py`, `mail_mcp.py`.
+- **Data collection (Matriks, run by Feyza only):** `collector.py`, `price_collect.py`, `sector_collect.py`, `prod_refresh.py`, `capital_collect.py`, `fdv_collect.py`; early probes `explore.py`, `kap_probe.py`.
 - **Search index:** `build_docs.py`, `normalize.py`, `rag_index.py`, `clusters.py`.
-- **Labeling and sampling:** `label_set_b.py`, `label_capital.py`, `sample_*.py`, `check_gold_amounts.py`, `check_vat_rule.py`, `check_first20.py`.
-- **Evaluation and experiments:** `score_silent.py`, `score_adjudicated.py`, `evaluate.py`, `eval_*.py`, `*_eval.py`, `drift_check.py`, `repeat_check.py`, `revenue_check.py`, `importance_check.py`, `desk_route_check.py`, `tcmb_check.py`, `set_d.py`, `injection_test.py`, `injection_checks.py`, `regex_baseline.py`, `forward_score.py`, `capital_*.py`, `vendor_audit.py` (data-vendor auditor, report only), `kap_kart_check.py` and `kap_kart_leak_scan.py` (kap-kart copies and leak scan), `answer.py`, `build_chunks.py`, `latency.py`. Each one names its rule file in its first line.
+- **Labeling and sampling:** `label_set_b.py`, `label_capital.py`, `label_fdv.py`, `sample_*.py`, `write_questions.py`, `write_negatives.py`, `write_route_questions.py`, `check_gold_amounts.py`, `check_vat_rule.py`, `check_first20.py`.
+- **Evaluation and experiments:** `score_silent.py`, `score_adjudicated.py`, `evaluate.py`, `eval_*.py`, `*_eval.py`, `drift_check.py`, `repeat_check.py`, `revenue_check.py`, `importance_check.py`, `desk_route_check.py`, `tcmb_check.py`, `set_d.py`, `injection_test.py`, `injection_checks.py`, `regex_baseline.py`, `forward_score.py`, `capital_*.py`, `fdv_*.py`, `vendor_audit.py` (data-vendor auditor, report only), `kap_kart_check.py` and `kap_kart_leak_scan.py` (kap-kart copies and leak scan), `demo_leak_check.py` (demo mode), `quantities.py` (card quantities, off), `answer.py`, `build_chunks.py`, `latency.py`, `check_currency_unclear.py`. Each one names its rule file in its first line.
+- **Tests and tooling:** `run_self_tests.py` (all self-tests, also in CI), `e2e_check.py` (the real nightly chain on made-up disclosures, fake model), `make_timeline.py` (`docs/timeline.md` from git), `demo_candidates.py` (demo days outside all evaluation sets), `demo_video.py` (scripted demo recording, demo mode).
 - **One-off data profiles (counts only):** `corpus_stats.py`, `text_artifacts.py`, `unmatched_*.py`, `baseline.py`, `show_case.py`.
 
-Three evaluation modules are also imported by the live path: `pipeline.py` uses `norm_cur` from `eval_vs_matriks.py`, `agent.py` uses `word_date` from `route_eval.py`, and `importance.py` imports `tcmb_check.py` (its rate fill is switched off, `TCMB_FILL=False`). Moving the experiment scripts into their own folder (planned after the forward test, 26 Nov) has to move these helpers first.
+Three evaluation modules are also imported by the live path: `pipeline.py` uses `norm_cur` from `eval_vs_matriks.py`, `agent.py` uses `word_date` from `route_eval.py`, and `importance.py` imports `tcmb_check.py` (its rate fill is switched off, `TCMB_FILL=False`). The experiment scripts were not moved into their own folder before the submission; a later move would have to move these helpers first.
 
 ## Data and privacy
 - Data comes from the Matriks API (new-business data, KAP disclosure texts, daily bars), used with Matriks' permission. Raw data stays in `data/` and is never committed.

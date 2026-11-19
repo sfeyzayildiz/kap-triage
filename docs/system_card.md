@@ -1,6 +1,6 @@
 # System card: KAP Bildirim Önceliklendirme Asistanı
 
-One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-16 (limits line on the score fields updated; the rest as of 2026-11-12). Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
+One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-19. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
 
 ## Purpose
 Morning triage of KAP "Yeni İş İlişkisi" (new business relationship) disclosures for a brokerage equity analyst: which ones to read first, why, and how reliable the extracted facts are. Every item carries its KAP link.
@@ -26,11 +26,11 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 | Agent routing with company names, 20 questions | intended link in the top 5: 18/20 |
 | Relative periods ("geçen hafta", "son 3 ay"), 15 new questions | exact 10/10; false period 1/5; wrong fires 0/9 on 205 earlier questions |
 | Desk e-mails (n8n, local mail), all 15 saved days | 43 items: 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks |
-| Speed | extraction about 15 s per disclosure; everything else under 0.01 s; a company brief about 18 s |
+| Speed | extraction about 15 s per reading, about 31 s per disclosure in the nightly list (two readings); everything else under 0.01 s; a company brief about 18 s |
 
 ## Known limits (say them first)
 - Fields other than amount and currency were measured once on 50 Set C texts (13 Nov): long contract 3/50 errors (kept), foreign counterparty 7/50 and related party 5/50 (both switched off in the score).
-- One person labeled the gold data and wrote most questions; no second-rater agreement yet.
+- One person labeled the gold data and wrote most questions; no second rater (planned, cancelled), so no agreement number.
 - Small test sets, wide bounds. Single disclosure type in production; two more types were piloted once each and not adopted: capital increases (18 Nov: 0/30 silent, 16/30 flagged) and stake acquisitions and sales (19 Nov: 2/30 silent, 6/30 flagged). The data-vendor auditor (Matriks record vs. KAP text) reached 6/14 strict precision, below its 50% bar, so it is a hand-run report tool, not part of the nightly path. Nightly, not real time.
 - The chat cannot always say "the data cannot answer this"; an out-of-scope question with a company name can get an unrelated card (the guided form avoids it; three scope guards failed their bars).
 - Desk = Matriks sector; whether that desk is the right recipient is not measured.
