@@ -1,6 +1,8 @@
-# KAP Bildirim Önceliklendirme Asistanı
+# KAP Disclosure Triage Assistant
 
-(KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts. It helps them follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul.
+A morning triage assistant for equity analysts. It helps them follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul.
+
+Turkish name: **KAP Bildirim Önceliklendirme Asistanı**. The user interface is in Turkish because the users are Turkish equity analysts.
 
 > This is a research prototype, not investment advice. It shows which disclosures to read first and how sure it is about each one. It does not predict prices or recommend trades.
 

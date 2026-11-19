@@ -1,4 +1,4 @@
-# System card: KAP Bildirim Önceliklendirme Asistanı
+# System card: KAP Disclosure Triage Assistant (KAP Bildirim Önceliklendirme Asistanı)
 
 One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-19. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
 
