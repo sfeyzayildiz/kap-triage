@@ -5,6 +5,7 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 ## Start here
 | file | what it is |
 |---|---|
+| [timeline.md](timeline.md) | Day-by-day development log, generated from the git history (`scripts/make_timeline.py`). |
 | [for_reviewers.md](for_reviewers.md) | A 10-minute review path for a grader or company reviewer, and what is not claimed. |
 | [results.md](results.md) | Every measured result on one page, adopted and not adopted. |
 | [architecture.md](architecture.md) | How the system is built: nightly path, agent, panel, MCP, n8n (diagrams). |

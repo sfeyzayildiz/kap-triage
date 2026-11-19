@@ -94,6 +94,7 @@ TESTS={
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
     'e2e_check':'--self-test',
+    'make_timeline':'--self-test',
     'fdv_collect':'--self-test',
     'sample_fdv':'--self-test',
     'label_fdv':'--self-test',

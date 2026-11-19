@@ -2,7 +2,7 @@
 
 (KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts who follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, Borsa İstanbul's public disclosure platform.
 
-Reviewing in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md).
+Reviewing in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md). Day-by-day development log (generated from git): [`docs/timeline.md`](docs/timeline.md).
 
 ## In 30 seconds
 - **Problem:** an analyst sees several "Yeni İş İlişkisi" disclosures every day and has to decide which ones matter: is the deal big for this company, in foreign currency, multi-year, real new business? Reading them by hand is slow, and the traps are real: TL/USD confusion, a revision read as a new order, a one-year revenue estimate read as the contract value.
@@ -109,7 +109,7 @@ Modules with a `--self-test` are run by `scripts/run_self_tests.py` (also in CI 
 |---|---|
 | `scripts/` | All Python modules (flat folder; 79 of 102 have a `--self-test`, the rest are early probes and one-off tools). Grouped below. |
 | `kap_kart/` | Stand-alone card tool without Matriks data: hash-checked copies of the extraction code, paste page, four synthetic trap examples (`docs/kap_kart_rule.md`). |
-| `prompts/` | Extraction prompts. `extract_v3.txt` is live and frozen; `extract_ci_v1.txt` is the capital-increase pilot. |
+| `prompts/` | Extraction prompts. `extract_v3.txt` is live and frozen; `extract_ci_v1.txt` and `extract_fdv_v1/v2.txt` are the two pilots. |
 | `docs/` | Decision rules, results, architecture, runbook. Index: [`docs/README.md`](docs/README.md). |
 | `deploy/` | launchd job for the nightly run (23:43). |
 | `n8n/` | Desk e-mail workflow and the local Mailpit credential (no secrets). |

@@ -115,6 +115,8 @@ The same method on a form-based type, measured once on 30 held-out disclosures (
 
 Decision by the pre-written rule: not adopted (too many flags); the LLM adds value as a cross-check. On free text ("Yeni İş İlişkisi") the LLM is the extractor; on a structured form, code reads and the LLM checks. Nothing of this pilot is on the nightly path.
 
+A third type, stake acquisitions and sales (19 Nov, `docs/fdv_pilot_rule.md`), was pulled by the documented `headline` news filter (no tag exists) and measured the same way: C 2/30 silent (bar 1), 6/30 flagged; F 4/30 and L 4/30 on different texts, so combining them halves the errors (`LLM_ADDS`). Both remaining errors are texts where F and L agree on the same wrong value: companies sometimes fill the KAP form wrong, and a disagreement check cannot see an error both readers share.
+
 ## Data-vendor auditor (18 Nov, report tool only)
 
 `scripts/vendor_audit.py` compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were Matriks errors by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand and its findings went into `docs/matriks_feedback.md`.
