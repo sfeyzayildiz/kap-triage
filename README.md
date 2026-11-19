@@ -27,7 +27,7 @@ An analyst sees several of these disclosures every day and has to decide which o
 
 Doing this by hand is slow and error-prone. Our error analysis found TL/USD confusion, revisions read as new orders, and projections read as contract values.
 
-**Why not just use the vendor's structured record?** Matriks' `new_business` record is good where it exists (~92% agreement with our extraction on held-out Set C), but 1 in 6 disclosures (205 of 1,269) has no record, it carries no revision, related-party, duration or counterparty field, and it never says when it is unsure; our blind gold sets contain 9 vendor errors. The system reads every text, shows the sentence each number comes from and flags what needs a person; the vendor record stays as a second opinion. Details: `docs/results.md`, first section.
+**Why not just use the vendor's structured record?** Matriks' `new_business` record is good where it exists (~92% agreement with our extraction on held-out Set C), but 1 in 6 disclosures (205 of 1,269) has no record, it carries no revision, related-party, duration or counterparty field, and it never says when it is unsure; in our blind gold sets the record differs from the KAP text in 9 cases (details offered to Matriks privately). The system reads every text, shows the sentence each number comes from and flags what needs a person; the vendor record stays as a second opinion. Details: `docs/results.md`, first section.
 
 ## The system in three layers
 | Layer | What | Status |
@@ -137,7 +137,7 @@ Three evaluation modules are also imported by the live path: `pipeline.py` uses 
 
 ## Limits
 - Scope is only "Yeni İş İlişkisi" disclosures. Two more types were tested once each as pilots, by the same method in one day each, and neither passed its pre-written bar: capital increases (18 Nov: 0/30 silent errors but 16/30 flagged, `docs/capital_increase_rule.md`) and stake acquisitions and sales (19 Nov: 2/30 silent with 6/30 flagged; both errors were cases where the form reader and the LLM agreed on the same wrong value, `docs/fdv_pilot_rule.md`). In both, the LLM added value as a cross-check of a code form reader.
-- A data-vendor auditor (which Matriks records disagree with the KAP text) was measured once on 18 Nov: 6 of 14 flagged records were real Matriks errors (43%, bar 50%), so it stays a report tool, not a nightly feature (`docs/vendor_audit_rule.md`).
+- A data-vendor auditor (which Matriks records disagree with the KAP text) was measured once on 18 Nov: 6 of the 14 flagged records were record-text mismatches by the strict definition (43%, bar 50%; the rest were convention differences such as VAT or the TL equivalent), so it stays a report tool, not a nightly feature (`docs/vendor_audit_rule.md`). The details are for Matriks, not for this page.
 - Prices are unadjusted. Moves above 22% are treated as possible splits or bonus issues and not explained.
 - The revenue ratio uses Matriks prod revenue (balance sheet chosen by Matriks); its data-quality gates passed (`docs/revenue_ratio_rule.md`), its weights are judgment.
 - The money regex of the code checks did not read "ABD Doları" (10 of 81 Set B amounts). Closed on 15 Nov by `amount_checks_v2.py`; no flag changed on any measured set, so no effect was observed. Other spellings ("US Doları") are still not read.

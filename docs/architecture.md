@@ -120,7 +120,7 @@ A third type, stake acquisitions and sales (19 Nov, `docs/fdv_pilot_rule.md`), w
 
 ## Data-vendor auditor (18 Nov, report tool only)
 
-`scripts/vendor_audit.py` compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were Matriks errors by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand and its findings went into the data-feedback note sent to Matriks.
+`scripts/vendor_audit.py` compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were record-text mismatches by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand, and its findings are offered to Matriks privately.
 
 ## Not measured (stated as limits)
 

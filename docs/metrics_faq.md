@@ -64,9 +64,9 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Two pilots, one method, one day each: capital increase 0/30 silent but 16/30 flagged; stake deals 2/30 silent with 6/30 flagged. Neither passed its pre-written bar; both answered "LLM or not" the same way (the LLM adds as a cross-check).
 
 ## Data-vendor auditor: is a Matriks record wrong? (18 Nov, rule first, not adopted)
-- 641 unseen disclosures, 14 records flagged (2.2%). Blind check of all 14 + 14 random controls: **6/14 real Matriks errors** (3 pre-revision amounts, 2 wrong currency, 1 wrong scale), 8 convention differences (VAT, TL equivalent, share), 0 consistent. Strict precision 43% (95% CI 18-71%) < bar 50% → **AUDITOR_OFF**.
+- 641 unseen disclosures, 14 records flagged (2.2%). Blind check of all 14 + 14 random controls: **6/14 record-text mismatches** by the strict definition (details offered to Matriks privately), 8 convention differences (VAT, TL equivalent, share), 0 consistent. Strict precision 43% (95% CI 18-71%) < bar 50% → **AUDITOR_OFF**.
 - Random controls: 0/14 errors, so the list is far richer than random, but the bar was "one real error per two candidates" and it missed.
-- Recall is low by design: records where our own checks are unsure are not audited (M1 on the gold sets: 1 of 9 Matriks errors caught; the other 8 were in texts we also flag).
+- Recall is low by design: records where our own checks are unsure are not audited (M1 on the gold sets: 1 of 9 record-text mismatches caught; the other 8 were in texts we also flag).
 - Say: "we measured it, it missed its pre-written bar, so it is a report tool, not a nightly feature."
 
 ## kap-kart: can anyone try it without your data? (19 Nov, rule first, adopted)
