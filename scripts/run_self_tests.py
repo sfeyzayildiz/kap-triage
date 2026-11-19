@@ -96,6 +96,10 @@ TESTS={
     'fdv_collect':'--self-test',
     'sample_fdv':'--self-test',
     'label_fdv':'--self-test',
+    'fdv_form':'--self-test',
+    'fdv_checks':'--self-test',
+    'fdv_extract':'--self-test',
+    'fdv_score':'--self-test',
     'kap_kart_check':'--self-test',
     'kap_kart_leak_scan':'--self-test',
 }

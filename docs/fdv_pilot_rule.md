@@ -59,6 +59,12 @@ No held-out text goes through any reader before step 6. No scoring while a run i
 - **Pull moved to today, Thu 19 Nov, daytime** (submission deadline Tue 24 Nov; Sat is a class day). Forward test: Note 6 of `docs/forward_test_rule.md` (no seal for 19 Nov; 21 Nov sealed again).
 - **Window 2026-08-01 to 2026-11-18** (the day before the pull); fallback start 2026-05-01 unchanged. Nothing else changes: seed, draw, sizes, systems, measures and decision lines as written above.
 
+## Note 2 (2026-11-19 ~16:00, after the pull and the counts-only profile, before any label or reader run)
+- Pull (Feyza, 19 Nov, query 0 worked): returned 107, kept 101, dropped by the headline filter 0, 6 outside their month; **72 symbols**, no fallback. 38 sale headlines, 63 acquisition forms. Sample written (8 dev + 30 held-out, 38 symbols).
+- Profile (counts and KAP template labels only, labels seen in more than 10 disclosures): every disclosure is a two-cell form with the same template; all 101 have "Toplam Tutar", the related-party question (answers "Evet (Yes)" 31, "Hayır (No)" 70) and a free-text "Açıklamalar"; acquisition forms (63) and sale forms (38) have their own label sets (target name, stake in this transaction, stake after). Value shapes of "Toplam Tutar" (digits masked): mostly a number with TL / USD / EUR / "ABD Doları", 10 are "-", about 12 are a number without a currency. Text length median 3,602, p90 5,249, max 11,114 characters; 4 above 8,000.
+- **Readers v1, written from this profile and synthetic rows only** (no text read): `scripts/fdv_form.py` (F reads the template labels; several numbers in a cell → `form_multi_value`, unreadable → `form_unreadable_*`, neither or both directions → `form_direction_unclear`), `prompts/extract_fdv_v1.txt` (L), `scripts/fdv_checks.py` (checks `amount_not_in_text`, `currency_missing`, `stake_out_of_range`, `stake_inconsistent`, `long_text`; C as in the rule), `scripts/fdv_extract.py`, `scripts/fdv_score.py`. **`long_text` = 8,000 characters**, the capital pilot's budget (same `num_ctx`, similar prompt length).
+- A form-heavy type makes F a strong competitor here; that is what the LLM-or-not lines measure.
+
 ## Honest limits
 - 30 records bound little (0/30 → upper 9.5%; 1/30 → 14.9%). The headline reliability numbers stay those of "Yeni İş İlişkisi".
 - One labeler; guideline written blind and adjusted on 8 dev texts; readers written in a day by the same person.
