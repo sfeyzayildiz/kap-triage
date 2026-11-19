@@ -21,7 +21,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 - **Labels and questions.** All gold labels, blind choices and evaluation questions are by one person (Feyza, the author), not by an external analyst; no LLM produced any gold label. Retrieval questions were written by her with the disclosure in view, which favours lexical overlap. No second annotator (cancelled) and no inter-annotator agreement.
 - **Injection batches.** Each defence was measured on its own sealed batch of Set C texts that have a Matriks record (78 of 100): no defence on texts 1-20, text patterns on 21-40, Matriks cross-check on 41-60, the layered defence on **61-78, hence 18**. No case was dropped. On 61-78 each layer alone also reached 0/18 (the source-sentence layer mostly through `amount_not_in_text`); on texts without a Matriks record only the source-sentence layer exists, and that case is not measured.
 - **Embeddings.** Three embedding models were compared on 66 dev questions by a pre-written rule before `turkish-e5-large` was chosen (Search table below); BM25, hybrid, chunking and rerank depth were tested against it.
-- **Model versions.** `gemma4:e4b` via Ollama (thinking on, temperature 0); `ytu-ce-cosmos/turkish-e5-large` at revision `02e2362d503bbdeafcb17143b2165c0743f9fdb1`; `BAAI/bge-reranker-v2-m3` at `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`.
+- **Model versions.** `gemma4:e4b` via Ollama, ID `eb2177adf764`, 9.5 GB (thinking on, temperature 0); `ytu-ce-cosmos/turkish-e5-large` at revision `02e2362d503bbdeafcb17143b2165c0743f9fdb1`; `BAAI/bge-reranker-v2-m3` at `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`.
 
 ## Extraction (the core)
 | what | set | result | decision |
