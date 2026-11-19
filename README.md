@@ -1,22 +1,49 @@
 # KAP Bildirim Önceliklendirme Asistanı
 
-(KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts who follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, Borsa İstanbul's public disclosure platform.
+(KAP disclosure prioritisation assistant.) A morning triage assistant for equity analysts. It helps them follow "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul.
+
+> This is a research prototype, not investment advice. It shows which disclosures to read first and how sure it is about each one. It does not predict prices or recommend trades.
 
 Reviewing in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md). Day-by-day development log (generated from git): [`docs/timeline.md`](docs/timeline.md).
 
 ## In 30 seconds
-- **Problem:** an analyst sees several "Yeni İş İlişkisi" disclosures every day and has to decide which ones matter: is the deal big for this company, in foreign currency, multi-year, real new business? Reading them by hand is slow, and the traps are real: TL/USD confusion, a revision read as a new order, a one-year revenue estimate read as the contract value.
-- **Solution:** every night a local LLM reads the day's disclosures (licensed Matriks data) and extracts the deal facts; code checks them and flags what is unclear instead of guessing; the analyst gets a ranked morning list (what to read first, why, which numbers to double-check, KAP link on every item), and each sector desk gets its part by e-mail at 07:30. A panel, a guided form and a chat agent answer follow-up questions from the database.
-- **Proof:** on 100 disclosures it had never seen, 1 wrong amount or currency went through without a warning (95% upper bound 4.7%); the best rule-based baseline let 25 through. A hidden instruction in the text changed the amount silently in 9 of 18 attacks; after the defence, in 0. Every decision rule was committed before its measurement, test sets were held out and scored once, and failures are published next to successes (`docs/results.md`, `docs/known_issues.md`).
-- **Run it:** the live system needs a Matriks token and runs on one laptop; data never leaves the machine, so there is no public demo link (`docs/docker.md` reproduces it with your own token). **Without any data:** [`kap_kart/`](kap_kart/) runs the same extraction code on a KAP text you paste, on your own computer (`./kap_kart/run.sh`, needs Ollama).
-- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker; 90 modules with self-tests, run in GitHub Actions on every pull request.
+- **Problem:** An analyst sees several "Yeni İş İlişkisi" disclosures every day and must decide which ones matter. Is the deal big for this company? Is it in foreign currency, or for several years? Is it really new business? Reading every text by hand is slow, and there are real traps: TL and USD get mixed up, a revision looks like a new order, and a one-year revenue estimate looks like the contract value.
+- **Solution:** Every night a local LLM reads the day's disclosures (licensed Matriks data) and extracts the deal facts. Code checks these facts. When something is unclear, the code flags it instead of guessing. In the morning the analyst gets a ranked list: what to read first, why, and which numbers to double-check, with a KAP link on every item. Each sector desk also gets its part by e-mail at 07:30. A panel, a guided form and a chat agent answer follow-up questions from the database.
+- **Proof:** On 100 disclosures that the system had never seen, only 1 wrong amount or currency passed without a warning (95% upper bound: 4.7%). The best rule-based baseline let 25 pass. In a test with hidden instructions in the text, 9 of 18 attacks changed the amount without a warning; with the defence, 0 did. Every decision rule was committed before its measurement. Test sets were held out and scored only once. Failures are published next to successes (`docs/results.md`, `docs/known_issues.md`).
+- **Run it:** The live system needs a Matriks token and runs on one laptop. Data never leaves the machine, so there is no public demo link. `docs/docker.md` shows how to run it with your own token. **Without any data:** [`kap_kart/`](kap_kart/) runs the same extraction code on a KAP text that you paste, on your own computer (`./kap_kart/run.sh`, needs Ollama).
+- **Stack:** Python, Ollama (`gemma4:e4b`), pydantic, LangGraph, sentence-transformers + cross-encoder reranker, DuckDB, MCP, n8n, Docker. 90 modules have self-tests, and GitHub Actions runs them on every pull request.
 - **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)). Built during the BTK Akademi AI workshop at Entertech İstanbul Teknokent, Oct-Nov 2026.
 
 | Morning list per desk | Guided form: company brief | Reliability page |
 |---|---|---|
 | ![Day page in demo mode](docs/img/day_demo.png) | ![Company brief in demo mode](docs/img/brief_demo.png) | ![Reliability page](docs/img/reliability.png) |
 
-Screens in demo mode: values licensed from Matriks (revenue ratio, FX rate, sector names, prices) are replaced by "Matriks verisi, lisans gereği gizli"; what is shown comes from the public KAP text (`docs/demo_mode_rule.md`).
+The screens are in demo mode. Values licensed from Matriks (revenue ratio, FX rate, sector names, prices) are shown as `[gizli]`, and a banner explains why ("Matriks verisi, lisans gereği gizli"). Everything else on the screen comes from the public KAP text (`docs/demo_mode_rule.md`).
+
+## How it works
+**The LLM reads text; code decides.** The model has only two jobs: it extracts facts from the disclosure text, and it reads the analyst's question. Everything else is code: checks, scores, ordering and routing. Every number and KAP link that the analyst sees comes from code and the database. When the code finds a contradiction, it flags it; it does not fix it.
+
+```mermaid
+flowchart LR
+    classDef llm fill:#8250df,stroke:#8250df,color:#ffffff
+    classDef code fill:#2d333b,stroke:#768390,color:#ffffff
+    classDef store fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    classDef out fill:#1a7f37,stroke:#1a7f37,color:#ffffff
+
+    M["Matriks API<br/>nightly 23:43, one pull per day"]:::code --> DB[("DuckDB<br/>disclosures, records, prices")]:::store
+    DB --> X["Extraction<br/>local LLM gemma4:e4b<br/>every text read twice"]:::llm
+    X --> K["Code checks + injection defence<br/>flag (KONTROL ET), never fix"]:::code
+    K --> S["Importance, order,<br/>price reaction (code)"]:::code
+    S --> L["Morning list<br/>reasons + KAP link per item"]:::out
+    L --> P["Desk panel and guided form"]:::out
+    L --> E["n8n: one e-mail per sector desk"]:::out
+    Q(["Analyst question"]):::out --> A["LangGraph agent<br/>LLM picks the tool only"]:::llm
+    A --> T["Tools (code): day list, company history, why it moved,<br/>search (e5-large + reranker), company brief"]:::code
+    DB --> T
+    T --> ANS(["Answer: numbers and links from the database"]):::out
+```
+
+Purple = LLM, grey = code, blue = data, green = what the analyst sees. Everything runs on one machine with local models. The same tools are also available as an MCP server for local clients. More diagrams, and where the LLM is used and why: [`docs/architecture.md`](docs/architecture.md).
 
 ## The problem
 An analyst sees several of these disclosures every day and has to decide which ones matter:
@@ -27,7 +54,7 @@ An analyst sees several of these disclosures every day and has to decide which o
 
 Doing this by hand is slow and error-prone. Our error analysis found TL/USD confusion, revisions read as new orders, and projections read as contract values.
 
-**Why not just use the vendor's structured record?** Matriks' `new_business` record is good where it exists (~92% agreement with our extraction on held-out Set C), but 1 in 6 disclosures (205 of 1,269) has no record, it carries no revision, related-party, duration or counterparty field, and it never says when it is unsure; in our blind gold sets the record differs from the KAP text in 9 cases (details offered to Matriks privately). The system reads every text, shows the sentence each number comes from and flags what needs a person; the vendor record stays as a second opinion. Details: `docs/results.md`, first section.
+**Why not just use the vendor's structured record?** Matriks' `new_business` record is good where it exists: it agrees with our extraction in about 92% of the cases on held-out Set C. But 1 in 6 disclosures (205 of 1,269) has no record. The record also has no field for revision, related party, duration or counterparty, and it never says when it is unsure. In our blind gold sets, the record differs from the KAP text in 9 cases (details offered to Matriks privately). Our system reads every text, shows the sentence that each number comes from, and flags what needs a person. The vendor record stays as a second opinion. Details: the first section of `docs/results.md`.
 
 ## The system in three layers
 | Layer | What | Status |
@@ -58,7 +85,7 @@ An agent built with LangGraph answers questions such as "What should I look at t
 | MCP server (agent tools over the Model Context Protocol, stdio, read-only) | transport exact 10/10, overhead 0.011 s; a free tool-calling agent picked the right tool 12/16, our constrained router 14/16 | Adopted. Local clients only (results hold licensed data). |
 | Retrieval, `turkish-e5-large`, held-out Set C questions (48) | recall@5 0.875, recall@1 0.667 | Model chosen on 66 dev questions by a pre-written rule. |
 | + cross-encoder rerank (`bge-reranker-v2-m3`), 20 hand-written questions | top 5: 20/20, top 1: 17/20 (was 15/20) | Adopted. BM25 and hybrid search were tried and rejected by their bars. |
-| Amount injection attack, 18 new texts, sealed attack wording | silent successes 9 → **0** with the layered defence; 3/200 extra flags on real texts | Adopted. Two weaker defences were rejected by their bars. |
+| Amount injection attack, 18 new texts, sealed attack wording | silent successes 9 → **0** with the layered defence; 3/200 extra flags on real texts | Adopted. Two single defences missed their bars: text patterns, and the Matriks cross-check alone. In the adopted defence, the Matriks cross-check is one of the two layers; on these 18 attacks, each layer alone also reached 0. |
 | Without an LLM, same Set C | best regex 25 silent errors out of 100 | So the LLM is needed where the text is free Turkish. |
 | Agent routing with company names (router v2), 20 questions | intended link in the top 5: 18/20 (was 11/20) | Company brief flow: 9/10 routed, 10/10 right ticker, median 18.5 s. |
 | Importance score vs. the author's blind choice (Feyza, not an external analyst), 10 unseen days | AUC 0.681, same as sorting by amount | Better than chance, but the extra components did not show added value. |
@@ -134,6 +161,7 @@ Three evaluation modules are also imported by the live path: `pipeline.py` uses 
 ## Data and privacy
 - Data comes from the Matriks API (new-business data, KAP disclosure texts, daily bars), used with Matriks' permission. Raw data stays in `data/` and is never committed.
 - All models run locally (Ollama, sentence-transformers). No disclosure text or result is sent to an external service. n8n and Mailpit run locally with telemetry and update checks switched off; desk e-mails carry no amounts.
+- **License:** the code is MIT ([`LICENSE`](LICENSE)). The license covers the code, not data. Matriks data is licensed and is not in this repository. A few self-tests contain short fragments of public KAP disclosure texts.
 
 ## Limits
 - Scope is only "Yeni İş İlişkisi" disclosures. Two more types were tested once each as pilots, by the same method in one day each, and neither passed its pre-written bar: capital increases (18 Nov: 0/30 silent errors but 16/30 flagged, `docs/capital_increase_rule.md`) and stake acquisitions and sales (19 Nov: 2/30 silent with 6/30 flagged; both errors were cases where the form reader and the LLM agreed on the same wrong value, `docs/fdv_pilot_rule.md`). In both, the LLM added value as a cross-check of a code form reader.
