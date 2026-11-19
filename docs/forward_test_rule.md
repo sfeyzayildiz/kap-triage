@@ -19,6 +19,9 @@ Date: 2026-11-14 (22:30). Every earlier measurement used past data. This one is 
 ## Limits (said in the presentation)
 About 8 trading days and perhaps 10-30 disclosures: a signal, not proof. Direction is not predicted (the list says "look", not "buy"). Prices are unadjusted. The list ranks attention, so `NOT_SUPPORTED` is a valid, reportable result.
 
+## Note 6 (2026-11-19 15:10, before the pull and before any outcome exists; replaces Note 5)
+The second pilot pull moves from Sat 21 Nov to **today, Thu 19 Nov, daytime**: the project submission deadline moved to Tue 24 Nov (instructor, 19 Nov), and Sat 21 Nov is a class day. The nightly job skips tonight under the one-pull-per-day guard, so **no list is sealed for 19 Nov** (the next night's lookback collects it, unsealed); 21 Nov is sealed again. Cost, stated before: one weekday with real items. Sealed days: **15-16, 20-25 Nov** (weekdays 16, 20, 23, 24, 25). Nothing else changes.
+
 ## Note 5 (2026-11-19 02:30, before the pull and before any outcome exists)
 A second pilot pull (`docs/fdv_pilot_rule.md`) runs on **Saturday 21 Nov 2026** daytime. The nightly job skips that night under the one-pull-per-day guard, so **no list is sealed for 21 Nov**; a disclosure of that day is outside this test (the next night's lookback collects it, unsealed). Chosen over a weekday on purpose: a Saturday list is most likely empty. Sealed days: **15-16, 19-20 and 22-25 Nov**. Nothing else changes.
 

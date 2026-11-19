@@ -55,6 +55,10 @@ No held-out text goes through any reader before step 6. No scoring while a run i
 ## What adoption means
 `ADOPT_PILOT` allows a clearly labeled pilot line in the talk ("30 kayıtla ölçüldü"). It does not put this type into the morning list, the score, search or desk e-mails. Nothing on the nightly path changes before 26 Nov, whatever the result.
 
+## Note 1 (2026-11-19 15:10, Feyza's choice; before any pull, sample or label)
+- **Pull moved to today, Thu 19 Nov, daytime** (submission deadline Tue 24 Nov; Sat is a class day). Forward test: Note 6 of `docs/forward_test_rule.md` (no seal for 19 Nov; 21 Nov sealed again).
+- **Window 2026-08-01 to 2026-11-18** (the day before the pull); fallback start 2026-05-01 unchanged. Nothing else changes: seed, draw, sizes, systems, measures and decision lines as written above.
+
 ## Honest limits
 - 30 records bound little (0/30 → upper 9.5%; 1/30 → 14.9%). The headline reliability numbers stay those of "Yeni İş İlişkisi".
 - One labeler; guideline written blind and adjusted on 8 dev texts; readers written in a day by the same person.
