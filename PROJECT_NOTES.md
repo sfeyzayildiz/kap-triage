@@ -1,4 +1,19 @@
 # Project Notes (Matriks Rules)
+
+> **Reading this log.** It is a development diary: sections were added where they belonged, not strictly in date order. For results use `docs/results.md`; for limits `docs/known_issues.md`; for a 10-minute review `docs/for_reviewers.md`. Key decisions, in date order:
+> | Date | Decision (section below) |
+> |---|---|
+> | 28 Oct | Set A error analysis; extraction v3 frozen ("Set A error analysis", "Extraction v3 results") |
+> | 29 Oct | Set B held-out: 4/100 silent → FAIL; code checks designed from its errors ("Set B", "Decision on the currency_unclear code check") |
+> | 31 Oct | Embedding model chosen by a pre-written rule ("Retrieval evaluation setup") |
+> | 2 Nov | Importance score v1, morning list, LangGraph agent ("Importance score v1", "Triage agent") |
+> | 8 Nov | Set C held-out: 1/100 silent → PASS; latency; rerank adopted ("Set C result", "Latency", "Cross-encoder rerank") |
+> | 9 Nov | Prompt-injection defence: two rejected, layered adopted ("Prompt-injection test") |
+> | 10-13 Nov | Router v2, brief, guided form, ordering v2, n8n e-mails, relative periods; scope guard v1/v2 off |
+> | 14-15 Nov | MCP v2 adopted; sealed forward test started; Set D: two-run flag adopted |
+> | 16-18 Nov | Capital-increase pilot (not adopted, LLM_ADDS); data-vendor auditor off; demo mode adopted |
+> | 19 Nov | kap-kart adopted; scope guard v3 off; new deadlines (submission 24 Nov); stake-acquisition pilot; independent review fixes |
+
 - Maximum 1 request per second (1 req/sec) to the API.
 - Raw data must never be uploaded to GitHub.
 - Matriks must be mentioned as the data source in the project presentation.
