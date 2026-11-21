@@ -58,5 +58,16 @@ Written 2026-11-12 after a review of the whole project (PROJECT_NOTES.md, docs/r
 | D4 | One annotator; questions written with the text in view; the "blind choice" is the author's. | **Stated** in `docs/results.md`; wording "analyst's blind choice" corrected to "the author's blind choice" everywhere it was a claim. |
 | D5 | Local web pages and secrets. | **Checked 19 Nov:** panel and kap-kart bind to 127.0.0.1; pasted / KAP text is HTML-escaped (self-tests); full git history has 0 committed `data/` files, 0 `.env`, 0 token-like strings. |
 
+## E. Architecture debt (known, left for after the submission)
+Changing these before the submission would touch the nightly path or hash-checked code, so they are listed here instead.
+
+| # | What | Status |
+|---|---|---|
+| E1 | Six modules in `scripts/` have evaluation-style names, but live modules import them (some only in their self-tests): `eval_vs_matriks.py` (`norm_cur`, used by `pipeline.py` and `matriks_crosscheck.py`), `eval_retrieval.py` (`rag_index.py`), `route_eval.py` (`word_date`, `periods.py`), `score_silent.py`, `tcmb_check.py` (`importance.py`, rate fill off), `quantities.py` (`agent.py`, off). | **Accepted until after the submission.** `source_check.py` is one of the files that kap-kart hash-checks, and `pipeline.py` is on the nightly path. Fix: move these functions into system modules with their own self-tests, then rename. |
+| E2 | `scripts/` is one flat folder, and modules import each other by bare name (`from parse_form import parse_form`); there is no package. | **Accepted.** Subfolders or a package would change the paths that launchd, Docker and the MCP client start. Fix: one package with `python -m` entry points. |
+| E3 | `agent.py` (~960 lines) and `panel.py` (~700 lines) are large. | **Accepted.** Fix: split by tool and by page, behind the existing self-tests and `e2e_check.py`. |
+| E4 | Rules and notes written before 21 Nov name experiment files as `scripts/...`; the files are now in `experiments/`. | **Stated** in `experiments/README.md`. A rule is never edited after it is committed. |
+| E5 | Experiments import system modules by name, so they need `PYTHONPATH=scripts`. | **Accepted, documented.** `run_self_tests.py` sets it. |
+
 ## What this means for the presentation
 Say A1-A3 as the story (it is the strongest part), A4-A6 and B1-B4 as limits before anyone asks, and C1 as an honest process slip that we turned into code.

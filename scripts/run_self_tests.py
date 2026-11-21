@@ -2,17 +2,21 @@
 
 Self-tests use only in-memory data: no data/ files, no .env, no network, no Ollama.
 A module that needs one of those is listed in SKIP with the reason.
+Modules live in scripts/ (the system) or experiments/ (evaluations, labeling, pilots; moved there
+unchanged on 21 Nov). Experiments import system modules by name, so scripts/ is put on PYTHONPATH.
 
 Usage:
   python scripts/run_self_tests.py
   python scripts/run_self_tests.py --skip daily_collect
 '''
+import os
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 HERE=Path(__file__).resolve().parent
+EXPERIMENTS=HERE.parent/'experiments'
 
 # module -> extra args ('' means the self-test runs with no arguments)
 TESTS={
@@ -111,20 +115,32 @@ TESTS={
 SKIP={}
 
 
+def module_path(name):
+    '''scripts/NAME.py or experiments/NAME.py; a name in neither place is an error, never a silent skip.'''
+    for folder in (HERE,EXPERIMENTS):
+        if (folder/f'{name}.py').exists():
+            return folder/f'{name}.py'
+    raise SystemExit(f'{name}.py is in neither scripts/ nor experiments/')
+
+
 def main():
     # --skip NAME[,NAME]: Claude skips daily_collect locally (CLAUDE.md: Claude does not run it); CI runs all
     skip=dict(SKIP)
     if '--skip' in sys.argv:
         for name in sys.argv[sys.argv.index('--skip')+1].split(','):
             skip[name]='--skip'
+    env=dict(os.environ,PYTHONPATH=os.pathsep.join([str(HERE)]+[p for p in [os.environ.get('PYTHONPATH')] if p]))
     failed=[]
+    passed={'system':0,'experiments':0}
     for name,arg in TESTS.items():
+        path=module_path(name)
+        group='system' if path.parent==HERE else 'experiments'
         if name in skip:
             print(f'{name:16} SKIP ({skip[name]})')
             continue
-        cmd=[sys.executable,str(HERE/f'{name}.py')]+([arg] if arg else [])
+        cmd=[sys.executable,str(path)]+([arg] if arg else [])
         t0=time.time()
-        p=subprocess.run(cmd,capture_output=True,text=True,timeout=300)
+        p=subprocess.run(cmd,capture_output=True,text=True,timeout=300,env=env)
         lines=[l for l in p.stdout.strip().splitlines() if l.strip()]
         last=lines[-1] if lines else ''
         status='ok' if p.returncode==0 else f'FAIL exit {p.returncode}'
@@ -135,6 +151,9 @@ def main():
             if err:
                 # last error line only: tracebacks name the exception, never data values
                 print(f'{"":16} {err[-1][:150]}')
+        else:
+            passed[group]+=1
+    print(f'system {passed["system"]} passed, experiments {passed["experiments"]} passed')
     print(f'{len(TESTS)-len(skip)-len(failed)} passed, {len(failed)} failed, {len(skip)} skipped')
     sys.exit(1 if failed else 0)
 

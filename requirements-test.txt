@@ -1,0 +1,10 @@
+# Only what the self-tests import (CI and "Try it yourself" in README.md).
+# torch / sentence-transformers are loaded lazily inside functions the self-tests do not call,
+# so they are left out (several GB). The full system needs requirements.txt.
+duckdb==2.0.0
+numpy==2.5.4
+ollama==0.6.3
+pydantic==2.14.1
+python-dotenv==1.2.4
+requests==2.34.2
+langgraph==1.0.2

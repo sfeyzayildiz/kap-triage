@@ -1,6 +1,6 @@
 # Documentation index
 
-Every measured part of the project has a rule file (`*_rule.md`) that was committed **before** its measurement, and a result recorded in `PROJECT_NOTES.md` and `results.md`. Read the rule first, then the result.
+Every measured part of the project has a rule file (`*_rule.md`) that was committed **before** its measurement, and a result recorded in `PROJECT_NOTES.md` and `results.md`. Read the rule first, then the result. The code of each measurement is in [`../experiments/`](../experiments/README.md); rules written before 21 Nov still name it `scripts/...` (it was moved there unchanged).
 
 ## Start here
 | file | what it is |

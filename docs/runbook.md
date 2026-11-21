@@ -46,10 +46,10 @@ launchctl list com.feyza.kap-daily                                              
 ### Prod archive refresh (approved by Matriks, once)
 ```
 cd ~/projects/kap-explore && git switch main && git pull -q
-.venv/bin/python scripts/prod_refresh.py --plan        # months and request count, no network
-.venv/bin/python scripts/prod_refresh.py --run --yes   # refuses unless the job is paused and the snapshot exists
-.venv/bin/python scripts/prod_refresh.py --compare     # counts only
-.venv/bin/python scripts/revenue_check.py              # gates of docs/revenue_ratio_rule.md, counts only
+PYTHONPATH=scripts .venv/bin/python experiments/prod_refresh.py --plan        # months and request count, no network
+PYTHONPATH=scripts .venv/bin/python experiments/prod_refresh.py --run --yes   # refuses unless the job is paused and the snapshot exists
+PYTHONPATH=scripts .venv/bin/python experiments/prod_refresh.py --compare     # counts only
+PYTHONPATH=scripts .venv/bin/python experiments/revenue_check.py              # gates of docs/revenue_ratio_rule.md, counts only
 ```
 Paste the `--run` summary line, the `--compare` output and the `revenue_check` line. Resume the job next morning.
 
@@ -65,48 +65,48 @@ The nightly job stays **loaded** (Note 1): `pull_guard` makes it skip that night
 
 ```
 cd ~/projects/kap-explore && git switch main && git pull -q
-.venv/bin/python scripts/capital_collect.py --plan          # 1. no network: months, request estimate, pulled_today=no
-.venv/bin/python scripts/capital_collect.py --pull --yes    # 2. the day's only pull (a few minutes)
-.venv/bin/python scripts/capital_collect.py --load          # 3. no network: raw files -> capital tables
-.venv/bin/python scripts/capital_profile.py --tokens 10     # 4. counts only (Ollama on)
+PYTHONPATH=scripts .venv/bin/python experiments/capital_collect.py --plan          # 1. no network: months, request estimate, pulled_today=no
+PYTHONPATH=scripts .venv/bin/python experiments/capital_collect.py --pull --yes    # 2. the day's only pull (a few minutes)
+PYTHONPATH=scripts .venv/bin/python experiments/capital_collect.py --load          # 3. no network: raw files -> capital tables
+PYTHONPATH=scripts .venv/bin/python experiments/capital_profile.py --tokens 10     # 4. counts only (Ollama on)
 ```
 Paste the full output of 1-4 (counts and dates only). Do not paste `/tmp/capital_form_keys.txt` unless Claude asks.
 - `STOP: fewer than 38 symbols` in step 2: stop there and tell Claude (the pilot stops before labeling).
 - `v1/capital-increase: HTTP ...` in step 2: the news part is fine. Retry only that request the same day:
-  `MATRIKS_CI_API=https://<MATRIKS_API_HOST>/dumrul .venv/bin/python scripts/capital_collect.py --pull --yes`
+  `MATRIKS_CI_API=https://<MATRIKS_API_HOST>/dumrul PYTHONPATH=scripts .venv/bin/python experiments/capital_collect.py --pull --yes`
 - Any other stop in step 2: run the same command again the same day; it resumes from the manifest.
 
 **Claude:** writes Note 4 (long-text threshold from step 4) and commits it **before** anything is labeled.
 
 ```
 git pull -q
-.venv/bin/python scripts/sample_capital.py --dry-run        # 5. counts
-.venv/bin/python scripts/sample_capital.py                  # 6. writes the 8 dev + 30 held-out ids
+PYTHONPATH=scripts .venv/bin/python experiments/sample_capital.py --dry-run        # 5. counts
+PYTHONPATH=scripts .venv/bin/python experiments/sample_capital.py                  # 6. writes the 8 dev + 30 held-out ids
 cp data/capital_dev.jsonl data/capital_test.jsonl ~/kap-backups/
-.venv/bin/python scripts/label_capital.py                   # 7. the 8 dev texts (~15 min); q stops, re-run resumes
+PYTHONPATH=scripts .venv/bin/python experiments/label_capital.py                   # 7. the 8 dev texts (~15 min); q stops, re-run resumes
 ```
 Report where a guideline rule did not fit, as rule numbers and tags only (never text). **Claude:** guideline v0.2 if needed; then redo the touched dev labels with `--guidelines v0.2 --redo NEWS_ID`.
 
 ```
-.venv/bin/python scripts/capital_extract.py --split dev     # 8. F, L, C on the 8 dev texts (~5 min)
-.venv/bin/python scripts/capital_extract.py --score-dev     # 9. ids and counts
+PYTHONPATH=scripts .venv/bin/python experiments/capital_extract.py --split dev     # 8. F, L, C on the 8 dev texts (~5 min)
+PYTHONPATH=scripts .venv/bin/python experiments/capital_extract.py --score-dev     # 9. ids and counts
 ```
 Paste 8-9. **Claude:** may change the prompt or the form reader (at most 3 versions each; the script refuses a 4th), you re-run 8-9.
 
 ```
-.venv/bin/python scripts/label_capital.py --split test --guidelines v0.1   # 10. the 30 held-out texts (~1 h); use v0.2 if it was written
+PYTHONPATH=scripts .venv/bin/python experiments/label_capital.py --split test --guidelines v0.1   # 10. the 30 held-out texts (~1 h); use v0.2 if it was written
 cp data/gold_capital_*.jsonl ~/kap-backups/
 ```
 **Claude:** freeze commit (check list and long-text threshold frozen, chosen versions named). Then:
 
 ```
 git pull -q
-.venv/bin/python scripts/capital_extract.py --split test    # 11. once (~15-20 min); refuses before the freeze
-.venv/bin/python scripts/capital_score.py --score           # 12. once; ids and counts
+PYTHONPATH=scripts .venv/bin/python experiments/capital_extract.py --split test    # 11. once (~15-20 min); refuses before the freeze
+PYTHONPATH=scripts .venv/bin/python experiments/capital_score.py --score           # 12. once; ids and counts
 ```
 Paste 11 (last three lines) and 12. No scoring while 11 is running.
 
-### Submission day (Tue 24 Nov 2026; submission closes at 18:00, nothing after it)
+### Submission day (Tue 24 Nov 2026; submission closes at 23:59, link to the instructor by 15:00 as agreed; nothing after it)
 Rule: `docs/forward_test_rule.md`, Notes 7-8. The nightly job stays loaded; it sends `SKIPPED` that night (one pull per day).
 ```
 cd ~/projects/kap-explore && git switch main && git pull -q
@@ -117,7 +117,7 @@ cd ~/projects/kap-explore && git switch main && git pull -q
 .venv/bin/python scripts/two_run_count.py --start 2026-11-15 --end 2026-11-23   # report only (known_issues A12)
 ```
 Paste the `--load` summary, the score lines and the last `two_run_count` line. **14:00 cutoff:** if the bars or the score are not there by then, stop trying; the submission says "forward test not scored" with the failed step (Note 8).
-Then, by about 15:00: Claude records the result (results, notes, metrics_faq), re-runs `scripts/make_timeline.py`, merges; rebuilds the public copy and shows its check counts (`docs/public_release.md`); Feyza runs the kap-kart leak scan on the copy (`docs/kap_kart_rule.md`, Note 1); Feyza says "aç" and the repository name; Claude creates the public repository and pushes. 15:00-18:00 is spare time.
+Then, by about 15:00: Claude records the result (results, notes, metrics_faq), re-runs `scripts/make_timeline.py`, merges; rebuilds the public copy and shows its check counts (`docs/public_release.md`); Feyza runs the kap-kart leak scan on the copy (`docs/kap_kart_rule.md`, Note 1); Feyza says "aç" and the repository name; Claude creates the public repository and pushes. 15:00-23:59 is spare time.
 
 ## Daily use
 ```
