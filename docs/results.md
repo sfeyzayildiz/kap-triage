@@ -16,7 +16,7 @@ The first question a data company asks: Matriks sells a structured `new_business
 Reading: the vendor record is good where it exists (~92% agreement), but it is missing for 1 in 6 disclosures, carries no context fields (revision, related party, duration) and never says when it is unsure. The system reads the text for all of them, shows where each number comes from and flags what a person must check. The Matriks record is used as a second opinion (injection cross-check), not replaced.
 
 ## How to read these numbers
-- **Bounds.** Small sets are reported with a one-sided 95% upper bound on errors: 1/100 → 4.7%; 0/38 → 7.6%; 0/30 → 9.5%; 0/18 → 15.3%. Differences of 1-2 items on 16-20 questions (rerank 15 → 17/20, router 17 → 18/20, constrained 14/16 vs free 12/16, ordering 11/12 vs amount 12/12) are **directional**, not statistically shown.
+- **Bounds.** Small sets are reported with a one-sided 95% upper bound on errors: 1/100 → 4.7%; 0/38 → 7.6%; 0/30 → 9.5%; 0/18 → 15.3%. Differences of 1-2 items on 16-20 questions (rerank 15 → 17/20, router 17 → 18/20, constrained 14/16 vs free 12/16, ordering 11/12 vs amount 12/12) are **directional**, not statistically significant.
 - **Held-out means unseen disclosures, not unseen companies.** No disclosure appears in two sets (A/B/C/D overlaps 0), but companies repeat: 35 of Set C's 59 companies also appear in Set B, 24 of Set D's 32 in Set C. Repeat issuers write similar boilerplate, so "held-out" is at disclosure level.
 - **Labels and questions.** All gold labels, blind choices and evaluation questions are by one person (Feyza, the author), not by an external analyst; no LLM produced any gold label. Retrieval questions were written by her with the disclosure in view, which favours lexical overlap. No second annotator (cancelled) and no inter-annotator agreement.
 - **Injection batches.** Each defence was measured on its own sealed batch of Set C texts that have a Matriks record (78 of 100): no defence on texts 1-20, text patterns on 21-40, Matriks cross-check on 41-60, the layered defence on **61-78, hence 18**. No case was dropped. On 61-78 each layer alone also reached 0/18 (the source-sentence layer mostly through `amount_not_in_text`); on texts without a Matriks record only the source-sentence layer exists, and that case is not measured.
@@ -59,14 +59,14 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Quantities on the card (code) | 15 texts | 10/15 lists right (bar 14) | **off** |
 | Cited answers v1 (e4b) | dev 66 | citations right 44/45, but 3 of 7 unanswerable questions answered | **not adopted** |
 | Cited answers v3 / v4 (gates, gemma4:26b) | dev 66 | v4: 51/54 shown, 5/7 negatives (bar 6/7) | **not adopted**; held-out set still unused |
-| Company brief (multi-step flow) | 10 questions | routed 9/10, ticker 10/10, review yes 9/10, median 18.5 s | **adopted** |
+| Company brief (multi-step flow) | 10 questions | routed 9/10, ticker 10/10, passed the manual review 9/10, median 18.5 s | **adopted** |
 | Scope guard (fixed word list) | 20 new + 185 earlier questions | blocked 7/10 out-of-scope (bar 9); false blocks 0/10 and 1/185 | **off** |
 | MCP server v1 (12 calls, exact text) | 12 fixed calls | 11/12 (the difference was the LLM card of one brief), overhead 0.011 s | **off** |
 | MCP server v2 (non-LLM tools exact, brief code sections) | 10 + 2 new fixed calls | 10/10, 2/2, overhead 0.011 s | **adopted** |
 | Tool-calling agent over MCP vs constrained router | 16 dev route questions | right tool 12/16 vs router 14/16 | report only (router stays); "not better": the router was built on these questions |
 | Extraction repeatability, Set C run 2 | 100 | changed amount/currency 3/100 (bar 2) → unstable; run 2 silent 1/100, flagged 12% → reproduced | **reported** |
 | Matriks' FX rate vs official TCMB rate (tcmb-mcp, registry) | 1045 Matriks FX records, 542 days | within 0.5% of TCMB forex buying: against Matriks' documented convention (previous day's closing rate) **972/1045 = 93.0%** (bar 95%); against the rule's primary reference (same-day bulletin) 913/1045 = 87.4%; median difference 0.16%; on 83 extracted FX amounts 0 importance-level changes (rank order not measured) | **differs** (reported to Matriks); gap filling **off** |
-| smtp-mcp (registry MCP server, `@ni-c/smtp-mcp` 0.2.0 pinned) for on-demand desk e-mail | 7 allowlist + 5 behaviour checks: chosen cases, synthetic message, automated approval | refused 7/7 outside `@masa.local` (2 from nodemailer advisories); declined 0 sent; accepted exactly 1, fields and text equal; replay 0; invented token rejected; 0.10 s | **adopted** (mechanism shown; a person's attention and adversarial coverage not measured; 1 high `npm audit` finding accepted on a source reading) |
+| smtp-mcp (registry MCP server, `@ni-c/smtp-mcp` 0.2.0 pinned) for on-demand desk e-mail | 7 allowlist + 5 behaviour checks: chosen cases, synthetic message, automated approval | refused 7/7 outside `@masa.local` (2 from nodemailer advisories); declined 0 sent; accepted exactly 1, fields and text equal; replay 0; invented token rejected; 0.10 s | **adopted** (mechanism shown; a person's attention and adversarial coverage not measured; 1 high `npm audit` finding accepted after reading its source code) |
 | Source sentence on the cards (display only) | 43 saved items, 32 with an amount | a sentence containing the amount found 32/32; whether it is the right sentence was not checked | shown as "the sentence where the amount appears" |
 | Is the shown source sentence the amount's source? (`docs/source_sentence_rule.md`) | all 34 items with an amount in the saved lists up to 19 Nov (census), labeled by Feyza | right **32/32** (wrong 0; 95% upper bound on the wrong rate 8.9%); 2 items had a wrong amount (question does not apply); sentence not found 0 | **SOURCE_OK** (documents only; the card wording stays until after the submission) |
 | Two-run disagreement flag, Set D (live pipeline, two separate runs) | 50 new (12 zone + 38 random), labeled before the runs | disagree 3/50; new flags over run a **0/50** (bar 3); run a silent 0/50, run b silent **1/50**, caught by the flag (1/1); on the random 38 alone 0/38 (95% upper 7.6%) and 1/38 (11.9%); median a+b 30.9 s | **adopted** (nightly list only) |
@@ -85,7 +85,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 |---|---|---|---|
 | Revenue ratio data gates | prod archive | semantics 99.2%, coverage 84%, scale 0.6% | **on** |
 | Importance score vs. the author's blind look-first choice (Feyza, not an external analyst) | 10 unseen days, 49 disclosures, 47 pairs | AUC 0.681 (random p95 0.670) = amount only 0.681; top pick amount 7/10, score 3/10 | **AMOUNT_EXPLAINS**, weights unchanged |
-| Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice) |
+| Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice); it orders items inside each group, while which items enter "Önce bak" still comes from the v1 level (high) or a review flag |
 | Clustering k = 27 vs. Matriks sectors | 1288 disclosures | company-level ARI 0.144 vs. shuffled p99 0.032; ARI vs. company 0.298 | reflects sector, weakly; desks use the sector label, clusters only for the weekly themes page |
 | Analyst review of flags in the panel | one day | 3 of 6 flags were real extraction errors | first real use, small sample |
 
@@ -115,5 +115,5 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 
 ## What these numbers do not show
 - Test sets are small (100 / 48 / 20 / 18 items), so the bounds are wide.
-- One analyst built the system, labeled the gold data and wrote most of the questions.
-- Agreement with the analyst is not a market outcome. Nothing here predicts price moves.
+- One person (Feyza, the author) built the system, labeled the gold data and wrote most of the questions.
+- Agreement with the author's blind choice is not a market outcome. Nothing here predicts price moves.
