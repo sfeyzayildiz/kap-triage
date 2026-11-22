@@ -21,7 +21,7 @@ if ! ollama list >/dev/null 2>&1; then
   echo "Ollama çalışmıyor. Ollama uygulamasını açın (ya da 'ollama serve'), sonra tekrar çalıştırın."; exit 1
 fi
 if ! ollama list | awk '{print $1}' | grep -qx "$MODEL"; then
-  echo "Model yüklü değil. Bir kez şu komutu çalıştırın (birkaç GB indirir):"
+  echo "Model yüklü değil. Bir kez şu komutu çalıştırın (yaklaşık 9,5 GB indirir):"
   echo "  ollama pull $MODEL"
   exit 1
 fi

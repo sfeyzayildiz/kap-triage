@@ -4,6 +4,20 @@ Morning triage for KAP "Yeni İş İlişkisi" disclosures. Everything runs on on
 
 Design principle: **the LLM extracts facts, code applies business rules.** Code flags contradictions (`needs_review`) and never fixes them. Every number and KAP link shown to the analyst comes from code, not from model text.
 
+## What the system does
+For each day's disclosures:
+1. **Extraction (local LLM).** Amount, currency, counterparty, duration, revision and related-party flags.
+2. **Code checks.** Rules flag contradictions (`needs_review`) instead of silently fixing them: unclear currency, projected amounts, cumulative totals.
+3. **Injection defence.** Disclosure text is external input. The extracted amount is cross-checked against Matriks' own record, and a one-sentence judge checks that the amount comes from a statement of fact, not from an instruction hidden in the text.
+4. **Importance score (code).** Size against the company's own earlier deals and its annual revenue, plus foreign currency and contract length (points for foreign counterparty and related party were measured and switched off: the model misses those facts too often). The morning list is ordered by ordering v2 (long contract first, then amount). Every point comes with its reason.
+5. **Price reaction.** Return against XU100 on the first trading day the market could react.
+6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
+7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
+8. **Desk panel.** A local web page with a chat box for the agent, the list per sector desk (Matriks sector label), a confirm / reject step for flagged items (decisions are logged and counted per flag type), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, and a reliability page with the measured results as charts. Light / dark theme switch; no JavaScript.
+9. **Desk e-mails (n8n).** Every weekday at 07:30 a self-hosted n8n workflow sends each sector desk one e-mail with its part of the morning list (company, look-first / check flags, reasons, KAP link; no amounts). The desk, the order and the text are decided in code; n8n only delivers. Delivery goes to a local mail server (Mailpit), so nothing leaves the machine; in a firm only the SMTP setting changes.
+
+An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq", "ASELS geçen ay ne aldı?" (relative periods: this / last week, month, quarter, year, "son 3 ay", read by code) and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code. A guided form (`/form`) offers the same tools without free text: the analyst picks the question type, then the company and the day, so nothing can be misunderstood; free questions stay in the chat.
+
 ## 1. Daily flow: from Matriks to the morning list
 
 ```mermaid
@@ -68,7 +82,39 @@ flowchart LR
 
 The LLM only reads the question. It never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Three scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9), an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3) and a separate yes/no judge only where a card or list would be shown (28/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
 
-**MCP (`scripts/mcp_server.py`, `docs/mcp_v2_rule.md`):** the same tools are also an MCP server (official Python SDK, stdio only, read-only). Each MCP tool enters the graph like the guided form (intent preset), so the output is the measured tool's own text (exact 10/10, overhead 0.011 s). Clients are local only, because results hold licensed data: `mcp_client.py`, the official MCP Inspector for demos, and `mcp_agent.py`, where the local model chooses the tool itself (native tool calling). That free agent picked the right tool 12/16; the constrained router 14/16, so production keeps the router.
+The same tools are also an MCP server: section 4.
+
+## 3. Search (RAG)
+- **Documents:** one per disclosure (a `SYMBOL | date | kind | headline` header and the normalized text, `build_docs.py`). Texts are short (median 52 words), so there is no chunking; course-style chunks (420/80) were tested and did worse (`docs/chunking_rule.md`).
+- **Retrieval:** `turkish-e5-large` vectors in a small numpy index (`rag_index.py`; enough for about 1,300 documents, so no vector database). Top 20, then the cross-encoder `bge-reranker-v2-m3` keeps the top 5, each with its KAP link.
+- **Measured:** the model was chosen from three by a pre-written rule (`docs/rag_model_choice.md`); on unseen questions recall@5 is 0.875; with the reranker the right disclosure is in the top 5 for 20/20 questions (`docs/rerank_rule.md`). BM25 and hybrid search were rejected (`docs/bm25_hybrid_rule.md`).
+- **Used by:** the agent's search tool, "similar earlier disclosures" on each card, and the weekly themes (`clusters.py`).
+
+## 4. MCP: both directions
+```mermaid
+flowchart LR
+    classDef llm fill:#8250df,stroke:#8250df,color:#ffffff
+    classDef code fill:#2d333b,stroke:#768390,color:#ffffff
+    classDef out fill:#1a7f37,stroke:#1a7f37,color:#ffffff
+
+    subgraph OUT["Our MCP server: the agent's tools, out"]
+        C["Local clients<br/>mcp_client.py, MCP Inspector,<br/>mcp_agent.py (model picks the tool)"]:::out -- stdio --> S["mcp_server.py<br/>5 read-only tools"]:::code
+        S --> G["Same LangGraph tools<br/>(intent preset, no router)"]:::code
+    end
+    subgraph IN["A third-party MCP server: desk e-mail, in"]
+        M["mail_mcp.py<br/>desk text from code, no amounts"]:::code --> H{"Person approves?<br/>(e / h)"}:::out
+        H -- yes --> SM["@ni-c/smtp-mcp 0.2.0<br/>pinned, stdio, only @masa.local"]:::code --> MP["Mailpit (local inbox)"]:::out
+        H -- no --> X["nothing is sent"]:::out
+    end
+```
+- **Our server** (`scripts/mcp_server.py`, official Python SDK): `morning_list`, `company_history`, `search_disclosures`, `why_moved`, `company_brief`. Each tool enters the graph like the guided form, so the output is the measured tool's own text: identical 10/10, overhead 0.011 s (`docs/mcp_v2_rule.md`). A free tool-calling agent picked the right tool 12/16, our constrained router 14/16, so production keeps the router.
+- **A third-party server as a client** (`scripts/mail_mcp.py`, `docs/smtp_mcp_rule.md`): sends one desk e-mail on demand, only after a person types "e". Addresses outside `@masa.local` refused 7/7; unapproved e-mails sent 0.
+- **Local only:** tool results contain licensed data, so never connect a cloud client. Try it: `.venv/bin/python scripts/mcp_client.py --list`, `.venv/bin/python scripts/mcp_agent.py --ask "ASELS son 3 ayda hangi işleri aldı?"`, or `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python scripts/mcp_server.py`.
+
+## 5. n8n: desk e-mails
+- Every weekday at 07:30, n8n asks the panel for the day's list per desk (`/api/desks/<day>`), splits it and sends one e-mail per sector desk to Mailpit, a local inbox (diagram in section 1).
+- Code decides the desk, the order and the text (`desk_mail.py`); n8n only delivers. E-mails carry no amounts. In a firm only the SMTP setting changes.
+- Measured on all 15 saved days: 33 e-mails, 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks (`docs/n8n_routing_rule.md`). Workflow: `n8n/desk_routing.json`; setup: `docs/n8n_guide.md`.
 
 ## Where the LLM is used, and where it is not
 
@@ -120,7 +166,7 @@ A third type, stake acquisitions and sales (19 Nov, `docs/fdv_pilot_rule.md`), w
 
 ## Data-vendor auditor (18 Nov, report tool only)
 
-`experiments/vendor_audit.py` compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were record-text mismatches by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand, and its findings are offered to Matriks privately.
+The vendor auditor (a measurement script, kept out of this repository) compares each Matriks `new_business` record with what extraction reads from the KAP text and reports records whose amount or currency may be wrong (`docs/vendor_audit_rule.md`). Measured once on 641 unseen disclosures: every one of the 14 flags was a real difference, but only 6/14 (43%, 95% CI 18-71%) were record-text mismatches by the strict definition; the rest were convention differences. That is below the 50% bar, so it is not on the nightly path (`AUDITOR_OFF`); it is run by hand, and its findings are offered to Matriks privately.
 
 ## Not measured (stated as limits)
 

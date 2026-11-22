@@ -1,6 +1,6 @@
 # Results on one page
 
-Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in `PROJECT_NOTES.md`). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-20.
+Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in [`PROJECT_NOTES.md`](PROJECT_NOTES.md)). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-20.
 
 ## What Matriks already gives, and what this system adds (existing measurements, no new run)
 The first question a data company asks: Matriks sells a structured `new_business` record per disclosure, so why extract anything?

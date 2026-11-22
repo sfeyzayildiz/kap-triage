@@ -5,7 +5,7 @@ Paste the text of a public KAP "Yeni İş İlişkisi" (new business relationship
 It is the extraction step of a larger, measured analyst system, copied unchanged. Everything runs on your own computer with a local model; the text is never sent anywhere and never written to disk.
 
 ## Hızlı başlangıç (Türkçe)
-1. [Ollama](https://ollama.com) kurun ve açın. Modeli bir kez indirin: `ollama pull gemma4:e4b`
+1. [Ollama](https://ollama.com) kurun ve açın. Modeli bir kez indirin (yaklaşık 9,5 GB): `ollama pull gemma4:e4b`
 2. Bu klasörde: `./run.sh`
 3. Tarayıcıda `http://127.0.0.1:8770` açılır. kap.org.tr'den bir "Yeni İş İlişkisi" bildiriminin metnini kopyalayıp yapıştırın ya da hazır örneklerden birini seçin. Bir kart yaklaşık 30-60 saniye sürer.
 

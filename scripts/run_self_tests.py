@@ -116,10 +116,13 @@ SKIP={}
 
 
 def module_path(name):
-    '''scripts/NAME.py or experiments/NAME.py; a name in neither place is an error, never a silent skip.'''
+    '''scripts/NAME.py or experiments/NAME.py. The public copy has no experiments/ folder (instructor, 21 Nov:
+    as little test code as possible), so there an experiment returns None; anywhere else a missing name is an error.'''
     for folder in (HERE,EXPERIMENTS):
         if (folder/f'{name}.py').exists():
             return folder/f'{name}.py'
+    if not EXPERIMENTS.exists():
+        return None
     raise SystemExit(f'{name}.py is in neither scripts/ nor experiments/')
 
 
@@ -132,8 +135,12 @@ def main():
     env=dict(os.environ,PYTHONPATH=os.pathsep.join([str(HERE)]+[p for p in [os.environ.get('PYTHONPATH')] if p]))
     failed=[]
     passed={'system':0,'experiments':0}
+    absent=0
     for name,arg in TESTS.items():
         path=module_path(name)
+        if path is None:
+            absent+=1
+            continue
         group='system' if path.parent==HERE else 'experiments'
         if name in skip:
             print(f'{name:16} SKIP ({skip[name]})')
@@ -153,8 +160,9 @@ def main():
                 print(f'{"":16} {err[-1][:150]}')
         else:
             passed[group]+=1
-    print(f'system {passed["system"]} passed, experiments {passed["experiments"]} passed')
-    print(f'{len(TESTS)-len(skip)-len(failed)} passed, {len(failed)} failed, {len(skip)} skipped')
+    print(f'system {passed["system"]} passed, experiments {passed["experiments"]} passed'
+          +(f' (experiments/ is not in this copy: {absent} experiment self-tests not run)' if absent else ''))
+    print(f'{len(TESTS)-len(skip)-len(failed)-absent} passed, {len(failed)} failed, {len(skip)} skipped')
     sys.exit(1 if failed else 0)
 
 

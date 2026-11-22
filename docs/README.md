@@ -1,6 +1,6 @@
 # Documentation index
 
-Every measured part of the project has a rule file (`*_rule.md`) that was committed **before** its measurement, and a result recorded in `PROJECT_NOTES.md` and `results.md`. Read the rule first, then the result. The code of each measurement is in [`../experiments/`](../experiments/README.md); rules written before 21 Nov still name it `scripts/...` (it was moved there unchanged).
+Every measured part of the project has a rule file (`*_rule.md`) that was committed **before** its measurement, and a result recorded in [`PROJECT_NOTES.md`](PROJECT_NOTES.md) (the development log, every decision in order) and [`results.md`](results.md). Read the rule first, then the result. The measurement scripts are kept out of this repository; the rules name them as `scripts/...`.
 
 ## Start here
 | file | what it is |
@@ -9,7 +9,6 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 | [for_reviewers.md](for_reviewers.md) | A 10-minute review path for a grader or company reviewer, and what is not claimed. |
 | [results.md](results.md) | Every measured result on one page, adopted and not adopted. |
 | [architecture.md](architecture.md) | How the system is built: nightly path, agent, panel, MCP, n8n (diagrams). |
-| [mimari_ozet.md](mimari_ozet.md) | One-page Turkish architecture summary (for the instructor). |
 | [system_card.md](system_card.md) | Purpose, data, measured performance and limits on one page. |
 | [known_issues.md](known_issues.md) | Where we were wrong, and what we did about it. |
 | [metrics_faq.md](metrics_faq.md) | Short answers to metric questions (Hit@3, silent errors, bounds). |
@@ -27,8 +26,6 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 |---|---|
 | [extending.md](extending.md) | How the system would extend to other disclosure types. |
 | [public_release.md](public_release.md) | How the public copy is built from the private repository (history kept, internal parts removed) and checked. |
-| [demo_script.md](demo_script.md) | Demo steps. |
-| [talk_plan.md](talk_plan.md) | 10-minute talk plan and hard questions. |
 
 ## Labeling guidelines and test-set plans
 | file | what it is |

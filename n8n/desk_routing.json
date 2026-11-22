@@ -1,0 +1,156 @@
+{
+  "id": "kapDeskRouting01",
+  "name": "KAP masa yönlendirme",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": [],
+  "nodes": [
+    {
+      "id": "b1f0c6a2-0001-4d6e-9a10-000000000001",
+      "name": "Webhook (ölçüm / elle)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "7c1d9a3e-5b2f-4e8a-9d61-0a4b3c2d1e01",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "desk-routing",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "b1f0c6a2-0002-4d6e-9a10-000000000002",
+      "name": "Her iş günü 07:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 220],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 7 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b1f0c6a2-0003-4d6e-9a10-000000000003",
+      "name": "Hangi gün?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 100],
+      "parameters": {
+        "jsCode": "// Webhook: ?day=YYYY-MM-DD; schedule: the latest saved morning list\nconst q = ($input.first().json.query) || {};\nconst day = /^\\d{4}-\\d{2}-\\d{2}$/.test(q.day || '') ? q.day : 'latest';\nreturn [{ json: { day } }];"
+      }
+    },
+    {
+      "id": "b1f0c6a2-0004-4d6e-9a10-000000000004",
+      "name": "Panelden masa listesi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 100],
+      "parameters": {
+        "url": "=http://panel:8765/api/desks/{{ $json.day }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "b1f0c6a2-0005-4d6e-9a10-000000000005",
+      "name": "Masa başına ayır",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [720, 100],
+      "parameters": {
+        "fieldToSplitOut": "desks",
+        "options": {}
+      }
+    },
+    {
+      "id": "b1f0c6a2-0006-4d6e-9a10-000000000006",
+      "name": "Masaya e-posta",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [960, 100],
+      "credentials": {
+        "smtp": {
+          "id": "kapMailpitSmtp01",
+          "name": "Mailpit (yerel SMTP)"
+        }
+      },
+      "parameters": {
+        "fromEmail": "kap-asistan@masa.local",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "b1f0c6a2-0007-4d6e-9a10-000000000007",
+      "name": "Özet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 100],
+      "parameters": {
+        "jsCode": "// One line for the caller: which day, how many desk e-mails were sent\nconst day = $('Panelden masa listesi').first().json.day;\nreturn [{ json: { day, sent: $input.all().length } }];"
+      }
+    },
+    {
+      "id": "b1f0c6a2-0008-4d6e-9a10-000000000008",
+      "name": "Not: karar kodda",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, -240],
+      "parameters": {
+        "width": 560,
+        "height": 200,
+        "content": "## Karar kodda, n8n taşır\nMasa = şirketin Matriks sektörü; sıra ve metin panelin `/api/desks/<gün>` adresinde **kodla** üretilir. n8n masa, öncelik ya da metin seçmez.\nE-postada tutar, oran ve bildirim metni yok; ayrıntı panelde."
+      }
+    },
+    {
+      "id": "b1f0c6a2-0009-4d6e-9a10-000000000009",
+      "name": "Not: kanal",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [900, -240],
+      "parameters": {
+        "width": 480,
+        "height": 200,
+        "content": "## Teslimat yerel\nMailpit = bu bilgisayardaki e-posta kutusu (127.0.0.1:8025). Veri dışarı çıkmaz (Matriks lisansı).\nBir kurumda yalnızca SMTP ayarı değişir: kurumsal e-posta / Teams. Telegram yok: dış sunucu, uyum ekipleri onaylamaz."
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (ölçüm / elle)": {
+      "main": [[{ "node": "Hangi gün?", "type": "main", "index": 0 }]]
+    },
+    "Her iş günü 07:30": {
+      "main": [[{ "node": "Hangi gün?", "type": "main", "index": 0 }]]
+    },
+    "Hangi gün?": {
+      "main": [[{ "node": "Panelden masa listesi", "type": "main", "index": 0 }]]
+    },
+    "Panelden masa listesi": {
+      "main": [[{ "node": "Masa başına ayır", "type": "main", "index": 0 }]]
+    },
+    "Masa başına ayır": {
+      "main": [[{ "node": "Masaya e-posta", "type": "main", "index": 0 }]]
+    },
+    "Masaya e-posta": {
+      "main": [[{ "node": "Özet", "type": "main", "index": 0 }]]
+    }
+  }
+}

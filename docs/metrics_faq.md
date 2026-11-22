@@ -84,6 +84,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 
 ## Related work (20 Nov, public pages; their claims not verified)
 - **"Others already do this?"** KAP summary sites (for example Borsacoo) summarise every disclosure; MCP servers for Borsa İstanbul (for example Borsa MCP) fetch KAP news and market data. We found no published accuracy number for either. This system extracts fields from one disclosure type and measures how often a wrong value is shown without a warning (Set C 1/100, upper 4.7%).
+- **Structured data vendors** sell one record per material contract (Matriks `new_business` here; sec-api.io for SEC 8-K Item 1.01 in the US). Here the vendor record is a second opinion, and the text is read for every disclosure, including the 16% without a record.
 - **Closest research:** arXiv 2607.08346 (2026, SEC 8-K): every LLM label tied to a verbatim quote, graded again in a second pass; precision measured by an LLM judge (96% in the top quality band). Same two ideas here on a small scale (source sentence, separate judge call, second reading); accuracy here from blind human labels on unseen sets.
 - **Drafting against AI tools** (Bloomberg Tax, May 2026): not covered by our injection test (instructions in the text only). Stated as a limit (known_issues B11).
 
