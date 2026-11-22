@@ -4,9 +4,9 @@
 
 A working prototype for "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul. The screens are in Turkish because the users are Turkish analysts. Not investment advice: it does not predict prices or recommend trades.
 
-![Demo: morning list, company brief, reliability page, kap-kart](docs/img/demo.gif)
+![Demo on made-up sample data: overview, morning lists, review, watchlist, why it moved, themes, reliability](docs/img/demo.gif)
 
-Demo, sped up (demo mode hides the values licensed from Matriks). Full 73-second video: [watch](https://github.com/user-attachments/assets/d761e92d-e9a2-4a59-906a-a508464bbb25). Recorded on 19 Nov; since then the panel gained an overview page, a review history and a watchlist.
+Demo, sped up, on the made-up sample data (`panel.py --sample`; the real data is licensed and stays on my computer). It follows the [10-minute tour](sample/README.md#a-10-minute-tour). Full 81-second video: [watch](https://github.com/user-attachments/assets/526cb4dc-837d-40f6-bf42-05845d2e9f94). Recorded on 23 Nov.
 
 | Morning list per desk | Guided form: company brief | Reliability page |
 |---|---|---|
