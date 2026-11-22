@@ -1,4 +1,4 @@
-# scripts/: the running system (54 modules)
+# scripts/: the running system (55 modules)
 
 Run every module from the repository root (`.venv/bin/python scripts/<module>.py`). Modules import each other by name, and each one has a `--self-test` that `run_self_tests.py` runs.
 
@@ -14,7 +14,7 @@ The panel (`panel.py`) puts these on screen.
 
 ## By role
 - **Nightly path:** `daily_collect.py` (entry point) → `collector.py` (`parse_form.py`), `pull_guard.py` → `morning_job.py` → `morning.py` → `pipeline.py` (`llm_extract.py`, `amount_checks.py`, `amount_checks_v2.py`, `currency_check.py`, `matriks_crosscheck.py`, `source_check.py`), `importance.py`, `price_moves.py`, `rag_index.py`, `forward_seal.py`. `deploy_check.py` checks the environment.
-- **Analyst tools:** `panel.py` (with `chat.py`, `form.py`, `themes.py`, `reliability.py`, `price_chart.py`, `demo_mode.py`), `agent.py` (`names.py`, `periods.py`), `mcp_server.py` / `mcp_client.py` / `mcp_agent.py`, `desk_mail.py`, `mail_mcp.py`.
+- **Analyst tools:** `panel.py` (with `watchlist.py`, `chat.py`, `form.py`, `themes.py`, `reliability.py`, `price_chart.py`, `demo_mode.py`), `agent.py` (`names.py`, `periods.py`), `mcp_server.py` / `mcp_client.py` / `mcp_agent.py`, `desk_mail.py`, `mail_mcp.py`.
 - **Other data collection (Matriks, run by the author only):** `price_collect.py`, `sector_collect.py`.
 - **Search index:** `build_docs.py`, `normalize.py`, `clusters.py` (weekly themes).
 - **Forward test:** `forward_score.py`, `two_run_count.py` (scored once, on submission day).

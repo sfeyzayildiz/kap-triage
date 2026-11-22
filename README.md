@@ -28,7 +28,7 @@ Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md)
 | **Weekdays, 07:30** (scheduled; runs while Docker is up) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
 | **Any time** | panel with a confirm / reject step for flagged items; guided form; chat agent that searches all past disclosures | LangGraph, RAG (`turkish-e5-large` + reranker) |
 | **Any time, from local AI tools** | the agent's tools as an MCP server (local clients only, because results hold licensed data); a desk e-mail through a third-party MCP server, sent only after a person approves | MCP, both directions |
-| **On every change** | 46 self-tests; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
+| **On every change** | 48 self-tests; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
 Real data since October 2024: about 1,300 disclosures, 1-2 new ones a day.
 
@@ -112,7 +112,7 @@ The panel on made-up sample data, self-tests, and the nightly chain on made-up d
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt
 .venv/bin/python scripts/panel.py --serve --sample  # panel on sample data: open http://127.0.0.1:8765/genel
-.venv/bin/python scripts/run_self_tests.py          # 47 self-tests (CI runs them on every pull request)
+.venv/bin/python scripts/run_self_tests.py          # 48 self-tests (CI runs them on every pull request)
 .venv/bin/python scripts/e2e_check.py --self-test   # the nightly chain with a fake model (embedding index skipped)
 ```
 On Windows, create the environment with `python -m venv .venv` and replace `.venv/bin/` with `.venv\Scripts\` in the other commands. The sample has 12 invented companies and 57 invented disclosures over two months; its morning lists were made by the real nightly chain, and only the model's answers were written in advance. The overview, morning lists, review buttons and review history, weekly themes and the guided form's list, company and price questions work without a model; chat and search need Ollama. What each sample disclosure shows: [`sample/README.md`](sample/README.md).
@@ -122,7 +122,7 @@ On Windows, create the environment with `python -m venv .venv` and replace `.ven
 ## The code
 | path | what is there |
 |---|---|
-| `scripts/` | the running system, 54 modules: [start here](scripts/README.md) |
+| `scripts/` | the running system, 55 modules: [start here](scripts/README.md) |
 | `sample/` | made-up sample data for the panel (built on your computer by `scripts/sample_data.py`) |
 | `docs/` | rules, results, architecture details, development log: [index](docs/README.md) |
 | `kap_kart/` | the card tool that needs no vendor data |
