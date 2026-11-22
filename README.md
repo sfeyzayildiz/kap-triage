@@ -115,7 +115,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/run_self_tests.py          # 47 self-tests (CI runs them on every pull request)
 .venv/bin/python scripts/e2e_check.py --self-test   # the nightly chain with a fake model (embedding index skipped)
 ```
-On Windows, use `.venv\Scripts\python`. The sample has 12 invented companies and 57 invented disclosures over two months; its morning lists were made by the real nightly chain, and only the model's answers were written in advance. The overview, morning lists, review buttons and review history, weekly themes and the guided form's list, company and price questions work without a model; chat and search need Ollama. What each sample disclosure shows: [`sample/README.md`](sample/README.md).
+On Windows, create the environment with `python -m venv .venv` and replace `.venv/bin/` with `.venv\Scripts\` in the other commands. The sample has 12 invented companies and 57 invented disclosures over two months; its morning lists were made by the real nightly chain, and only the model's answers were written in advance. The overview, morning lists, review buttons and review history, weekly themes and the guided form's list, company and price questions work without a model; chat and search need Ollama. What each sample disclosure shows: [`sample/README.md`](sample/README.md).
 
 **kap-kart:** paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then `./kap_kart/run.sh` (macOS, Linux) and open `http://127.0.0.1:8770`. On Windows: `cd kap_kart`, `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python kap_kart.py --serve`. Add a hidden instruction to the text: the card should show **KONTROL ET** instead of the planted amount. More: [`kap_kart/README.md`](kap_kart/README.md).
 
@@ -151,6 +151,7 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 - Only instructions planted in the text were tested as an attack, with one wording.
 - Ordering: sorting by amount alone did as well (12/12 top picks). The value is in reading the amount right (TL/USD, revisions, estimates) and flagging what is unclear, not in the ranking formula.
 - Analyst time saved was not measured. Runs nightly on one laptop.
+- One local model and no fallback model: a failed reading is flagged (`run_error`), not retried with another model, because that model's output would be unmeasured.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the demo-mode screens and the code stay.
 
 All limits: [`docs/system_card.md`](docs/system_card.md). Where we were wrong: [`docs/known_issues.md`](docs/known_issues.md).

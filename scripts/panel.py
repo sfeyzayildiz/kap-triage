@@ -43,7 +43,8 @@ SAMPLE=False  # --sample: made-up data in sample/data/ (scripts/sample_data.py);
 SAMPLE_BANNER=('<div class="card high"><b>Örnek veri.</b> Şirketler, bildirimler, tutarlar, sektörler ve fiyatlar '
                'uydurmadır; gerçek veri lisans gereği paylaşılmaz. Sabah listeleri gerçek gece zinciriyle üretildi, '
                'yalnızca model cevapları önceden yazıldı. KAP linkleri gerçek bir bildirime gitmez. Sohbet, konu araması '
-               've bildirim kartı yerel Ollama ve embedding modeli ister; diğer sayfalar modelsiz çalışır.</div>')
+               've bildirim kartı yerel Ollama ve embedding modeli ister; diğer sayfalar modelsiz çalışır. '
+               'Başlamak için: <a href="/genel">Genel bakış</a>.</div>')
 DECISIONS={'confirm':'Doğru (KAP metniyle kontrol ettim)','reject':'Yanlış (çıkarım hatalı)'}
 DAY_RE=re.compile(r'^\d{4}-\d{2}-\d{2}$')
 KAP_RE=re.compile(r'^https://(www\.)?kap\.org\.tr/')
