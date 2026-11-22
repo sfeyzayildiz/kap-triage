@@ -107,21 +107,23 @@ Each test has a rule file: the measurement and the pass bar, committed before th
 **Tried and dropped**, each by a bar written before the test: three scope guards, LLM-written answers, BM25 and hybrid search, chunking, and two other disclosure types. All results on one page: [`docs/results.md`](docs/results.md).
 
 ## Try it yourself (no licensed data needed)
-Self-tests and the nightly chain on made-up disclosures (no model, no data, no network):
+The panel on made-up sample data, self-tests, and the nightly chain on made-up disclosures (no model, no licensed data, no network):
 ```
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt
-.venv/bin/python scripts/run_self_tests.py          # 46 self-tests (CI runs them on every pull request)
+.venv/bin/python scripts/panel.py --serve --sample  # panel on sample data: open http://127.0.0.1:8765/days
+.venv/bin/python scripts/run_self_tests.py          # 47 self-tests (CI runs them on every pull request)
 .venv/bin/python scripts/e2e_check.py --self-test   # the nightly chain with a fake model (embedding index skipped)
 ```
-On Windows, use `.venv\Scripts\python`.
+On Windows, use `.venv\Scripts\python`. The sample has 12 invented companies and 57 invented disclosures over two months; its morning lists were made by the real nightly chain, and only the model's answers were written in advance. Morning lists, review buttons, weekly themes and the guided form's list, company and price questions work without a model; chat and search need Ollama. What each sample disclosure shows: [`sample/README.md`](sample/README.md).
 
 **kap-kart:** paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then `./kap_kart/run.sh` (macOS, Linux) and open `http://127.0.0.1:8770`. On Windows: `cd kap_kart`, `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python kap_kart.py --serve`. Add a hidden instruction to the text: the card should show **KONTROL ET** instead of the planted amount. More: [`kap_kart/README.md`](kap_kart/README.md).
 
 ## The code
 | path | what is there |
 |---|---|
-| `scripts/` | the running system, 53 modules: [start here](scripts/README.md) |
+| `scripts/` | the running system, 54 modules: [start here](scripts/README.md) |
+| `sample/` | made-up sample data for the panel (built on your computer by `scripts/sample_data.py`) |
 | `docs/` | rules, results, architecture details, development log: [index](docs/README.md) |
 | `kap_kart/` | the card tool that needs no vendor data |
 | `prompts/` | `extract_v3.txt` is live and frozen; v1, v2 and v4 are earlier versions |

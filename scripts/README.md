@@ -1,4 +1,4 @@
-# scripts/: the running system (53 modules)
+# scripts/: the running system (54 modules)
 
 Run every module from the repository root (`.venv/bin/python scripts/<module>.py`). Modules import each other by name, and each one has a `--self-test` that `run_self_tests.py` runs.
 
@@ -18,7 +18,7 @@ The panel (`panel.py`) puts these on screen.
 - **Other data collection (Matriks, run by the author only):** `price_collect.py`, `sector_collect.py`.
 - **Search index:** `build_docs.py`, `normalize.py`, `clusters.py` (weekly themes).
 - **Forward test:** `forward_score.py`, `two_run_count.py` (scored once, on submission day).
-- **Tests and checks:** `run_self_tests.py` (all self-tests, also in CI), `e2e_check.py` (the real nightly chain on made-up disclosures, fake model), `kap_kart_check.py` and `kap_kart_leak_scan.py` (kap-kart copies and leak scan), `demo_leak_check.py` (demo mode), `desk_route_check.py` (desk e-mail chain), `make_timeline.py` (`docs/timeline.md` from git).
+- **Tests and checks:** `run_self_tests.py` (all self-tests, also in CI), `e2e_check.py` (the real nightly chain on made-up disclosures, fake model), `kap_kart_check.py` and `kap_kart_leak_scan.py` (kap-kart copies and leak scan), `demo_leak_check.py` (demo mode), `sample_data.py` (made-up sample data for `panel.py --sample`, with its leak scan), `desk_route_check.py` (desk e-mail chain), `make_timeline.py` (`docs/timeline.md` from git).
 - **Helpers with evaluation names:** `eval_vs_matriks.py` (`norm_cur`), `eval_retrieval.py` (embedding models), `route_eval.py` (`word_date`), `score_silent.py` (scoring, 95% bound), `tcmb_check.py` (rate fill, off), `quantities.py` (card quantities, off). The live code imports them, so they stay here; giving them system names is listed as architecture debt in `docs/known_issues.md` (E1).
 
 `schema.sql` is the database schema. The measurement scripts are kept outside this repository (as little test code as possible); every result and its rule is in [`../docs/results.md`](../docs/results.md).

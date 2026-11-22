@@ -39,6 +39,11 @@ HOST=os.environ.get('PANEL_HOST','127.0.0.1')
 LOCAL_NAMES=('127.0.0.1','localhost')  # accepted Origin / Referer hosts
 PORT=8765
 UNASSIGNED='Atanmamış'
+SAMPLE=False  # --sample: made-up data in sample/data/ (scripts/sample_data.py); every page says so
+SAMPLE_BANNER=('<div class="card high"><b>Örnek veri.</b> Şirketler, bildirimler, tutarlar, sektörler ve fiyatlar '
+               'uydurmadır; gerçek veri lisans gereği paylaşılmaz. Sabah listeleri gerçek gece zinciriyle üretildi, '
+               'yalnızca model cevapları önceden yazıldı. KAP linkleri gerçek bir bildirime gitmez. Sohbet, konu araması '
+               've bildirim kartı yerel Ollama ve embedding modeli ister; diğer sayfalar modelsiz çalışır.</div>')
 DECISIONS={'confirm':'Doğru (KAP metniyle kontrol ettim)','reject':'Yanlış (çıkarım hatalı)'}
 DAY_RE=re.compile(r'^\d{4}-\d{2}-\d{2}$')
 KAP_RE=re.compile(r'^https://(www\.)?kap\.org\.tr/')
@@ -198,7 +203,8 @@ form.guided .wide{grid-column:1/-1}form.guided input[type=text]{width:100%}form.
 def page(title,body):
     return (f'<!doctype html><html lang="tr"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title>'
-            f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{demo_mode.BANNER if demo_mode.ON else ""}{body}</main></body></html>')
+            f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{demo_mode.BANNER if demo_mode.ON else ""}'
+            f'{SAMPLE_BANNER if SAMPLE else ""}{body}</main></body></html>')
 
 
 WINDOW_MSG='Gece toplama penceresi (23:40-23:50): veritabanına dokunulmuyor. 23:50\'den sonra tekrar deneyin.'
@@ -672,9 +678,19 @@ def main():
     ap.add_argument('--self-test',action='store_true')
     ap.add_argument('--review-log',help='another review log, e.g. data/review_log_test.jsonl for a clean test (the real log stays untouched)')
     ap.add_argument('--demo',action='store_true',help='demo mode: hide Matriks-licensed values on every page (docs/demo_mode_rule.md)')
+    ap.add_argument('--sample',action='store_true',
+                    help='made-up sample data: sample/data/ instead of data/ (built if missing; no licence, no Ollama for the list pages)')
     args=ap.parse_args()
     if args.demo:
         demo_mode.ON=True
+    if args.sample:  # every module reads data/... relative to the working directory, so data/ now means sample/data/
+        import sample_data
+        info=sample_data.ensure()
+        if info:
+            print(f'sample data built: {info["companies"]} companies, {info["disclosures"]} disclosures, {info["days"]} days',flush=True)
+        os.chdir(sample_data.SAMPLE_ROOT)
+        global SAMPLE
+        SAMPLE=True
     if args.review_log:
         global LOG_PATH
         LOG_PATH=args.review_log
@@ -686,7 +702,7 @@ def main():
             print(f'  {code} confirm={c["confirm"]} reject={c["reject"]}')
     elif args.serve:
         print(f'panel on http://127.0.0.1:{args.port} (bind {HOST}; Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())} '
-              f'review log={LOG_PATH} demo={"on" if demo_mode.ON else "off"}')
+              f'review log={LOG_PATH} demo={"on" if demo_mode.ON else "off"}'+(' data=sample/data (made up)' if SAMPLE else ''))
         ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
     else:
         ap.error('give --serve, --stats or --self-test')

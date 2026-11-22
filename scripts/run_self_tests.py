@@ -100,6 +100,7 @@ TESTS={
     'prod_refresh':'--self-test',
     'daily_collect':'--self-test',
     'e2e_check':'--self-test',
+    'sample_data':'--self-test',
     'make_timeline':'--self-test',
     'demo_video':'--self-test',
     'fdv_collect':'--self-test',
