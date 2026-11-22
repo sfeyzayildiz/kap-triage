@@ -229,6 +229,10 @@ def morning_specs():
     ]
 
 
+# chat examples for --sample (the real ones name real companies): only tools that need no search index
+# (day list, company history, price move, brief); none matches agent.DETAIL_RE (that would need the index)
+CHAT_EXAMPLES=['Bugün neye bakmalıyım?','9 Kasım 2026 bildirimleri','SVN1 son bir yılda hangi işleri aldı?',
+               "Demirkanat 2 Kasım'da neden yükseldi?","Rüzgarlıtepe'ye bir bak"]
 QUIET_MOVES={('BLS2',date(2026,11,18)):-0.07}  # a move with no disclosure before it ("why did it move?")
 # what the real chain must make of the morning items (checked in the self-test)
 EXPECT_FLAG={'currency_unclear':'currency_unclear','injection':'amount_from_instruction','projection':'amount_is_projection',
@@ -547,6 +551,8 @@ def _self_test():
             f'{per_day[last]} bildirim' in morning_text and not model_calls,
             clusters['k']==len(SECTORS) and len(clusters['assign'])==len(specs),
             overview.count('<a class="col"')==panel.CHART_DAYS and f'href="/day/{last}"' in overview,   # /genel on the sample
+            not any(agent.DETAIL_RE.search(q) for q in CHAT_EXAMPLES)
+            and all(any(n in ' '.join(CHAT_EXAMPLES) for n in (c[0],c[1])) for c in (CO['SVN1'],CO['ENR1'])),
         ]
     # leak scan on made-up "real" data: a clean corpus gives 0, planted overlaps are found
     clean,_=leak_counts(specs,{'ASELS'},[('aselsan',)],['Şirketimiz bir müşteri ile sözleşme imzalamıştır.'],[])

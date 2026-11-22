@@ -1,7 +1,8 @@
 '''Triage agent (LangGraph): route an analyst's question to one tool and answer from data.
 
 Graph: route (LLM, structured output) -> validate (code) -> one tool (code) -> END.
-(A detail switch + card tool exists but is off: docs/detail_card_rule.md, not adopted 2026-11-10.)
+(Detail questions get a card: the detail switch failed alone on 10 Nov, docs/detail_card_rule.md, and was adopted
+with router v2 the same day, cards right 12/16, docs/router_v2_rule.md; DETAIL_SWITCH below.)
 The LLM only reads the question: intent, symbol, date, topic. Every number and link in
 the answer comes from the database through code, so the model cannot invent them.
 Tracing to LangSmith is switched off; nothing leaves the machine.
@@ -47,8 +48,8 @@ DETAIL_RE=re.compile(r'\b(kaç|kac|ne kadar|ne zaman|süres|sures|kim|karşı ta
                      r'hangi (ülke|ulke|şirket|sirket|firma|müşteri|musteri|kurum|para birimi|döviz|doviz)|nerede|nereye|nereden)',re.I)
 CARD=True  # docs/detail_card_rule.md: False shows the ticker-filtered search with links only
 # docs/detail_card_rule.md result 2026-11-10: REMOVE_SWITCH (routed 5/10, right disclosure 3/10; 0/10 questions
-# wrote a ticker). The switch and the detail tool stay in the code as a record; the graph does not use them.
-DETAIL_SWITCH=True  # docs/router_v2_rule.md: on for the v2 measurement (card part decided by its C bar)
+# wrote a ticker). Router v2 (names decide the ticker) then measured the switch again and kept it on:
+DETAIL_SWITCH=True  # docs/router_v2_rule.md: ADOPT_V2, card ON (C 12/16 >= 70%, 10 Nov)
 SHOW_QUANTITIES=False  # docs/card_quantities_rule.md: QUANTITIES_OFF (Feyza review 2026-11-11, 10/15, bar 14)
 BRIEF_RE=re.compile(r'\b(bak|bakalım|bakalim|özet|ozet|özetle|ozetle|değerlendir|degerlendir|genel durum|ne durumda|durumu|brief)\b',re.I)
 BRIEF_SWITCH=True  # docs/brief_rule.md: on for the measurement; decided by Feyza's 10 questions
@@ -337,7 +338,9 @@ def render_period_list(start,end,rows):
 
 
 def tool_morning(state):
-    from morning import enrich, extract_day, load_saved, render, save
+    '''The saved nightly list (two readings per disclosure). If it is missing or stale, the list is built here with
+    one reading for this answer only and not saved, so the official list stays the nightly two-reading one.'''
+    from morning import enrich, extract_day, load_saved, render
     if state.get('period'):
         return period_list(*state['period'])
     day=date.fromisoformat(state['day'])
@@ -347,9 +350,9 @@ def tool_morning(state):
         n=con.execute('SELECT count(*) FROM disclosures WHERE CAST(published_at AS DATE)=?',[day]).fetchall()[0][0]
     finally:
         con.close()
-    if items is None or len(items)!=n:  # a list saved before that night's collection is stale
+    if items is None or len(items)!=n:  # missing, or saved before that night's collection: built for this answer only
         items=enrich(extract_day(day))
-        save(day,items)
+        return render(str(day),items)+'\nBu liste bu cevap için tek okumayla hazırlandı; gece listesi (iki okuma) değildir.\n'
     return render(str(day),items)
 
 
@@ -426,6 +429,8 @@ def tool_search(state):
     # the full question is searched, as in the evaluation (docs/rerank_rule.md); the router's topic is only shown
     from rag_index import load_index, search_question
     index=load_index()
+    if index is None:
+        return NO_INDEX
     period=state.get('period')
     day=state.get('day') if state.get('date_filter') and not period else None
     hits=search_question(index,state['question'],symbol=state.get('symbol'),k=5,on_day=day,period=period)
@@ -443,6 +448,13 @@ def tool_search(state):
     return '\n'.join(lines)+'\n'
 
 
+NO_INDEX=('Arama indeksi bu bilgisayarda yok, bu yüzden konu araması ve bildirim kartı çalışmıyor. Örnek veride kurulmaz; '
+          'gerçek veride "python scripts/rag_index.py --build" ile kurulur.\n')
+# measured fields, said on every card and brief (docs/results.md: Set C, fields_rule 13 Nov)
+FIELDS_NOTE=('Tutar ve para birimi ölçüldü (bağımsız 100 bildirimde 1 sessiz hata); uzun sözleşme (en az 2 yıl) bilgisi de '
+             'ölçüldü (50 bildirimde 3 hata). '
+             'Yurt içi/dışı ve ilişkili taraf ölçüldü ama eşiği geçmedi: model bunları kaçırabiliyor, uydurmuyor. '
+             'Diğer alanlar ölçülmedi.')
 EVENT_TR={'order':'sipariş','contract':'sözleşme','tender':'ihale','other':'diğer'}
 ORIGIN_TR={'domestic':'yurt içi','foreign':'yurt dışı','unknown':'belirtilmemiş'}
 _CARDS={}  # news_id -> extraction, this process only (a repeated question is instant)
@@ -507,6 +519,8 @@ def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day
     if search is None:
         from rag_index import load_index, search_question
         index=load_index()
+        if index is None:
+            return {'hits':[],'data':None,'text':NO_INDEX}
         search=lambda q,sym:search_question(index,q,symbol=sym,k=5,on_day=on_day,period=period) or \
             (search_question(index,q,symbol=sym,k=5) if (on_day or period) else [])
     hits=search(question,symbol)
@@ -521,8 +535,7 @@ def detail_answer(question,symbol=None,search=None,extract=None,card=None,on_day
         lines+=[f'{i}. {h["published_at"][:10]} | {company_label(h["symbol"],short=True)} | {h["kap_url"]}' for i,h in enumerate(rest,2)]
     lines.append('')
     if card:
-        lines.append('Alanlar bu bildirimin metninden otomatik çıkarıldı. Tutar ve para birimi '
-                     'test edildi (bağımsız 100 bildirimde 1 sessiz hata), diğer alanlar henüz test edilmedi. Kart ilk sıradaki bildirime aittir; '
+        lines.append('Alanlar bu bildirimin metninden otomatik çıkarıldı. '+FIELDS_NOTE+' Kart ilk sıradaki bildirime aittir; '
                      'KAP metnini okuyarak doğrulayın.')
     else:
         lines.append('Arama ilk 5\'te doğru bildirimi bağımsız testte 20/20 buldu. KAP metnini okuyarak doğrulayın.')
@@ -656,7 +669,7 @@ def compose_brief(symbol,brief):
         lines.append('Yok.')
     else:
         lines+=[f'- {x["published_at"][:10]} (benzerlik {tr_num(x["score"],2)}) {x["kap_url"]}' for x in sim]
-    lines+=['','Tutar ve para birimi ölçüldü (bağımsız 100 bildirimde 1 sessiz hata); diğer alanlar ölçülmedi. '
+    lines+=['',FIELDS_NOTE+' '
             'Önem skoru kurallı bir sıralamadır, tahmin değildir. Karar öncesi KAP metnini okuyun.']
     return '\n'.join(lines)+'\n'
 
@@ -932,7 +945,16 @@ def _self_test():
         assert g12.invoke({'question':'ASELS kâr ne oldu?'})['intent']=='company' and len(seen3)==2   # off: judge never called
     finally:
         SCOPE_V3=saved3
-    print('self-test ok: 95 checks')
+    # outside review 22 Nov: no search index (sample data) -> a clear message, not an error; measured fields named
+    import rag_index
+    saved_load=rag_index.load_index
+    rag_index.load_index=lambda path=None:None
+    try:
+        assert tool_search({'question':'Irak projeleri'})==NO_INDEX and detail_answer('süresi kaç ay')['text']==NO_INDEX
+    finally:
+        rag_index.load_index=saved_load
+    assert FIELDS_NOTE in compose_brief('ZZZ',{}) and 'uzun sözleşme' in FIELDS_NOTE and 'ölçülmedi' in FIELDS_NOTE
+    print('self-test ok: 97 checks')
 
 
 def main():

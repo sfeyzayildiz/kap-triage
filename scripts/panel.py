@@ -595,6 +595,25 @@ def load_day(day):
     return load_saved(day)
 
 
+MAX_BODY=4096
+
+
+def body_length(value):
+    '''Content-Length clamped to 0..MAX_BODY; None for a value that is not a number (the request is refused).'''
+    try:
+        return max(0,min(int(value or 0),MAX_BODY))
+    except ValueError:
+        return None
+
+
+def theme_back(referer):
+    '''Where the theme switch returns: a local page of this panel, never another site (a "//host" path is one).'''
+    ref=urlparse(referer or '')
+    if ref.hostname in LOCAL_NAMES and ref.path.startswith('/') and not ref.path.startswith('//'):
+        return ref.path+('?'+ref.query if ref.query and ref.path=='/form' else '')
+    return '/'
+
+
 class Handler(BaseHTTPRequestHandler):
     def theme(self):
         for part in (self.headers.get('Cookie') or '').split(';'):
@@ -663,10 +682,7 @@ class Handler(BaseHTTPRequestHandler):
                              ctype='application/json; charset=utf-8')
         if path=='/tema':  # theme switch without JavaScript: next theme in a cookie, back to the same page
             nxt=THEMES[(THEMES.index(self.theme())+1)%len(THEMES)]
-            ref=urlparse(self.headers.get('Referer') or '')
-            back=ref.path if ref.hostname in LOCAL_NAMES and ref.path.startswith('/') else '/'
-            if ref.query and back=='/form':
-                back+='?'+ref.query
+            back=theme_back(self.headers.get('Referer'))
             age=0 if nxt=='auto' else 31536000
             return self.send(303,'',location=back,cookie=f'theme={nxt}; Path=/; Max-Age={age}; SameSite=Strict')
         if path=='/guvenilirlik':
@@ -704,8 +720,10 @@ class Handler(BaseHTTPRequestHandler):
         path=urlparse(self.path).path
         if path not in ('/review','/chat','/chat/clear','/form'):
             return self.send(404,page('Yok','<p>Sayfa yok.</p>'))
-        n=min(int(self.headers.get('Content-Length') or 0),4096)
-        form_data={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8')).items()}
+        n=body_length(self.headers.get('Content-Length'))
+        if n is None:
+            return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
+        form_data={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8',errors='replace')).items()}
         if path=='/chat/clear':
             chat.HISTORY.clear()
             return self.send(303,'',location='/')
@@ -887,7 +905,14 @@ def _self_test():
     assert 'href="/kontroller"' in ov and 'href="/guvenilirlik"' in ov and ov.count('<div class="tile">')==7
     assert 'Kayıtlı sabah listesi yok' in render_overview({},[],{},[],{}) and '<h2>6.' not in render_overview({},[],{},[],{})
     assert '.cols{' not in render_index([]) and not reads_db('/genel') and not reads_db('/kontroller')   # other pages: no chart CSS
-    print('self-test ok: 64 checks')
+    # outside review 22 Nov: request hardening
+    assert body_length('120')==120 and body_length(None)==0 and body_length('-1')==0 and body_length('99999')==MAX_BODY
+    assert body_length('abc') is None
+    assert theme_back('http://127.0.0.1:8765/day/2026-11-09')=='/day/2026-11-09' and theme_back('http://localhost//evil.example')=='/'
+    assert theme_back('http://evil.example/day/x')=='/' and theme_back('http://localhost:8765/form?type=brief')=='/form?type=brief'
+    assert theme_back(None)=='/' and theme_back('http://localhost:8765/days?x=1')=='/days'
+    assert 'şükrü'.encode('utf-8')[:-1].decode('utf-8',errors='replace').startswith('şükr')   # a cut character no longer raises
+    print('self-test ok: 70 checks')
 
 
 def main():
@@ -909,6 +934,7 @@ def main():
         if info:
             print(f'sample data built: {info["companies"]} companies, {info["disclosures"]} disclosures, {info["days"]} days',flush=True)
         os.chdir(sample_data.SAMPLE_ROOT)
+        chat.EXAMPLES=sample_data.CHAT_EXAMPLES  # the real examples name real companies
         global SAMPLE
         SAMPLE=True
     if args.review_log:

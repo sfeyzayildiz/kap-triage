@@ -213,7 +213,9 @@ def pages_hash(pages):
 # 19 Nov: chart label halo removed (it drew light blobs over the labels in the dark theme): 324bb603b3585996 ->
 # 22 Nov: overview (/genel) and review history (/kontroller) added as fixture pages, and two menu links on every page;
 # the 7 earlier pages with the two links removed still hash to aab4a6dc9387972c (checked, PROJECT_NOTES 22 Nov) ->
-OFF_SHA256='9b10fac6b84d4d9e'
+# 22 Nov outside review: brief/card name the measured fields (agent.FIELDS_NOTE); with the old sentence put back the
+# pages hash to 9b10fac6b84d4d9e (checked) ->
+OFF_SHA256='551d570425036047'
 
 
 def _self_test():
