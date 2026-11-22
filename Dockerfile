@@ -23,7 +23,7 @@ RUN pip install -r requirements.txt
 COPY scripts/ scripts/
 COPY prompts/ prompts/
 COPY docs/ docs/
-COPY README.md PROJECT_NOTES.md ./
+COPY README.md ./
 
 RUN useradd --create-home app && mkdir -p /app/data && chown -R app /app
 USER app

@@ -72,8 +72,12 @@ def render_answer(text):
     return ''.join(lines)
 
 
+WINDOW_GUARD=True  # panel --sample sets False: sample/data is not the nightly DB, so the 23:40-23:50 window does not apply
+
+
 def in_collection_window(now):
-    return now.hour==23 and 40<=now.minute<=50
+    '''The one switch for every night-window check (panel GET routes and form context, form.run, chat.ask).'''
+    return WINDOW_GUARD and now.hour==23 and 40<=now.minute<=50
 
 
 def default_runner(question):

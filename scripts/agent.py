@@ -358,6 +358,8 @@ def tool_morning(state):
         n=con.execute('SELECT count(*) FROM disclosures WHERE CAST(published_at AS DATE)=?',[day]).fetchall()[0][0]
     finally:
         con.close()
+    if n==0:  # no disclosures that day (weekend, holiday): nothing to read, so no extraction and no index update
+        return render(str(day),[])
     if items is None or len(items)!=n:  # missing, or saved before that night's collection: built for this answer only
         items=enrich(extract_day(day))
         return render(str(day),items)+'\nBu liste bu cevap için tek okumayla hazırlandı; gece listesi (iki okuma) değildir.\n'
@@ -636,7 +638,10 @@ def step_similar(state,brief):
     latest=brief.get('latest') or {}
     if not latest.get('hit'):
         return []
-    return similar_earlier(load_index(),latest['hit']['news_id'],k=3)
+    index=load_index()
+    if index is None:  # no search index on this computer (e.g. sample data): say so, never "none found"
+        return {'error':'no_index'}
+    return similar_earlier(index,latest['hit']['news_id'],k=3)
 
 
 def compose_brief(symbol,brief):
@@ -671,7 +676,9 @@ def compose_brief(symbol,brief):
             lines.append(f'- ... {len(hist)-BRIEF_HISTORY_LINKS} bildirim daha')
     lines+=['','## 4. Benzer eski bildirimler']
     sim=brief.get('similar')
-    if sim is None or isinstance(sim,dict):
+    if isinstance(sim,dict) and sim.get('error')=='no_index':
+        lines.append('Arama indeksi bu bilgisayarda yok, bu yüzden benzer bildirimler aranamadı (örnek veride kurulmaz).')
+    elif sim is None or isinstance(sim,dict):
         lines.append('Hesaplanamadı.')
     elif not sim:
         lines.append('Yok.')
@@ -959,10 +966,31 @@ def _self_test():
     rag_index.load_index=lambda path=None:None
     try:
         assert tool_search({'question':'Irak projeleri'})==NO_INDEX and detail_answer('süresi kaç ay')['text']==NO_INDEX
+        assert step_similar({},{'latest':{'hit':hitb}})=={'error':'no_index'}   # second review: no TypeError on sample data
     finally:
         rag_index.load_index=saved_load
+    t=compose_brief('X',{'latest':None,'history':[],'reaction':None,'similar':{'error':'no_index'}})
+    assert 'Arama indeksi bu bilgisayarda yok' in t and 'Yok.' not in t    # never "none found" when it was not searched
     assert FIELDS_NOTE in compose_brief('ZZZ',{}) and 'uzun sözleşme' in FIELDS_NOTE and 'ölçülmedi' in FIELDS_NOTE
-    print('self-test ok: 97 checks')
+    # second review: a day with no disclosures returns the empty list without extraction or an index update
+    import tempfile
+    import morning
+    global DB_PATH
+    saved_db,saved_enrich=DB_PATH,morning.enrich
+    with tempfile.TemporaryDirectory() as d:
+        DB_PATH=os.path.join(d,'t.duckdb')
+        con=duckdb.connect(DB_PATH)
+        con.execute('CREATE TABLE disclosures(published_at TIMESTAMP)')
+        con.close()
+        def no_enrich(items):
+            raise AssertionError('enrich called on an empty day')
+        morning.enrich=no_enrich
+        try:
+            t=tool_morning({'day':'2031-01-04'})
+            assert '0 bildirim' in t and 'Bugün yeni iş ilişkisi bildirimi yok.' in t and 'tek okumayla' not in t
+        finally:
+            DB_PATH,morning.enrich=saved_db,saved_enrich
+    print('self-test ok: 101 checks')
 
 
 def main():

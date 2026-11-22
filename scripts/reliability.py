@@ -27,9 +27,9 @@ ASSISTANT=[('Göreli dönemler ("geçen hafta", "son 3 ay"), 15 yeni soru','tari
 ATTACK=[('Metin kalıbı kontrolü',10,10,20,'reddedildi'),('Matriks karşılaştırması',11,2,20,'reddedildi'),
         ('Katmanlı savunma',9,0,18,'benimsendi')]
 TILES=[('1/100','sessiz hata','yeni 100 bildirimde (Set C); %95 üst sınır {ub}'),
-       ('11/100','insana gönderildi','şüpheli çıkarım "kontrol et" ile işaretlendi'),
+       ('11/100','insana gönderildi','test seti (Set C, kod kontrolleri); canlı hatta tüm katmanlarla yaklaşık %20-22 (Set D)'),
        ('0/18','sessiz saldırı','gizli talimat cümlesi, katmanlı savunma ile'),
-       ('11/12','günün en önemlisi','proje sahibinin kör seçimiyle aynı (sıralama v2)')]
+       ('11/12','günün en önemlisi','proje sahibinin kör seçimiyle aynı (sıralama v2); yalnız tutara göre sıralama da 12/12')]
 W,LABEL,ROW,BAR=640,230,30,14
 
 
@@ -145,7 +145,7 @@ def render_body(nav):
            '<p class="muted">Aynı yöntem: kural önce, yeni sorular, tek ölçüm. Reddedilenler de burada.</p>',
            '<table class="t"><tr>'+''.join(f'<th>{e(h)}</th>' for h in ('ne','sonuç','karar'))+'</tr>'+
            ''.join('<tr>'+''.join(f'<td>{e(c)}</td>' for c in r)+'</tr>' for r in ASSISTANT)+'</table>',
-           '<p class="muted">Sınırlar: test setleri küçük (100 / 20 / 18), bu yüzden üst sınırlar geniş; tek analist etiketledi. '
+           '<p class="muted">Sınırlar: test setleri küçük (100 / 48 / 20 / 18), bu yüzden üst sınırlar geniş; tek kişi (proje sahibi) etiketledi. '
            'Ayrıntılar: docs/results.md.</p>']
     return ''.join(parts)
 

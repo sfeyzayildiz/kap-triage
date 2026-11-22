@@ -1,3 +1,16 @@
+'''Nightly entry point (launchd, 23:43; deploy/): collect, then build the morning list.
+
+Order in main():
+  1. pull_guard: if a vendor pull already happened today, send a SKIPPED alert and stop (one pull per day).
+  2. wait until the API hosts resolve (after sleep the network can be late), so a retry is never a second pull.
+  3. collector.py for the last LOOKBACK_DAYS days (INSERT OR REPLACE, so re-fetching is safe); DB lock -> wait, retry.
+  4. alert with counts only (OK), then morning_job builds and seals the morning list (it never raises).
+Any failure sends a FAILED alert and exits non-zero, with the traceback in daily.log.
+
+Usage:
+  python scripts/daily_collect.py              # the nightly run (calls the vendor API)
+  python scripts/daily_collect.py --self-test
+'''
 import os
 import re
 import socket

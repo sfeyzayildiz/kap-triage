@@ -223,7 +223,9 @@ def pages_hash(pages):
 # 22 Nov watchlist UX: neutral "takipte" badge, secondary button (only day_watch changed; 9 pages still 551d570425036047) ->
 # 22 Nov watchlist (Feyza): own WATCH_CSS for the card button (day_watch changed again: 10 pages de1d687f01efac36), then
 # 4c overview_watch page added; the 9 pages before the watchlist still hash to 551d570425036047 (checked) ->
-OFF_SHA256='ec99f5a881d4a55e'
+# ec99f5a881d4a55e -> 22 Nov second outside review: reliability tiles name the live flag rate (Set D) and the 12/12
+# amount-only order, limits line 100/48/20/18; with reliability.py put back the pages hash to ec99f5a881d4a55e (checked) ->
+OFF_SHA256='9627515c0eb5328f'
 
 
 def _self_test():

@@ -197,7 +197,20 @@ def render_card_html(data,text,link=None):
 
 def safe_link(link):
     link=(link or '').strip()
-    return link if link.startswith(KAP_PREFIX) and '"' not in link and '<' not in link else None
+    ok=link.startswith(KAP_PREFIX) or link.startswith(KAP_PREFIX.replace('www.',''))  # with or without www.
+    return link if ok and '"' not in link and '<' not in link else None
+
+
+LOCAL_NAMES=('127.0.0.1','localhost')
+
+
+def body_size(value):
+    '''Content-Length as a non-negative int, or None for a value that is not one.'''
+    try:
+        n=int(value or 0)
+    except ValueError:
+        return None
+    return n if n>=0 else None
 
 
 STYLE='''
@@ -258,7 +271,12 @@ class Handler(BaseHTTPRequestHandler):
         self._send(render_page(text))
 
     def do_POST(self):
-        size=int(self.headers.get('Content-Length') or 0)
+        origin=self.headers.get('Origin')
+        if origin and urlparse(origin).hostname not in LOCAL_NAMES:  # another site's form cannot keep the model busy
+            return self._send(render_page(card='<p class="flag">Yalnızca yerel istek.</p>'),403)
+        size=body_size(self.headers.get('Content-Length'))
+        if size is None:  # not a number or negative (read(-1) would wait for the client forever)
+            return self._send(render_page(card='<p class="flag">Geçersiz istek.</p>'),400)
         if size>MAX_CHARS*8:
             return self._send(render_page(card='<p class="flag">Metin çok uzun.</p>'),413)
         form=parse_qs(self.rfile.read(size).decode('utf-8','replace'))
@@ -441,6 +459,29 @@ def _self_test():
     assert '<mark>4.000.000 USD</mark>' in marked(s,sp) or '<mark>4.000.000</mark>' in marked(s,sp)
     assert len(examples())==4 and set(EXPECTED)=={p.stem for p in examples()}
     checks+=3
+    # second outside review 22 Nov: link without www., bad Content-Length, another site's form
+    assert safe_link('https://kap.org.tr/tr/Bildirim/1')=='https://kap.org.tr/tr/Bildirim/1' and safe_link('https://kap.org.tr.evil.example/') is None
+    assert body_size('12')==12 and body_size(None)==0 and body_size('-1') is None and body_size('abc') is None
+    import http.client
+    import threading
+    srv=make_server(0)
+    threading.Thread(target=srv.serve_forever,daemon=True).start()
+    try:
+        def post(headers):
+            c=http.client.HTTPConnection('127.0.0.1',srv.server_address[1],timeout=5)
+            c.putrequest('POST','/kart')
+            for k,v in headers.items():
+                c.putheader(k,v)
+            c.endheaders()
+            s=c.getresponse().status
+            c.close()
+            return s
+        assert post({'Content-Length':'-1'})==400 and post({'Content-Length':'abc'})==400   # answered, not hanging
+        assert post({'Origin':'https://evil.example','Content-Length':'0'})==403
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    checks+=4
     print(f'self-test ok: {checks} checks (manifest 0, sockets 0, raw tags 0, missing texts 0, import violations 0)')
 
 

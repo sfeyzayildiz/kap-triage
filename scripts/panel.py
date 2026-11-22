@@ -46,13 +46,15 @@ LOG_PATH='data/review_log.jsonl'
 # the port on 127.0.0.1 only, so the panel stays local either way (docs/docker.md)
 HOST=os.environ.get('PANEL_HOST','127.0.0.1')
 LOCAL_NAMES=('127.0.0.1','localhost')  # accepted Origin / Referer hosts
+HOST_NAMES=LOCAL_NAMES+('panel',)  # accepted Host header names; 'panel' = the compose service n8n calls (n8n/desk_routing.json)
 PORT=8765
 UNASSIGNED='Atanmamış'
 SAMPLE=False  # --sample: made-up data in sample/data/ (scripts/sample_data.py); every page says so
 SAMPLE_BANNER=('<div class="card high"><b>Örnek veri.</b> Şirketler, bildirimler, tutarlar, sektörler ve fiyatlar '
                'uydurmadır; gerçek veri lisans gereği paylaşılmaz. Sabah listeleri gerçek gece zinciriyle üretildi, '
-               'yalnızca model cevapları önceden yazıldı. KAP linkleri gerçek bir bildirime gitmez. Sohbet, konu araması '
-               've bildirim kartı yerel Ollama ve embedding modeli ister; diğer sayfalar modelsiz çalışır. '
+               'yalnızca model cevapları önceden yazıldı. KAP linkleri gerçek bir bildirime gitmez. Sohbet, konu araması, '
+               'bildirim kartı ve şirket özeti yerel Ollama ister (arama ve benzer bildirimler ayrıca embedding modeli); '
+               'diğer sayfalar modelsiz çalışır. '
                'Başlamak için: <a href="/genel">Genel bakış</a>.</div>')
 DECISIONS={'confirm':'Doğru (KAP metniyle kontrol ettim)','reject':'Yanlış (çıkarım hatalı)'}
 DAY_RE=re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -702,9 +704,18 @@ FILTER_PARAM='takip'
 MSG_PARAM='takip_msg'
 
 
+def host_ok(value):
+    '''Host header check against DNS rebinding: only this computer's names (and the compose service name), any port.'''
+    try:
+        return urlparse('//'+(value or '')).hostname in HOST_NAMES
+    except ValueError:  # e.g. a malformed port or bracket
+        return False
+
+
 def safe_back(back):
-    '''Where a watchlist POST returns: a local path of this panel, never another site or header injection.'''
-    if not isinstance(back,str) or not back.startswith('/') or '//' in back or '\\' in back or '\r' in back or '\n' in back:
+    '''Where a watchlist POST returns: a local path of this panel, never another site or header injection.
+    ASCII only: http.server encodes headers as latin-1, so another character would drop the connection.'''
+    if not isinstance(back,str) or not back.isascii() or not back.startswith('/') or '//' in back or '\\' in back or '\r' in back or '\n' in back:
         return '/genel'
     return back
 
@@ -754,6 +765,8 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if not host_ok(self.headers.get('Host')):
+            return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
         path=urlparse(self.path).path
         q=urlparse(self.path).query
         blocked=window_block(path,q,datetime.now())
@@ -831,7 +844,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         origin=self.headers.get('Origin')
-        if origin and urlparse(origin).hostname not in LOCAL_NAMES:
+        if not host_ok(self.headers.get('Host')) or (origin and urlparse(origin).hostname not in LOCAL_NAMES):
             return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
         path=urlparse(self.path).path
         if path not in ('/review','/chat','/chat/clear','/form','/takip'):
@@ -1075,7 +1088,45 @@ def _self_test():
     ov_broken=render_overview(dstats,items,{},rows,rs,watch=[],watch_broken=True)
     assert watchlist.MESSAGES['broken'] in ov_broken and 'action="/takip"' not in ov_broken
     assert ov==render_overview(dstats,items,{},rows,rs,watch=None) and 'Takip ettiklerin' not in ov
-    print('self-test ok: 98 checks')
+    # second outside review 22 Nov: Host check (DNS rebinding), ASCII-only back path, no night window on sample data
+    assert all(host_ok(h) for h in ('127.0.0.1:8765','localhost:8765','panel:8765','127.0.0.1','LOCALHOST:8765'))
+    assert not any(host_ok(h) for h in ('evil.example:8765','localhost.evil.example','127.0.0.1.evil.example:80','','[bad',None))
+    assert safe_back('/day/2026-11-04?x=ş')=='/genel' and safe_back('/genel')=='/genel'
+    import http.client
+    import threading
+    srv=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+    threading.Thread(target=srv.serve_forever,daemon=True).start()
+    try:
+        def status(host,method='GET'):
+            c=http.client.HTTPConnection('127.0.0.1',srv.server_address[1],timeout=10)
+            c.putrequest(method,'/guvenilirlik' if method=='GET' else '/chat/clear',skip_host=True)
+            if host is not None:
+                c.putheader('Host',host)
+            c.putheader('Content-Length','0')
+            c.endheaders()
+            s=c.getresponse().status
+            c.close()
+            return s
+        port=srv.server_address[1]
+        assert status(f'127.0.0.1:{port}')==200 and status(f'localhost:{port}')==200 and status('panel:8765')==200
+        assert status('evil.example:8765')==403 and status(None)==403 and status('evil.example','POST')==403
+        assert status(f'127.0.0.1:{port}','POST')==303
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    night=datetime(2026,11,20,23,45)
+    saved_guard=chat.WINDOW_GUARD
+    try:
+        chat.WINDOW_GUARD=False   # what panel --sample sets: all four checks open at 23:45
+        assert all(window_block(p,q,night) is None for p,q in db_routes) and not chat.in_collection_window(night)
+        assert chat.ask('x',runner=lambda q:{'answer':'ok','intent':'help'},now=night,history=[])['a']=='ok'
+        assert not form.run({'type':'zz'},{'symbols':set()},runner=lambda s:{'answer':'ok'},now=night)['answer'].startswith('Gece')
+        chat.WINDOW_GUARD=True    # the real panel: still blocked
+        assert window_block(*db_routes[0],night)[0]==503 and chat.ask('x',runner=lambda q:{'answer':'ok'},now=night,history=[])['error']
+        assert form.run({'type':'zz'},{'symbols':set()},runner=lambda s:{'answer':'ok'},now=night)['answer'].startswith('Gece')
+    finally:
+        chat.WINDOW_GUARD=saved_guard
+    print('self-test ok: 109 checks')
 
 
 def main():
@@ -1098,6 +1149,7 @@ def main():
             print(f'sample data built: {info["companies"]} companies, {info["disclosures"]} disclosures, {info["days"]} days',flush=True)
         os.chdir(sample_data.SAMPLE_ROOT)
         chat.EXAMPLES=sample_data.CHAT_EXAMPLES  # the real examples name real companies
+        chat.WINDOW_GUARD=False  # sample/data is not the nightly DB: no 23:40-23:50 block (all four checks use this switch)
         global SAMPLE
         SAMPLE=True
     if args.review_log:

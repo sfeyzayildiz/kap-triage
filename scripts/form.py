@@ -99,7 +99,8 @@ def run(form,ctx,runner=None,now=None,chart=None):
     now=now or datetime.now()
     rec={'form':{k:form.get(k,'') for k in ('type','symbol','day','text')},'at':now.strftime('%H:%M'),
          'seconds':0.0,'error':False,'answer':''}
-    if now.hour==23 and 40<=now.minute<=50:
+    from chat import in_collection_window
+    if in_collection_window(now):
         rec.update(answer='Gece toplama penceresi (23:40-23:50): veritabanına dokunulmuyor. 23:50\'den sonra tekrar deneyin.',error=True)
     else:
         state,err=build_request(form,ctx)
