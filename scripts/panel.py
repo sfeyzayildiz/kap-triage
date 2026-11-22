@@ -8,9 +8,17 @@ Reviewer decisions for flagged items are appended to data/review_log.jsonl (not 
 panel never holds a DB lock the nightly job needs). Latest decision per news_id wins.
 All text is HTML-escaped (KAP text is external input); KAP links are shown only for kap.org.tr.
 
+Reading map (search for these names; the last part is tests only):
+  1. data loading: load_sectors, load_reviews, record_review, available_days, sources_for_items
+  2. page frame and safety: CSS, page, reads_db / window_block (no DB read in the night window)
+  3. day page: render_item, look_first_box, render_day; themes: render_themes_index, render_week
+  4. overview /genel and review history /kontroller: column_chart, flag_chart, render_overview, render_reviews
+  5. web server: body_length, theme_back, Handler (do_GET routes, do_POST review / chat / form)
+  6. _self_test: tests only, not needed to understand the panel; main: command line
+
 Usage:
   python scripts/panel.py --self-test
-  python scripts/panel.py --serve            # http://127.0.0.1:8765 (chat), /days (morning lists)
+  python scripts/panel.py --serve            # http://127.0.0.1:8765 (chat), /genel (overview), /days (morning lists)
   python scripts/panel.py --stats            # counts only: confirmed / rejected, overall and per reason code
 '''
 import argparse

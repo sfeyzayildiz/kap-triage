@@ -18,8 +18,16 @@ Leak scan (Feyza runs it; reads data/ read-only, prints counts only): sample tic
 also occur in the real data, 12-word overlaps between the sample texts (and this file, the sample
 README) and real disclosure texts, forbidden strings. All must be 0 before the folder goes public.
 
+Reading map (search for these names; the last part is tests only):
+  1. the invented world: COMPANIES, TEMPLATE / PARTIES / SUBJECTS (history deals), morning_specs (the 21 showcase items)
+  2. what the chain must make of them: EXPECT_FLAG, EXPECT_CLEAN; chat buttons for --sample: CHAT_EXAMPLES
+  3. building: write_db (tables from schema.sql), bar_rows (prices), write_side_files (names, themes)
+  4. the real chain with a pre-written model: FakeModel, run_chain, build, ensure
+  5. leak scan: leak_counts, leak_scan
+  6. _self_test: tests only, not needed to understand the data; main: command line
+
 Usage:
-  python scripts/panel.py --serve --sample     # builds sample/data/ if missing, serves http://127.0.0.1:8765
+  python scripts/panel.py --serve --sample     # builds sample/data/ if missing, serves http://127.0.0.1:8765/genel
   python scripts/sample_data.py --build        # rebuild sample/data/ (its review log is reset too)
   python scripts/sample_data.py --leak-scan    # Feyza only (reads data/kap.duckdb read-only)
   python scripts/sample_data.py --self-test

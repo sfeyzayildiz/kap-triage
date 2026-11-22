@@ -7,6 +7,14 @@ The LLM only reads the question: intent, symbol, date, topic. Every number and l
 the answer comes from the database through code, so the model cannot invent them.
 Tracing to LangSmith is switched off; nothing leaves the machine.
 
+Reading map (search for these names; the last part is tests only):
+  1. switches and their measured results: CARD, DETAIL_SWITCH, BRIEF_SWITCH, V2, SCOPE_*, PERIODS
+  2. routing: llm_route (the only LLM call here), validate and route_question (code checks), period_switch
+  3. tools, one per intent: tool_morning, tool_company, tool_why_moved, tool_search, tool_detail (card_lines)
+  4. company brief, multi-step: step_latest, step_history, step_reaction, step_similar, compose_brief
+  5. the LangGraph graph: build_graph (route -> one tool, or the brief steps -> compose)
+  6. _self_test: tests only (fake router, no Ollama), not needed to understand the agent; main: command line
+
 Usage:
   python scripts/agent.py --self-test
   python scripts/agent.py "Bugün neye bakmalıyım?"
