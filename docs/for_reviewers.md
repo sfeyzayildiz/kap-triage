@@ -13,10 +13,10 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 
 ## Minutes 6-8: how it is built
 6. `docs/architecture.md`: nightly path, analyst tools, where the LLM is used and where code decides.
-7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). The running system is the 55 modules in `scripts/` (README, "Reading the code: start with these six files"); the measurement scripts are kept out of the repository. 48 self-tests; CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake. To click through the panel yourself: `python scripts/panel.py --serve --sample` (made-up data, see `sample/README.md`).
+7. `scripts/pipeline.py` (extraction + checks + defence, ~200 lines) and `scripts/pull_guard.py` (one vendor pull per day, enforced in code). The running system is the 55 modules in `scripts/` (`scripts/README.md`, "Start with these six files"); the measurement scripts are kept out of the repository. 48 self-tests; CI runs all of them on every pull request (`.github/workflows/`). `scripts/e2e_check.py` runs the real nightly chain (extraction with postprocessing, code checks, vendor cross-check, two readings, source-sentence judge, importance, morning list) on three made-up disclosures in a temporary database, with only the model replaced by a fake. To click through the panel yourself: `.venv/bin/python scripts/panel.py --serve --sample`, then open `http://127.0.0.1:8765/genel` (made-up data; setup and a 10-minute tour in `sample/README.md`).
 
 ## Minutes 8-10: try it without our data
-8. README, "Try it yourself": the self-tests and the nightly chain on made-up disclosures run with no model and no data (`pip install -r requirements-test.txt`).
+8. README, "Try it yourself": the self-tests and the nightly chain on made-up disclosures run with no model and no data (`.venv/bin/pip install -r requirements-test.txt`).
 9. `kap_kart/`: paste a public KAP "Yeni İş İlişkisi" text and get the same card the nightly job builds, on your own computer (`./kap_kart/run.sh`, needs Ollama). Four made-up trap examples included.
 
 ## What is not claimed
@@ -24,4 +24,4 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 - One person labeled every gold set; held-out sets are new disclosures, not new companies.
 - The importance score did not beat sorting by amount; the live order is a simple, measured rule.
 - The forward test (lists sealed each night before prices exist) was shortened to end with 20 Nov so it could be scored once on 24 Nov (rule Note 7); with so few items the expected answer is `TOO_FEW`. It checks the live pipeline without hindsight; it is not a trading claim.
-- Running the full system needs a Matriks token; screens are shown in demo mode because the licence forbids showing vendor values.
+- Running the full system needs a Matriks token; screens are shown in demo mode because the license forbids showing vendor values.

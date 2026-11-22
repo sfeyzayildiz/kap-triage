@@ -1,6 +1,6 @@
 # scripts/: the running system (55 modules)
 
-Run every module from the repository root (`.venv/bin/python scripts/<module>.py`). Modules import each other by name, and each one has a `--self-test` that `run_self_tests.py` runs.
+Run every module from the repository root (`.venv/bin/python scripts/<module>.py`). Modules import each other by name. 48 of the 55 have a self-test (`--self-test` for most), and `run_self_tests.py` runs them all. The other 7 have none: `run_self_tests.py` itself, `collector.py`, `parse_form.py`, `llm_extract.py` (it runs inside `e2e_check.py` with a fake model), `build_docs.py`, `eval_vs_matriks.py` and `score_silent.py`.
 
 ## Start with these six files
 1. `daily_collect.py`: the nightly entry point; what runs, in which order, and what happens when a step fails.

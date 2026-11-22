@@ -1,6 +1,6 @@
 # Running with Docker
 
-One command starts the panel (chat, guided form, morning lists, themes, reliability page) in a container, so the project does not depend on one Mac's Python setup.
+One command starts the panel (overview, chat, guided form, morning lists, watchlist, review history, themes, reliability page) in a container, so the project does not depend on one Mac's Python setup.
 
 ```
 docker compose up --build        # first build takes several minutes (torch CPU, sentence-transformers)

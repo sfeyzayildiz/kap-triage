@@ -1,6 +1,6 @@
 # Sample data (made up)
 
-The real data comes from Matriks under a licence and cannot be shared. This folder lets you run the panel on your own computer without it.
+The real data comes from Matriks under a license and cannot be shared. This folder lets you run the panel on your own computer without it.
 
 **Everything here is invented:** 12 companies, 57 "Yeni İş İlişkisi" disclosures (Sep to Nov 2026), vendor-style records, sectors, exchange rates and daily prices. Tickers contain a digit (`SVN1`, `BLS2`), which no BIST ticker has. KAP links point to `kap.org.tr/tr/Bildirim/ornek-...`, which is not a real disclosure.
 
@@ -33,11 +33,14 @@ Open each link with the panel running. The screen labels are in Turkish; they ar
 6. **Your decision is saved**: http://127.0.0.1:8765/kontroller
    The decision from step 3 is here, with a chart of how often each flag type caught a real error.
    *Shows:* the analyst's feedback becomes a measure of the checks.
-7. **Why did the stock move?**: http://127.0.0.1:8765/form?type=why_moved
+7. **Follow a company**: http://127.0.0.1:8765/day/2026-11-02
+   Click "Takibe al" (follow) on the SVN1 card, then "Sadece takip ettiklerim" (only the ones I follow) to filter the list. Back on http://127.0.0.1:8765/genel, the first section "Takip ettiklerin" lists SVN1 (with a "Çıkar" button to remove it) and shows the followed companies that are in the last morning list.
+   *Shows:* each analyst keeps the companies they cover; the list is saved in `sample/data/watchlist.json`.
+8. **Why did the stock move?**: http://127.0.0.1:8765/form?type=why_moved
    Choose SVN1 and the date 2 November 2026 (the date box uses your system's date format): an abnormal move, with the disclosure linked. Then BLS2 and 18 November 2026: also abnormal, but no disclosure before it, and the answer says so.
    *Shows:* the system says "not from a disclosure, the cause may be elsewhere" instead of inventing a reason.
-8. **Weekly themes**: http://127.0.0.1:8765/themes/2026-11-02 (groups of similar disclosures in one week).
-9. **Measured reliability**: http://127.0.0.1:8765/guvenilirlik
+9. **Weekly themes**: http://127.0.0.1:8765/themes/2026-11-02 (groups of similar disclosures in one week).
+10. **Measured reliability**: http://127.0.0.1:8765/guvenilirlik
    The real results, measured on the licensed data (aggregate results only; no disclosure text or data is shared): 1 silent error in 100 new disclosures, the "without an LLM" comparison, the injection test.
 
 ## What works without a model
@@ -50,12 +53,13 @@ Open each link with the panel running. The screen labels are in Turkish; they ar
 | Haftalık temalar (weekly themes) | yes |
 | Güvenilirlik (measured results) | yes |
 | Rehberli sorgu: day list, company history, "why did it move?" | yes |
+| Rehberli sorgu: Şirket özeti (company brief) | needs Ollama with `gemma4:e4b` (it reads the latest disclosure); its "similar earlier disclosures" part says the search index is missing |
 | Sohbet (chat), topic search, and the detail card (the answer to a question in the chat or the guided form) | needs Ollama with `gemma4:e4b` and the embedding model |
 
 ## How it is built
 `scripts/sample_data.py` writes the texts and records, then runs the **real nightly chain** on them: extraction checks, vendor cross-check, two readings, source-sentence check, importance score, price reaction, company history. Only the language model is replaced by pre-written answers (what the model reads from each text), so no model is needed. Similar earlier disclosures stay empty, because they need the embedding model.
 
-Some disclosures are built to show one behaviour each:
+Some disclosures are built to show one behavior each:
 
 | day | company | what the system does |
 |---|---|---|
@@ -70,4 +74,4 @@ Some disclosures are built to show one behaviour each:
 | 12 Nov | SVN2 | the vendor record is 10 times the amount in the text: flagged |
 | 18 Nov | BLS2 | the price falls with no disclosure before it ("why did it move?") |
 
-Rebuild after a change: `.venv/bin/python scripts/sample_data.py --build` (this also resets the review log). `sample/data/` is not committed; it is built on your computer.
+Rebuild after a change: `.venv/bin/python scripts/sample_data.py --build` (this deletes `sample/data/` first, so it also resets the review log and the watchlist). `sample/data/` is not committed; it is built on your computer.

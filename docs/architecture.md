@@ -13,7 +13,7 @@ For each day's disclosures:
 5. **Price reaction.** Return against XU100 on the first trading day the market could react.
 6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
 7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
-8. **Desk panel.** A local web page with a chat box for the agent, the list per sector desk (Matriks sector label), a confirm / reject step for flagged items (decisions are logged and counted per flag type), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, and a reliability page with the measured results as charts. Light / dark theme switch; no JavaScript.
+8. **Desk panel.** A local web page that starts on an overview (`/genel`: last list in numbers, a 30-day chart, look-first items, review decisions, measured results), with a chat box for the agent, the list per sector desk (Matriks sector label), a watchlist (follow companies, filter the list to them), a confirm / reject step for flagged items (decisions are logged and counted per flag type on the review history page, `/kontroller`), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, and a reliability page with the measured results as charts. Light / dark theme switch; no JavaScript.
 9. **Desk e-mails (n8n).** Every weekday at 07:30 a self-hosted n8n workflow sends each sector desk one e-mail with its part of the morning list (company, look-first / check flags, reasons, KAP link; no amounts). The desk, the order and the text are decided in code; n8n only delivers. Delivery goes to a local mail server (Mailpit), so nothing leaves the machine; in a firm only the SMTP setting changes.
 
 An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq", "ASELS geçen ay ne aldı?" (relative periods: this / last week, month, quarter, year, "son 3 ay", read by code) and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code. A guided form (`/form`) offers the same tools without free text: the analyst picks the question type, then the company and the day, so nothing can be misunderstood; free questions stay in the chat.
@@ -120,7 +120,7 @@ flowchart LR
 
 | Step | LLM? | Why |
 |---|---|---|
-| Field extraction from disclosure text | yes (`gemma4:e4b`) | Free Turkish text, many phrasings: rules alone got 12/15 on the dev set. |
+| Field extraction from disclosure text | yes (`gemma4:e4b`) | Free Turkish text, many phrasings: on 100 unseen texts (Set C) the strongest regex let 25 wrong amounts or currencies through, the LLM with code checks 1 (`docs/regex_baseline_rule.md`). |
 | Contradiction checks, `needs_review` | no | Deterministic, unit-tested, cannot break other cases. |
 | Injection defence, source-sentence judge | yes (`gemma4:e4b`, one sentence, fact/instruction) | Tells a fact from an instruction; the amount match itself is code. Flag only. |
 | Importance score | no | Rules written in `docs/importance_score.md` before use. |

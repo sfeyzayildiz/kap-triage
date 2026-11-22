@@ -53,6 +53,7 @@ Each file states the measurement, the bar and what happens on pass or fail. The 
 - [injection_defence_rule.md](injection_defence_rule.md): text-pattern defence (not adopted).
 - [matriks_crosscheck_rule.md](matriks_crosscheck_rule.md): Matriks cross-check alone (not adopted).
 - [layered_defence_rule.md](layered_defence_rule.md): cross-check + source-sentence judge (adopted).
+- [source_sentence_rule.md](source_sentence_rule.md): is the source sentence shown on the card the amount's real source? 32/32 on the saved lists (`SOURCE_OK`).
 
 **Importance and the morning list**
 - [importance_score.md](importance_score.md): importance score v1.

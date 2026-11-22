@@ -19,9 +19,9 @@ Overview, the panel's start page (demo mode, real data, 22 Nov). The last list (
 Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md)
 
 ## In 30 seconds
-- **Problem:** An analyst sees several of these disclosures a day and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
+- **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones), next to many other kinds of news, and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
 - **Solution:** A fully automatic daily pipeline on real data. Every night it pulls the new disclosures from the Matriks API, a local LLM reads each one, and code checks the facts. What is unclear gets a **KONTROL ET** ("check this") flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item, and each sector desk gets its part by e-mail.
-- **Proof:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). In operations terms: 11 of the 100 went to a person, 1 wrong value slipped through unflagged, and the other 88 passed straight through correctly. The best regex let 25 pass. Every pass bar was committed to git before its test.
+- **Proof:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). In operations terms: 11 of the 100 went to a person, 1 wrong value slipped through unflagged, and the other 88 passed straight through correctly. In live use, with all checks on, about 20-22% go to a person (Set D, 50 new texts; 21-24% on its random part). My strongest regex, with no LLM, let 25 pass. Every pass bar was committed to git before its test.
 - **Why not the vendor's record?** Matriks has none for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 - **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)), BTK Akademi AI workshop, Entertech İstanbul Teknokent, Oct-Nov 2026.
 
@@ -97,16 +97,16 @@ Each test has a rule file: the measurement and the pass bar, committed before th
 
 | part | job | measured | rule and result |
 |---|---|---|---|
-| Local LLM extraction | extracts the deal facts, reads each text twice | 1 silent error in 100 unseen texts; ~31 s per disclosure | [rule](docs/set_c_plan.md) |
-| Without an LLM | best regex on the same texts | 25 silent errors in 100 | [rule](docs/regex_baseline_rule.md) |
-| Code checks + injection defence | flag what is unclear or planted in the text | hidden-instruction attacks: 9 silent → 0 | [rule](docs/layered_defence_rule.md) |
+| Local LLM extraction | extracts the deal facts | 1 silent error in 100 unseen texts (one reading, Set C); ~15 s per reading, ~31 s per disclosure in the nightly list, which reads each text twice | [rule](docs/set_c_plan.md) |
+| Without an LLM | the strongest regex in the repo (written for the code checks) on the same texts | 25 silent errors in 100 | [rule](docs/regex_baseline_rule.md) |
+| Code checks + injection defence | flag what is unclear or planted in the text | hidden-instruction attacks: 9 silent → 0 (texts with a Matriks record; without one, only the source-sentence layer runs, not measured) | [rule](docs/layered_defence_rule.md) |
 | Importance and order | ranks the morning list, with reasons | top pick right on 11/12 days (sorting by amount alone: 12/12) | [rule](docs/importance_v2_rule.md) |
-| RAG search | finds the right and the similar earlier disclosures | right one in the top 5: 20/20 | [rule](docs/rerank_rule.md) |
+| RAG search | finds the right and the similar earlier disclosures | right one in the top 5: 20/20; at rank 1: 17/20 (15 without the reranker) | [rule](docs/rerank_rule.md) |
 | LangGraph agent | the LLM picks a tool, code writes the answer | intended link in the top 5: 18/20 | [rule](docs/router_v2_rule.md) |
 | MCP server (ours) | the agent's 5 tools for local MCP clients | output identical 10/10, +0.011 s | [rule](docs/mcp_v2_rule.md) |
 | MCP client (third-party e-mail server) | one desk e-mail on demand, after a person approves | outside addresses refused 7/7; unapproved sent 0 | [rule](docs/smtp_mcp_rule.md) |
 | n8n desk e-mails | weekday e-mail to each sector desk | 15 saved days, 33 e-mails: 0 lost, 0 wrong desk, 0 amount leaks | [rule](docs/n8n_routing_rule.md) |
-| Panel review | the analyst confirms or rejects each flag | one day, 6 flags (anecdotal): 3 were real errors | [result](docs/results.md#scoring-desks-themes) |
+| Panel review | the analyst confirms or rejects each flag | one day, 6 flags (anecdotal, no rule): 3 were real errors | [result](docs/results.md#scoring-desks-themes) |
 
 **Tried and dropped**, each by a bar written before the test: three scope guards, LLM-written answers, BM25 and hybrid search, chunking, and two other disclosure types. All results on one page: [`docs/results.md`](docs/results.md).
 
@@ -154,6 +154,7 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 - The chat has no scope check: an off-topic question can get an unrelated card. The guided form avoids this.
 - Only instructions planted in the text were tested as an attack, with one wording.
 - Ordering: sorting by amount alone did as well (12/12 top picks). The value is in reading the amount right (TL/USD, revisions, estimates) and flagging what is unclear, not in the ranking formula.
+- Live, about 1 in 5 disclosures goes to a person (Set D, 20-22%), above the 15% flag bar set for the test set; which check flags most was not analysed.
 - Analyst time saved was not measured. Runs nightly on one laptop.
 - One local model and no fallback model: a failed reading is flagged (`run_error`), not retried with another model, because that model's output would be unmeasured.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the demo-mode screens and the code stay.
@@ -161,7 +162,7 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 All limits: [`docs/system_card.md`](docs/system_card.md). Where I was wrong: [`docs/known_issues.md`](docs/known_issues.md).
 
 ## Related work
-KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) bring KAP news to AI tools; I found no published accuracy number for them. The closest research (arXiv 2607.08346, SEC 8-K filings) uses the same ideas at a larger scale, scored by an LLM judge; here accuracy comes from blind human labels. More: [`docs/metrics_faq.md`](docs/metrics_faq.md).
+KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) bring KAP news to AI tools; I found no published accuracy number for them. The closest research ([Dolphin et al. 2026, "Grounded Event Extraction from SEC 8-K Filings with a Fine-Grained Taxonomy", arXiv 2607.08346](https://arxiv.org/abs/2607.08346)) uses the same ideas at a larger scale, scored by an LLM judge; here accuracy comes from blind human labels. More: [`docs/metrics_faq.md`](docs/metrics_faq.md).
 
 ## How this was built
 I led the project. I chose the problem and the scope with the instructor, obtained the data permission from Matriks, and decided what was adopted and what was dropped. I labeled every gold set by hand (about 350 disclosures in Sets A-D, plus the two pilots) and wrote the evaluation questions and the sealed attack sentences. I designed the measurement rules together with the assistant: I chose what to measure and the key choices, and approved each written rule before its run. I ran every measurement on my own machine, where the licensed data stays.

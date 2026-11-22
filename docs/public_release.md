@@ -8,7 +8,7 @@ The private repository stays the working copy (full history, internal notes, ven
 - Replaces the server IP, the hosting company's name, the server alias, the home-folder path, the Matriks contact person's name (→ "Matriks yetkilisi") and the Matriks API host names (→ `<MATRIKS_API_HOST>`), in file contents and in commit messages (the patterns live in `~/projects/kap-public-tools/replacements.txt`, outside the repo, so they are never committed). The Matriks documentation portal address is not an API host and stays.
 - Maps the commit e-mail to the GitHub no-reply address (`~/projects/kap-public-tools/mailmap.txt`).
 - Drops compiled files (`*.pyc`, `__pycache__/`) that slipped into early commits.
-- Adds one commit with a README note: history rewritten, commit IDs differ from the ones in `docs/PROJECT_NOTES.md`, no licensed data.
+- Adds one commit with badges under the README title and a note at the end of the README ("About this copy": what was removed and replaced, commit IDs differ from the ones in `docs/PROJECT_NOTES.md`, no licensed data).
 
 ## Checks before publishing (all must be 0; the counts are shown to Feyza before the push)
 `python3 ~/projects/kap-public-tools/check_public.py ~/projects/kap-public` searches every version of every file, every commit message and the author fields, and prints labels and counts only:
@@ -44,10 +44,10 @@ The repository `sfeyzayildiz/kap-disclosure-triage` was created **private** on 1
 ```
 cd ~/projects/kap-public
 git config user.name 'Feyza Yildiz' && git config user.email '192357242+sfeyzayildiz@users.noreply.github.com'
-python3 ~/projects/kap-public-tools/add_readme_note.py ~/projects/kap-public   # badges (tests, Python, MIT) + the copy note
-git commit -qam 'Public copy: history rewritten, internal parts removed (note at the top of README)'
+python3 ~/projects/kap-public-tools/add_readme_note.py ~/projects/kap-public   # badges (tests, Python, MIT) + the copy note at the end
+git commit -qam 'Public copy: history rewritten, internal parts removed (note at the end of README)'
 python3 ~/projects/kap-public-tools/check_public.py ~/projects/kap-public      # all 0 again, shown to Feyza
 git remote add origin https://github.com/sfeyzayildiz/kap-disclosure-triage.git
 git push --force -u origin main
 ```
-Only after Feyza's "aç": `gh repo edit sfeyzayildiz/kap-disclosure-triage --visibility public --accept-visibility-change-consequences`. Then open the repository in a private browser window (not logged in) and check that the README demo GIF (`docs/img/demo.gif`, added 21 Nov because the attachment player did not show reliably) moves and that the "watch" link of the full video plays, **in both Safari and Chrome**: it was uploaded as a GitHub attachment while the repository was private, and on 20 Nov it did not play in Safari on the private repository (the file itself is standard H.264, yuv420p, faststart). If it does not play, Feyza uploads `kap_demo_v5_github.mp4` again (drag it into a new issue box, do not create the issue) and the README line gets the new link. Then the link goes to the instructor and LinkedIn.
+Only after Feyza says "aç" ("open it", her go to publish): `gh repo edit sfeyzayildiz/kap-disclosure-triage --visibility public --accept-visibility-change-consequences`. Then open the repository in a private browser window (not logged in) and check that the README demo GIF (`docs/img/demo.gif`, added 21 Nov because the attachment player did not show reliably) moves and that the "watch" link of the full video plays, **in both Safari and Chrome**: it was uploaded as a GitHub attachment while the repository was private, and on 20 Nov it did not play in Safari on the private repository (the file itself is standard H.264, yuv420p, faststart). If it does not play, Feyza uploads `kap_demo_v5_github.mp4` again (drag it into a new issue box, do not create the issue) and the README line gets the new link. Then the link goes to the instructor and LinkedIn.

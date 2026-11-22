@@ -19,9 +19,9 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 | What | Result |
 |---|---|
 | Silent errors in amount / currency (wrong, not flagged) | 1/100 on unseen Set C (95% upper bound 4.7%); 11/100 sent to a human. A second run: again 1/100 (a different item); 3/100 extractions changed between runs |
-| Sent to a human in live use (all layers: code checks, vendor cross-check, source judge, two readings) | 20-22% of disclosures (Set D, 50 new texts); about 78-80% go straight through |
+| Sent to a human in live use (all layers: code checks, vendor cross-check, source judge, two readings) | 20-22% of disclosures (Set D, 50 new texts; 21-24% on its random 38, the other 12 are a census of one text type); about 78-80% go straight through |
 | Source sentence shown on the card | it was the amount's source in 32/32 checked saved cards (95% upper bound on errors 8.9%) |
-| Without an LLM, same set | best regex 25/100 silent errors |
+| Without an LLM, same set | the strongest regex in the repo (written for the code checks): 25/100 silent errors |
 | Hidden instruction in the disclosure text (amount attack) | silent successes 9 → 0 of 18 with the layered defence; 3/200 extra flags on real texts |
 | Ordering vs the author's blind choice (not an external analyst), 12 new days | top pick 11/12 (old score 5.5); AUC 0.877 |
 | Search (embedding + rerank), 20 questions | right disclosure in the top 5: 20/20; at rank 1: 17/20 |
