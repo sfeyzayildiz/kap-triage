@@ -5,6 +5,7 @@ The real data comes from Matriks under a licence and cannot be shared. This fold
 **Everything here is invented:** 12 companies, 57 "Yeni İş İlişkisi" disclosures (Sep to Nov 2026), vendor-style records, sectors, exchange rates and daily prices. Tickers contain a digit (`SVN1`, `BLS2`), which no BIST ticker has. KAP links point to `kap.org.tr/tr/Bildirim/ornek-...`, which is not a real disclosure.
 
 ## Run it
+Tested with Python 3.12 (the package versions are pinned).
 ```
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt

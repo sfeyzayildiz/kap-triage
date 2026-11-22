@@ -111,7 +111,7 @@ Each test has a rule file: the measurement and the pass bar, committed before th
 **Tried and dropped**, each by a bar written before the test: three scope guards, LLM-written answers, BM25 and hybrid search, chunking, and two other disclosure types. All results on one page: [`docs/results.md`](docs/results.md).
 
 ## Try it yourself (no licensed data needed)
-The panel on made-up sample data, self-tests, and the nightly chain on made-up disclosures (no model, no licensed data, no network):
+The panel on made-up sample data, self-tests, and the nightly chain on made-up disclosures (no model, no licensed data, no network). Tested with Python 3.12:
 ```
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt
