@@ -66,6 +66,12 @@ flowchart LR
     L --> OD
 ```
 
+| n8n workflow (weekdays 07:30, or by webhook) | One desk e-mail (desk name and reasons masked) |
+|---|---|
+| ![n8n desk routing workflow](docs/img/n8n_workflow.png) | ![Desk e-mail in the local Mailpit inbox, masked](docs/img/desk_mail_masked.png) |
+
+Desk e-mails on all 15 saved days: 33 e-mails, 0 lost, 0 wrong desk, 0 amounts ([rule](docs/n8n_routing_rule.md)). The desk, the order and the text come from code; n8n only delivers. The desk name and the reasons are masked here because the desk comes from the Matriks sector label.
+
 **2. Questions, at any time**
 ```mermaid
 flowchart LR
