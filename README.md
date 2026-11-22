@@ -6,11 +6,15 @@ A working prototype for "Yeni İş İlişkisi" (new business relationship) discl
 
 ![Demo: morning list, company brief, reliability page, kap-kart](docs/img/demo.gif)
 
-Demo, sped up (demo mode hides the values licensed from Matriks). Full 73-second video: [watch](https://github.com/user-attachments/assets/d761e92d-e9a2-4a59-906a-a508464bbb25).
+Demo, sped up (demo mode hides the values licensed from Matriks). Full 73-second video: [watch](https://github.com/user-attachments/assets/d761e92d-e9a2-4a59-906a-a508464bbb25). Recorded on 19 Nov; since then the panel gained an overview page, a review history and a watchlist.
 
 | Morning list per desk | Guided form: company brief | Reliability page |
 |---|---|---|
 | ![Day page in demo mode](docs/img/day_demo.png) | ![Company brief in demo mode](docs/img/brief_demo.png) | ![Reliability page](docs/img/reliability.png) |
+
+<img src="docs/img/overview_demo.png" alt="Overview page in demo mode" width="640">
+
+Overview, the panel's start page (demo mode, real data, 22 Nov). The last list (21 Nov) had no new disclosures, so its counts are 0; the chart and the 8 review decisions are real (in 5, the flag caught a real extraction error).
 
 Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md)
 
@@ -26,7 +30,7 @@ Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md)
 |---|---|---|
 | **Every night, 23:43** | pulls the day's disclosures from the Matriks API (one pull, enforced in code), reads each text twice with a local LLM, checks the facts in code, builds the morning list, sends a phone alert | launchd, Ollama, DuckDB |
 | **Weekdays, 07:30** (scheduled; runs while Docker is up) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
-| **Any time** | panel with a confirm / reject step for flagged items; guided form; chat agent that searches all past disclosures | LangGraph, RAG (`turkish-e5-large` + reranker) |
+| **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures | LangGraph, RAG (`turkish-e5-large` + reranker) |
 | **Any time, from local AI tools** | the agent's tools as an MCP server (local clients only, because results hold licensed data); a desk e-mail through a third-party MCP server, sent only after a person approves | MCP, both directions |
 | **On every change** | 48 self-tests; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
@@ -72,7 +76,7 @@ flowchart LR
 
     Q(["Analyst<br/>chat question"]):::out --> R["LangGraph agent<br/>LLM picks the tool"]:::llm --> T
     F(["Analyst<br/>guided form"]):::out --> T
-    MC(["Local MCP clients"]):::out -- MCP --> SRV["Our MCP server<br/>5 read-only tools"]:::code --> T
+    MC(["Local MCP clients"]):::out -- MCP --> SRV["Project MCP server<br/>5 read-only tools"]:::code --> T
     T["Tools (code)<br/>morning list, company history,<br/>why it moved, search, company brief"]:::code
     DB[("DuckDB")]:::store --> T
     IDX[("Search index<br/>turkish-e5-large<br/>+ reranker")]:::store --> T
@@ -154,10 +158,10 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 - One local model and no fallback model: a failed reading is flagged (`run_error`), not retried with another model, because that model's output would be unmeasured.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the demo-mode screens and the code stay.
 
-All limits: [`docs/system_card.md`](docs/system_card.md). Where we were wrong: [`docs/known_issues.md`](docs/known_issues.md).
+All limits: [`docs/system_card.md`](docs/system_card.md). Where I was wrong: [`docs/known_issues.md`](docs/known_issues.md).
 
 ## Related work
-KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) bring KAP news to AI tools; we found no published accuracy number for them. The closest research (arXiv 2607.08346, SEC 8-K filings) uses the same ideas at a larger scale, scored by an LLM judge; here accuracy comes from blind human labels. More: [`docs/metrics_faq.md`](docs/metrics_faq.md).
+KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) bring KAP news to AI tools; I found no published accuracy number for them. The closest research (arXiv 2607.08346, SEC 8-K filings) uses the same ideas at a larger scale, scored by an LLM judge; here accuracy comes from blind human labels. More: [`docs/metrics_faq.md`](docs/metrics_faq.md).
 
 ## How this was built
 I led the project. I chose the problem and the scope with the instructor, obtained the data permission from Matriks, and decided what was adopted and what was dropped. I labeled every gold set by hand (about 350 disclosures in Sets A-D, plus the two pilots) and wrote the evaluation questions and the sealed attack sentences. I designed the measurement rules together with the assistant: I chose what to measure and the key choices, and approved each written rule before its run. I ran every measurement on my own machine, where the licensed data stays.
