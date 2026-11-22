@@ -529,6 +529,7 @@ def _self_test():
                 morning_text=agent.tool_morning({'day':last})
             finally:
                 llm_extract.CLIENT=real_client
+            overview=panel.render_overview(panel.all_day_stats(listed,{}),day_items,{},[],{})
             clusters=themes.load_clusters()
             panel.SAMPLE=True
             try:
@@ -545,6 +546,7 @@ def _self_test():
             'Olağandışı mı: evet' in quiet and 'bildirimi yok' in quiet,
             f'{per_day[last]} bildirim' in morning_text and not model_calls,
             clusters['k']==len(SECTORS) and len(clusters['assign'])==len(specs),
+            overview.count('<a class="col"')==panel.CHART_DAYS and f'href="/day/{last}"' in overview,   # /genel on the sample
         ]
     # leak scan on made-up "real" data: a clean corpus gives 0, planted overlaps are found
     clean,_=leak_counts(specs,{'ASELS'},[('aselsan',)],['Şirketimiz bir müşteri ile sözleşme imzalamıştır.'],[])

@@ -5,7 +5,8 @@ Renders the panel pages for every saved morning list with demo mode on and count
   the start page (chat) and the guided form with the deterministic agent answers for the day:
   morning list, period list (the day's week), and per company of the day: last-12-months list,
   why-moved, brief (built from the saved list + the SQL history step; no LLM) and the detail card,
-  the themes index and every week page, the reliability page.
+  the themes index and every week page, the reliability page, the overview (/genel) and the review history
+  (/kontroller, with the real review log; notes are free text, so demo mode hides them).
 No LLM, no network, read-only DB (short connections). Each page is also rendered with demo mode off
 ("seen_off": proves the check can see what it counts) and, for sector names, with demo mode on and an
 order-preserving neutral sector table: a demo page that differs between the two depends on a sector
@@ -166,6 +167,10 @@ def main():
             urls=themes.load_meta([a['news_id'] for v in view for a in v['items']])
             check('week',lambda:panel.render_week(w,view,sectors,urls),lambda:panel.render_week(w,view,neutral,urls))
     check('reliability',lambda:panel.page('Güvenilirlik',reliability.render_body(chat.NAV)))
+    rows,rstats=panel.review_rows(reviews),panel.reason_stats(reviews)   # 22 Nov: overview and review history
+    check('overview',lambda:panel.render_overview(panel.all_day_stats(days,reviews),(panel.load_day(days[0]) or []) if days else [],
+                                                  reviews,rows,rstats))
+    check('reviews',lambda:panel.render_reviews(rows,rstats))
 
     n_leaks=sum(leaks.values())+sum(dependent.values())
     print(f'days={len(days)} symbol-days={n_symbols} sectors={len(set(sectors.values()))} '

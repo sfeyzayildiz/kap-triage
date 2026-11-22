@@ -110,10 +110,15 @@ def table(head,rows):
     return f'<details class="muted"><summary>Tablo</summary><table class="t"><tr>{th}</tr>{tr}</table></details>'
 
 
-def render_body(nav):
+def tiles_html(n=None):
+    '''The headline tiles (the first n; all by default), also shown on the panel overview.'''
     ub_c=upper95(1,100)
-    tiles=''.join(f'<div class="tile"><b>{e(v)}</b><span>{e(k)}</span><small>{e(d.format(ub=pct(ub_c)))}</small></div>'
-                  for v,k,d in TILES)
+    return ''.join(f'<div class="tile"><b>{e(v)}</b><span>{e(k)}</span><small>{e(d.format(ub=pct(ub_c)))}</small></div>'
+                   for v,k,d in TILES[:n])
+
+
+def render_body(nav):
+    tiles=tiles_html()
     ext=[(l,k,upper95(k,n)*100,live,f'{k}/{n} (üst sınır {pct(upper95(k,n))})',
           f'{l}: {k}/{n} sessiz hata, %95 üst sınır {pct(upper95(k,n))}') for l,k,n,live in EXTRACTION]
     nollm=[(l,k,None,live,f'{k}/{n}',f'{l}: {k}/{n} sessiz hata') for l,k,n,live in NO_LLM]

@@ -200,10 +200,11 @@ form.guided .wide{grid-column:1/-1}form.guided input[type=text]{width:100%}form.
 @media (max-width:640px){form.guided{grid-template-columns:1fr}input[type=text]{width:100%}}'''+chat.CSS+reliability.CSS
 
 
-def page(title,body):
+def page(title,body,extra_css=''):
+    '''extra_css: styles only one page needs (the overview charts), so the other pages stay byte-identical.'''
     return (f'<!doctype html><html lang="tr"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(title)}</title>'
-            f'<style>{CSS}</style></head><body>{chat.HEADER}<main>{demo_mode.BANNER if demo_mode.ON else ""}'
+            f'<style>{CSS}{extra_css}</style></head><body>{chat.HEADER}<main>{demo_mode.BANNER if demo_mode.ON else ""}'
             f'{SAMPLE_BANNER if SAMPLE else ""}{body}</main></body></html>')
 
 
@@ -320,9 +321,10 @@ def render_item(item,day,review,chart='',source=None):
 LOOK_FIRST_MAX=3
 
 
-def look_first_box(items,reviews):
+def look_first_box(items,reviews,base=''):
     '''"Önce bak": up to 3 look-first items (high or flagged) in the morning list's order, each with its reasons
-    through the same path as the cards (demo mode hides Matriks-based reasons there too) and a link to its card.'''
+    through the same path as the cards (demo mode hides Matriks-based reasons there too) and a link to its card.
+    base: the day page's address when the box is shown elsewhere (overview); '' on the day page itself.'''
     from morning import REVIEW_TR, priority, reason_text
     from names import company_label
     look=sorted([i for i in items if i['importance']['needs_review'] or i['importance']['level']=='high'],key=priority)
@@ -336,7 +338,7 @@ def look_first_box(items,reviews):
             why=demo_mode.reasons(why)
         if imp['needs_review'] and i['news_id'] not in reviews:
             why=['kontrol et: '+', '.join(REVIEW_TR.get(c,c) for c in imp['needs_review_reasons'])]+why
-        rows.append(f'<li><a href="#c{e(i["news_id"])}"><b>{e(company_label(i["symbol"],short=True))}</b></a> '
+        rows.append(f'<li><a href="{e(base)}#c{e(i["news_id"])}"><b>{e(company_label(i["symbol"],short=True))}</b></a> '
                     f'<span class="muted">{e(i["symbol"])}</span>: {e("; ".join(why) or "yüksek önem")}</li>')
     more=f'<p class="muted">ve {len(look)-LOOK_FIRST_MAX} bildirim daha (aşağıda)</p>' if len(look)>LOOK_FIRST_MAX else ''
     return f'<div class="card high look"><b>Önce bak ({len(look)})</b><ol>{"".join(rows)}</ol>{more}</div>'
@@ -412,6 +414,181 @@ def render_week(start,view,sectors,urls):
     return page(f'Temalar {start}',''.join(body))
 
 
+# --- overview (/genel) and review history (/kontroller): saved lists + review log only, no DB, no model ---
+CHART_DAYS=30
+OVERVIEW_CSS='''.ov{margin:6px 0 4px}.ov figcaption{margin-bottom:6px}
+.cols{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid var(--line)}
+.col{flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.col:hover .stack,.col:focus-visible .stack{outline:2px solid var(--accent);outline-offset:1px}
+.stack{width:100%;max-width:24px;display:flex;flex-direction:column-reverse;gap:2px;border-radius:4px 4px 0 0;overflow:hidden}
+.seg{display:block;min-height:3px}.seg.flag{background:var(--red)}.seg.look{background:var(--amber)}
+.seg.other{background:var(--muted);opacity:.5}
+.xlab{display:flex;gap:2px;font-size:.72rem;color:var(--muted);margin-top:3px}
+.xlab span{flex:1 1 0;min-width:0;text-align:center;white-space:nowrap}
+.keys{margin:8px 0 2px}.key{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:.85rem;color:var(--muted)}
+.key i{display:inline-block;width:10px;height:10px;border-radius:2px;min-height:0}
+.key i.hit{background:var(--accent)}.key i.miss{background:var(--muted);opacity:.5}
+.hr{display:grid;grid-template-columns:minmax(110px,260px) 1fr auto;gap:4px 12px;align-items:center;margin:8px 0}
+.hbar{display:flex;gap:2px;height:14px}.hbar span{display:block;height:100%}.hbar span:last-child{border-radius:0 4px 4px 0}
+.hbar .hit{background:var(--accent)}.hbar .miss{background:var(--muted);opacity:.5}
+.hv{font-size:.85rem;color:var(--muted);white-space:nowrap}
+.scroll{overflow-x:auto}table.t th.n,table.t td.n{text-align:right}
+@media (max-width:640px){.hr{grid-template-columns:1fr auto}.hr .hv{order:2}.hr .hbar{order:3;grid-column:1/-1}}'''
+EXTRA_CODES={'unknown_item':'bildirim o günün listesinde yok','not_flagged_after_rebuild':'liste yeniden kurulunca işaret kalktı',
+             'no_reason_stored':'gerekçe kaydedilmemiş'}
+DECISION_SHORT={'confirm':'Doğru','reject':'Yanlış (çıkarım hatalı)'}
+REVIEW_NOTE=('Doğru: analist KAP metnine baktı, çıkarılan değerler doğruydu (işaret gereksiz alarmdı). Yanlış: çıkarım '
+             'hatalıydı (işaret gerçek bir hatayı yakaladı). Bir bildirimde birden çok işaret olabilir; türlere göre sayıların '
+             'toplamı karar sayısını geçebilir. Bu sayılar analistin geri bildirimidir, önceden yazılmış bir kuralla yapılmış '
+             'kör bir ölçüm değildir.')
+
+
+def code_text(code):
+    from morning import REVIEW_TR
+    return REVIEW_TR.get(code) or EXTRA_CODES.get(code,code)
+
+
+def tr_day(day,year=True):
+    d=date.fromisoformat(day)
+    return f'{d.day} {TR_MONTHS[d.month-1]}'+(f' {d.year}' if year else '')
+
+
+def day_counts(items,reviews):
+    '''Counts of one saved list: disclosures, look first (high or flagged), flagged, flagged with a decision.'''
+    look=[i for i in items if i['importance']['needs_review'] or i['importance']['level']=='high']
+    flagged=[i for i in items if i['importance']['needs_review']]
+    return {'n':len(items),'look':len(look),'flagged':len(flagged),'done':sum(i['news_id'] in reviews for i in flagged)}
+
+
+def all_day_stats(days,reviews,load=None):
+    load=load or load_day
+    return {d:day_counts(load(d) or [],reviews) for d in days}
+
+
+def count_text(day,c):
+    return f'{tr_day(day)}: {c["n"]} bildirim · önce bak {c["look"]} · kontrol et {c["flagged"]} (kontrol edilen {c["done"]})'
+
+
+def column_chart(stats):
+    '''The last CHART_DAYS saved lists as stacked columns (kontrol et at the base, then önce bak, then the rest);
+    each column links to its day; the tooltip and the table below carry the numbers.'''
+    days=sorted(stats)[-CHART_DAYS:]
+    if not days:
+        return ''
+    top=max(stats[d]['n'] for d in days) or 1
+    cols,labels=[],[]
+    for k,d in enumerate(days):
+        c=stats[d]
+        parts=(('flag',c['flagged']),('look',c['look']-c['flagged']),('other',c['n']-c['look']))
+        segs=''.join(f'<span class="seg {cls}" style="flex:{v}"></span>' for cls,v in parts if v>0)
+        tip=count_text(d,c)
+        cols.append(f'<a class="col" href="/day/{e(d)}" title="{e(tip)}" aria-label="{e(tip)}">'
+                    f'<span class="stack" style="height:{c["n"]/top*100:.0f}%">{segs}</span></a>')
+        show=k==len(days)-1 or (k%5==0 and len(days)-1-k>=3)   # sparse labels that never collide
+        labels.append(f'<span>{e(tr_day(d,year=False)) if show else ""}</span>')
+    keys=('<div class="keys"><span class="key"><i class="seg flag"></i>kontrol et</span>'
+          '<span class="key"><i class="seg look"></i>önce bak (yüksek önem)</span><span class="key"><i class="seg other"></i>diğer</span></div>')
+    return (f'<figure class="ov"><figcaption class="muted">Son {len(days)} sabah listesi: günlük bildirim sayısı (en yüksek {top}). '
+            f'Sütuna tıklayınca o gün açılır; sayılar üzerine gelince ve aşağıdaki tabloda.</figcaption>'
+            f'<div class="cols">{"".join(cols)}</div><div class="xlab">{"".join(labels)}</div>{keys}</figure>')
+
+
+def flag_chart(rstats):
+    '''Per flag type: decisions where the extraction was wrong (the flag caught an error) and where it was right.'''
+    rows=sorted(rstats.items(),key=lambda kv:(-(kv[1]['reject']+kv[1]['confirm']),kv[0]))
+    if not rows:
+        return ''
+    top=max(c['reject']+c['confirm'] for _,c in rows) or 1
+    out=[]
+    for code,c in rows:
+        hit,miss=c['reject'],c['confirm']
+        label=code_text(code)
+        tip=f'{label}: {hit} kararda çıkarım hatalıydı, {miss} kararda doğruydu'
+        bar=''.join(f'<span class="{cls}" style="width:{v/top*100:.1f}%"></span>' for cls,v in (('hit',hit),('miss',miss)) if v)
+        out.append(f'<div class="hr" title="{e(tip)}"><span>{e(label)}</span><span class="hbar">{bar}</span>'
+                   f'<span class="hv">{hit} hata · {miss} doğru</span></div>')
+    keys=('<div class="keys"><span class="key"><i class="hit"></i>çıkarım hatalı: işaret işe yaradı</span>'
+          '<span class="key"><i class="miss"></i>çıkarım doğru: gereksiz alarm</span></div>')
+    return f'<figure class="ov">{"".join(out)}{keys}</figure>'
+
+
+def review_rows(reviews,load=None):
+    '''[(decision record, its item from the saved list or None)], newest decision first.'''
+    load=load or load_day
+    lists={}
+    rows=[]
+    for r in reviews.values():
+        if r['day'] not in lists:
+            lists[r['day']]={i['news_id']:i for i in (load(r['day']) or [])}
+        rows.append((r,lists[r['day']].get(r['news_id'])))
+    return sorted(rows,key=lambda ri:ri[0]['at'],reverse=True)
+
+
+def review_summary(rows):
+    if not rows:
+        return ('<p>Henüz kontrol kararı yok. Sabah listesinde "kontrol et" işaretli bir bildirimde Doğru veya Yanlış seçin; '
+                'karar burada görünür.</p>')
+    wrong=sum(r['decision']=='reject' for r,_ in rows)
+    return (f'<p>{len(rows)} karar: {wrong} bildirimde çıkarım hatalıydı (işaret gerçek bir hatayı yakaladı), '
+            f'{len(rows)-wrong} bildirimde çıkarım doğruydu (gereksiz alarm).</p>')
+
+
+def render_reviews(rows,rstats):
+    from names import company_label
+    body=[chat.NAV,'<h1>Kontrol geçmişi</h1>',review_summary(rows)]
+    if rows:
+        body.append('<h2>İşaret türüne göre</h2>'+flag_chart(rstats))
+        trs=[]
+        for r,item in rows:
+            codes=r['reasons'] if 'reasons' in r else (item['importance']['needs_review_reasons'] if item else [])
+            who=(f'{e(company_label(item["symbol"],short=True))} <span class="muted">{e(item["symbol"])}</span>' if item
+                 else '<span class="muted">listede yok</span>')
+            note=(demo_mode.PLACEHOLDER if r.get('note') else '') if demo_mode.ON else r.get('note') or ''  # free text
+            trs.append(f'<tr><td>{e(tr_time(r["at"]))}</td><td><a href="/day/{e(r["day"])}#c{e(r["news_id"])}">{e(tr_day(r["day"]))}</a></td>'
+                       f'<td>{who}</td><td>{e("; ".join(code_text(c) for c in codes))}</td>'
+                       f'<td>{e(DECISION_SHORT.get(r["decision"],r["decision"]))}</td><td>{e(note)}</td></tr>')
+        body.append('<h2>Kararlar</h2><div class="scroll"><table class="t"><tr><th>Karar zamanı</th><th>Gün</th><th>Şirket</th>'
+                    f'<th>İşaret</th><th>Karar</th><th>Not</th></tr>{"".join(trs)}</table></div>')
+    body.append(f'<p class="muted">{e(REVIEW_NOTE)}</p>')
+    return page('Kontrol geçmişi',''.join(body),OVERVIEW_CSS)
+
+
+def days_table(stats):
+    trs=''.join(f'<tr><td><a href="/day/{e(d)}">{e(tr_day(d))}</a></td><td class="n">{c["n"]}</td><td class="n">{c["look"]}</td>'
+                f'<td class="n">{c["flagged"]}</td><td class="n">{c["done"]}</td></tr>' for d,c in sorted(stats.items(),reverse=True))
+    return ('<div class="scroll"><table class="t"><tr><th>Gün</th><th class="n">Bildirim</th><th class="n">Önce bak</th>'
+            f'<th class="n">Kontrol et</th><th class="n">Kontrol edilen</th></tr>{trs}</table></div>')
+
+
+def render_overview(stats,last_items,reviews,rows,rstats):
+    '''One scrolling page in layers; every layer links to its detail page.'''
+    days=sorted(stats,reverse=True)
+    body=[chat.NAV,'<h1>Genel bakış</h1>',
+          '<p class="muted">Yeni iş ilişkisi bildirimleri gece okunur, sabah önem sırasıyla listelenir; şüpheli çıkarımlar '
+          '"kontrol et" ile analiste gider. Bu sayfa özet; her bölümün ayrıntısı kendi sayfasında.</p>']
+    if not days:
+        body.append('<p>Kayıtlı sabah listesi yok.</p>')
+    else:
+        last=days[0]
+        c=stats[last]
+        recent=sorted(stats)[-CHART_DAYS:]
+        tiles=''.join(f'<div class="tile"><b>{v}</b><span>{e(k)}</span></div>'
+                      for v,k in ((c['n'],'bildirim'),(c['look'],'önce bak'),(c['flagged'],'kontrol et'),(f'{c["done"]}/{c["flagged"]}','kontrol edilen')))
+        body+= [f'<h2>1. Son liste: <a href="/day/{e(last)}">{e(tr_day(last))}</a></h2><div class="tiles">{tiles}</div>',
+                f'<p class="muted">Son {len(recent)} listede {sum(stats[d]["n"] for d in recent)} bildirim; '
+                f'{sum(stats[d]["flagged"] for d in recent)} tanesi "kontrol et" ile analiste gönderildi.</p>',
+                '<h2>2. Son günler</h2>'+column_chart(stats),
+                f'<h2>3. Önce bak ({e(tr_day(last))})</h2>'+
+                (look_first_box(last_items,reviews,base=f'/day/{last}') or '<p class="muted">Son listede önce bakılacak bildirim yok.</p>')]
+    body+= ['<h2>4. Kontrol kararları</h2>'+review_summary(rows)+flag_chart(rstats)+
+            '<p><a href="/kontroller">Bütün kararlar →</a></p>',
+            '<h2>5. Ölçülmüş güvenilirlik</h2>'+f'<div class="tiles">{reliability.tiles_html(3)}</div>'+
+            '<p><a href="/guvenilirlik">Bütün sonuçlar ve grafikler →</a></p>']
+    if days:
+        body.append('<h2>6. Bütün günler</h2>'+days_table(stats))
+    return page('Genel bakış',''.join(body),OVERVIEW_CSS)
+
+
 def load_day(day):
     from morning import load_saved
     return load_saved(day)
@@ -453,6 +630,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200,page('KAP asistanı',chat.render_body(chat.HISTORY)))
         if path=='/days':
             return self.send(200,render_index(available_days()))
+        if path in ('/genel','/kontroller'):  # saved lists + review log only (no DB read, so no night-window block)
+            reviews=load_reviews()
+            rows=review_rows(reviews)
+            rstats=reason_stats(reviews)
+            if path=='/kontroller':
+                return self.send(200,render_reviews(rows,rstats))
+            days=available_days()
+            return self.send(200,render_overview(all_day_stats(days,reviews),(load_day(days[0]) or []) if days else [],
+                                                 reviews,rows,rstats))
         m=re.match(r'^/day/(\d{4}-\d{2}-\d{2})$',path)
         if m:
             items=load_day(m.group(1))
@@ -667,7 +853,40 @@ def _self_test():
     box=look_first_box(items,{})
     assert 'Önce bak (2)' in box and box.index('href="#c1"')>=0 and 'href="#c2"' in box and 'href="#c4"' not in box
     assert 'kontrol et:' in box and look_first_box([items[3]],{})=='' and 'id="c1"' in render_day('2026-11-09',items,sectors,{},{})
-    print('self-test ok: 43 checks')
+    # overview and review history (22 Nov): counts, column chart, flag chart, decisions table, demo hides notes
+    c=day_counts(items,{'2':{}})
+    assert c=={'n':4,'look':2,'flagged':1,'done':1}
+    dstats=all_day_stats(['2026-11-09','2026-11-10'],{},load=lambda d:items if d=='2026-11-09' else [])
+    ch=column_chart(dstats)
+    assert ch.count('<a class="col"')==2 and 'href="/day/2026-11-09"' in ch and 'class="seg flag" style="flex:1"' in ch
+    assert 'class="seg look" style="flex:1"' in ch and 'class="seg other" style="flex:2"' in ch and 'style="height:0%"' in ch
+    assert '9 Kas 2026: 4 bildirim · önce bak 2 · kontrol et 1 (kontrol edilen 0)' in ch and column_chart({})==''
+    many=column_chart({f'2026-10-{d:02d}':{'n':1,'look':0,'flagged':0,'done':0} for d in range(1,32)})
+    assert many.count('<a class="col"')==CHART_DAYS and 'href="/day/2026-10-01"' not in many   # last 30 only
+    rlog={'2':{'news_id':'2','day':'2026-11-09','decision':'reject','note':'<b>not</b>','at':'2026-11-10T09:00:00',
+               'reasons':['amount_not_in_text']},
+          '9':{'news_id':'9','day':'2026-11-09','decision':'confirm','note':'','at':'2026-11-10T10:00:00','reasons':[]}}
+    rows=review_rows(rlog,load=lambda d:items)
+    assert [r['news_id'] for r,_ in rows]==['9','2'] and rows[0][1] is None and rows[1][1]['symbol']=='BBB'
+    rs=reason_stats(rlog,load=lambda d:items)
+    fc=flag_chart(rs)
+    assert 'tutar metinde geçmiyor' in fc and '1 hata · 0 doğru' in fc and 'gerekçe kaydedilmemiş' in fc and flag_chart({})==''
+    rv=render_reviews(rows,rs)
+    assert '2 karar: 1 bildirimde çıkarım hatalıydı' in rv and 'href="/day/2026-11-09#c2"' in rv and 'listede yok' in rv
+    assert '&lt;b&gt;not&lt;/b&gt;' in rv and '<b>not</b>' not in rv and 'Yanlış (çıkarım hatalı)' in rv and '.hbar{' in rv
+    saved_demo=demo_mode.ON
+    try:
+        demo_mode.ON=True
+        assert 'not&lt;' not in render_reviews(rows,rs) and demo_mode.PLACEHOLDER in render_reviews(rows,rs)
+    finally:
+        demo_mode.ON=saved_demo
+    assert 'Henüz kontrol kararı yok' in render_reviews([],{})
+    ov=render_overview(dstats,items,{},rows,rs)
+    assert all(f'<h2>{n}.' in ov for n in range(1,7)) and 'href="/day/2026-11-10"' in ov and 'href="/day/2026-11-10#c1"' in ov
+    assert 'href="/kontroller"' in ov and 'href="/guvenilirlik"' in ov and ov.count('<div class="tile">')==7
+    assert 'Kayıtlı sabah listesi yok' in render_overview({},[],{},[],{}) and '<h2>6.' not in render_overview({},[],{},[],{})
+    assert '.cols{' not in render_index([]) and not reads_db('/genel') and not reads_db('/kontroller')   # other pages: no chart CSS
+    print('self-test ok: 64 checks')
 
 
 def main():
@@ -703,6 +922,8 @@ def main():
     elif args.serve:
         print(f'panel on http://127.0.0.1:{args.port} (bind {HOST}; Ctrl+C to stop); days={len(available_days())} sectors={len(load_sectors())} '
               f'review log={LOG_PATH} demo={"on" if demo_mode.ON else "off"}'+(' data=sample/data (made up)' if SAMPLE else ''))
+        if SAMPLE:
+            print(f'start here: http://127.0.0.1:{args.port}/genel',flush=True)
         ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
     else:
         ap.error('give --serve, --stats or --self-test')

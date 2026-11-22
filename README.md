@@ -111,11 +111,11 @@ The panel on made-up sample data, self-tests, and the nightly chain on made-up d
 ```
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt
-.venv/bin/python scripts/panel.py --serve --sample  # panel on sample data: open http://127.0.0.1:8765/days
+.venv/bin/python scripts/panel.py --serve --sample  # panel on sample data: open http://127.0.0.1:8765/genel
 .venv/bin/python scripts/run_self_tests.py          # 47 self-tests (CI runs them on every pull request)
 .venv/bin/python scripts/e2e_check.py --self-test   # the nightly chain with a fake model (embedding index skipped)
 ```
-On Windows, use `.venv\Scripts\python`. The sample has 12 invented companies and 57 invented disclosures over two months; its morning lists were made by the real nightly chain, and only the model's answers were written in advance. Morning lists, review buttons, weekly themes and the guided form's list, company and price questions work without a model; chat and search need Ollama. What each sample disclosure shows: [`sample/README.md`](sample/README.md).
+On Windows, use `.venv\Scripts\python`. The sample has 12 invented companies and 57 invented disclosures over two months; its morning lists were made by the real nightly chain, and only the model's answers were written in advance. The overview, morning lists, review buttons and review history, weekly themes and the guided form's list, company and price questions work without a model; chat and search need Ollama. What each sample disclosure shows: [`sample/README.md`](sample/README.md).
 
 **kap-kart:** paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then `./kap_kart/run.sh` (macOS, Linux) and open `http://127.0.0.1:8770`. On Windows: `cd kap_kart`, `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python kap_kart.py --serve`. Add a hidden instruction to the text: the card should show **KONTROL ET** instead of the planted amount. More: [`kap_kart/README.md`](kap_kart/README.md).
 

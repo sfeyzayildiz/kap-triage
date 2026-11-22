@@ -10,13 +10,14 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt
 .venv/bin/python scripts/panel.py --serve --sample
 ```
-Open `http://127.0.0.1:8765/days`. The first start builds `sample/data/` (a few seconds). On Windows, use `.venv\Scripts\python`.
+Open `http://127.0.0.1:8765/genel` (overview). The first start builds `sample/data/` (a few seconds). On Windows, use `.venv\Scripts\python`.
 
 ## What works without a model
 | page | works on sample data |
 |---|---|
+| Genel bakış (overview: last list, 30-day chart, look-first items, review decisions, reliability) | yes |
 | Sabah listeleri (morning lists, one per day, by desk) | yes |
-| Kontrol et (confirm / reject a flagged item) | yes, written to `sample/data/review_log.jsonl` |
+| Kontrol et (confirm / reject a flagged item) and Kontrol geçmişi (every decision, by flag type) | yes, written to `sample/data/review_log.jsonl` |
 | Haftalık temalar (weekly themes) | yes |
 | Güvenilirlik (measured results) | yes |
 | Rehberli sorgu: day list, company history, "why did it move?" | yes |

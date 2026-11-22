@@ -98,6 +98,7 @@ MARKERS={  # field -> marker text as rendered (searched in <body> only)
     'no_rate':'kur yok','try_size':'TL karşılığına göre','index':'XU100','reaction':'+8,6%','reaction_z':'z 4,4',
     'chart':'CHARTMARK','score':'skor 7','matriks_amount':'4.242.424','matriks_label':'(Matriks kaydı)',
     'matriks_count':'Matriks tutar kaydı','why_moved':'hisse +6,3','why_moved_z':'z 3,8',
+    'review_note':'NOTMARKER',  # the analyst's free-text note on /kontroller (22 Nov): may hold anything, so hidden
 }
 URL='https://www.kap.org.tr/tr/Bildirim/'
 
@@ -179,7 +180,13 @@ def fixture_pages():
           'answer':answers[4][1],'chart':f['charts']['1']}
     view=[{'cluster':0,'n':3,'words':['savunma','teslimat'],'companies_week':3,'companies_all':9,'avg_per_week':1.5,'ratio':2.0,
            'items':[{'news_id':str(n),'symbol':s,'published_at':'2026-11-16 09:00:00'} for n,s in ((1,'ZQXA'),(2,'ZQXB'),(4,'ZQXD'))]}]
+    reviews={'2':{'news_id':'2','day':day,'decision':'reject','note':'NOTMARKER 4.242.424','at':'2026-11-16T10:00:00',
+                  'reasons':['currency_unclear']}}
+    rows=panel.review_rows(reviews,load=lambda d:f['items'])
+    rstats=panel.reason_stats(reviews,load=lambda d:f['items'])
     return {
+        'overview':panel.render_overview({day:panel.day_counts(f['items'],reviews)},f['items'],reviews,rows,rstats),
+        'reviews':panel.render_reviews(rows,rstats),
         'day':panel.render_day(day,f['items'],f['sectors'],{},{},f['charts'],f['sources']),
         'days':panel.render_index([day]),
         'chat':panel.page('KAP asistanı',chat.render_body(history)),
@@ -204,7 +211,9 @@ def pages_hash(pages):
 # 19 Nov UI polish 2/2 ("Önce bak" box, card anchors, wider charts with label halo) again on purpose:
 # 19 Nov review fixes: reliability tile says 'proje sahibinin kör seçimi' (was 'analistin'): 92e18915f63b1d79 ->
 # 19 Nov: chart label halo removed (it drew light blobs over the labels in the dark theme): 324bb603b3585996 ->
-OFF_SHA256='aab4a6dc9387972c'
+# 22 Nov: overview (/genel) and review history (/kontroller) added as fixture pages, and two menu links on every page;
+# the 7 earlier pages with the two links removed still hash to aab4a6dc9387972c (checked, PROJECT_NOTES 22 Nov) ->
+OFF_SHA256='9b10fac6b84d4d9e'
 
 
 def _self_test():
