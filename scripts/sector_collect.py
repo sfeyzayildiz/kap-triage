@@ -3,7 +3,7 @@
 Two requests, done in the same session as the ~12 Nov price refresh (the day's only pull):
   v4/meta/symbols.gz?symbolType=S   stocks: sC (symbol), seI (sector id), seC (sector code)
   v4/meta/sectors.gz                sector names: sI, sC, d (Turkish), de (English)
-Docs read on 2026-11-09 (analistdocs.matriksdata.com, Meta Veriler); approved by Matriks (CLAUDE.md).
+Docs read on 2026-11-09 (analistdocs.matriksdata.com, Meta Veriler); approved by Matriks (PROJECT_NOTES).
 
 Steps, so a parse fix never needs a second pull:
   --pull --yes  two requests, raw JSON saved to data/raw_meta/

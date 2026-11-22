@@ -138,7 +138,7 @@ This is the answer to "could it be solved without an LLM?": the LLM is used only
 |---|---|---|
 | Extraction + code checks | silent errors 1/100 (95% upper bound 4.7%), flagged 11/100; second run 1/100 (other item), 3/100 changed | Set C, PASS |
 | MCP server (stdio, read-only) | exact 10/10 + brief code sections 2/2, overhead 0.011 s | 12 fixed calls |
-| Injection defence (adopted) | sealed amount attack silent 9 → 0 of 18; dev new flags 3/200 | Set C texts 61-78, Feyza's sealed attacks |
+| Injection defence (adopted) | sealed amount attack silent 9 → 0 of 18; dev new flags 3/200 | Set C texts 61-78, my sealed attacks |
 | Search, embedding only | recall@5 42/48 = 0.875, recall@1 32/48 = 0.667 | Set C questions |
 | Search, + rerank (adopted) | recall@5 20/20, recall@1 17/20 (embedding 19/20, 15/20); +0.7 s per question | Set D questions (second use) |
 | Latency, extraction | median 14.6 s, p90 20.6 s, max 24.3 s per disclosure; 0 run errors | Set C run (100) |
@@ -170,7 +170,7 @@ The vendor auditor (a measurement script, kept out of this repository) compares 
 
 ## Not measured (stated as limits)
 
-- Importance score: rules are judgment, not fitted. Checked once against the author's blind choice (Feyza; no external analyst): better than chance, equal to sorting by amount (AUC 0.681 both).
+- Importance score: rules are judgment, not fitted. Checked once against my blind choice (the author; no external analyst): better than chance, equal to sorting by amount (AUC 0.681 both).
 - Agent: routing, router v2 and the brief were measured (see `docs/results.md`), but on 10-20 questions each, written by one person. Red team: out-of-scope questions and two-company questions are not handled (relative periods now are, within the phrase table).
 - Desk routing: delivery measured, not whether the sector desk is the right recipient.
 - Document-to-document similarity ("similar earlier disclosures"): no measured quality.

@@ -7,7 +7,7 @@ Three counts, all must be 0:
           127.0.0.1, e-mail addresses, home paths, the deploy folder, the server alias
   overlap 12-word shingles shared between any folder file and any disclosure text in the DB
 On a hit it prints only counts and our own file:line, never a disclosure text.
-Feyza runs it (it reads the DB); Claude runs only --self-test.
+Feyza runs it (it reads the DB); CI runs only --self-test.
 
 Usage:
   python scripts/kap_kart_leak_scan.py            # real scan (reads data/kap.duckdb read-only)

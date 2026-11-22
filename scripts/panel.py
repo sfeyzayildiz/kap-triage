@@ -13,7 +13,7 @@ Reading map (search for these names; the last part is tests only):
   2. page frame and safety: CSS, page, reads_db / window_block (no DB read in the night window)
   3. day page: render_item, look_first_box, render_day; themes: render_themes_index, render_week
   4. overview /genel and review history /kontroller: column_chart, flag_chart, render_overview, render_reviews
-  5. web server: body_length, theme_back, Handler (do_GET routes, do_POST review / chat / form)
+  5. web server: body_length, theme_back, safe_back, Handler (do_GET routes, do_POST review / chat / form / takip)
   6. _self_test: tests only, not needed to understand the panel; main: command line
 
 Usage:
@@ -30,13 +30,14 @@ import re
 from collections import Counter
 from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse
 
 import chat
 import demo_mode
 import form
 import reliability
 import themes
+import watchlist
 
 DB_PATH='data/kap.duckdb'
 DESKS={}  # sector name -> desk name; empty until the sector names are known
@@ -287,7 +288,7 @@ def tr_time(at):
     return f'{t.day} {TR_MONTHS[t.month-1]} {t.year} {t:%H:%M}'
 
 
-def render_item(item,day,review,chart='',source=None):
+def render_item(item,day,review,chart='',source=None,watched=None,back=None):
     from morning import LEVEL_TR, REVIEW_TR, reaction_text, reason_text, tr_num
     imp=item['importance']
     cls='flag' if imp['needs_review'] else ('high' if imp['level']=='high' else '')
@@ -296,6 +297,8 @@ def render_item(item,day,review,chart='',source=None):
     if imp['needs_review']:
         badges+=(f'<a class="badge flag" href="#r{e(item["news_id"])}">kontrol et ↓</a>' if not review
                  else '<span class="badge done">kontrol edildi ✓</span>')
+    if watched:
+        badges+='<span class="badge">takipte</span>'  # neutral: green is "kontrol edildi"
     from names import company_label
     out=[f'<div class="card {cls}" id="c{e(item["news_id"])}"><b>{e(company_label(item["symbol"],short=True))}</b> '
          f'<span class="muted">{e(item["symbol"])}</span>{badges} · {kap_link(item.get("kap_url"))}']
@@ -323,6 +326,13 @@ def render_item(item,day,review,chart='',source=None):
                        f'<input type="text" name="note" maxlength="500" placeholder="not (isteğe bağlı)"> '
                        + ''.join(f'<button name="decision" value="{k}">{e(v)}</button>' for k,v in DECISIONS.items())
                        + '</form></div>')
+    if watched is not None:
+        act,lbl=('remove','Takipten çıkar') if watched else ('add','Takibe al')
+        out.append(f'<form method="post" action="/takip" class="watch">'  # secondary look: WATCH_CSS
+                   f'<input type="hidden" name="symbol" value="{e(item["symbol"])}">'
+                   f'<input type="hidden" name="action" value="{act}">'
+                   f'<input type="hidden" name="back" value="{e(back or "")}">'
+                   f'<button>{lbl}</button></form>')
     out.append('</div>')
     return ''.join(out)
 
@@ -353,24 +363,47 @@ def look_first_box(items,reviews,base=''):
     return f'<div class="card high look"><b>Önce bak ({len(look)})</b><ol>{"".join(rows)}</ol>{more}</div>'
 
 
-def render_day(day,items,sectors,desks,reviews,charts=None,sources=None):
+WATCH_CSS=('form.watch{margin-top:6px}'
+           'form.watch button{background:transparent;color:var(--muted);border:1px solid var(--line);font-size:.82rem;padding:2px 8px}'
+           'form.watch button:hover{color:var(--accent);border-color:var(--accent)}')
+
+
+def render_day(day,items,sectors,desks,reviews,charts=None,sources=None,watch=None,only_watched=False,query='',watch_broken=False):
     if demo_mode.ON:
         desks=demo_mode.desk_map(sectors,desks)  # "Masa N", never the sector name
-    groups=by_desk(items,sectors,desks)
-    flagged=[i for i in items if i['importance']['needs_review']]
+    watch_set=set(watch or ())
+    watch_active=watch is not None and not watch_broken
+    watched_items=[i for i in items if i['symbol'] in watch_set] if watch_active else []
+    filtered=only_watched and watch_active
+    shown=watched_items if filtered else items
+    groups=by_desk(shown,sectors,desks)
+    flagged=[i for i in shown if i['importance']['needs_review']]
     done=sum(i['news_id'] in reviews for i in flagged)
-    body=[chat.NAV+f'<h1>Sabah listesi: {e(day)}</h1>',
-          f'<p>{len(items)} bildirim, {len(groups)} masa; kontrol gereken {len(flagged)}, kontrol edilen {done}.</p>']
-    if not items:
-        body.append('<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
-    body.append(look_first_box(items,reviews))
+    body=[chat.NAV+f'<h1>Sabah listesi: {e(day)}</h1>']
+    if watch_broken:
+        body.append(f'<div class="card flag">{e(watchlist.MESSAGES["broken"])}</div>')
+    elif watch_active:
+        all_a=f'<a href="/day/{e(day)}">Tümü</a>'
+        only_a=f'<a href="/day/{e(day)}?{FILTER_PARAM}=1">Sadece takip ettiklerim ({len(watched_items)})</a>'
+        body.append(f'<p>{all_a if filtered else f"<b>{all_a}</b>"} · {f"<b>{only_a}</b>" if filtered else only_a}</p>')
+        msg=takip_message(query)
+        if msg:
+            body.append(msg)
+    body.append(f'<p>{len(shown)} bildirim, {len(groups)} masa; kontrol gereken {len(flagged)}, kontrol edilen {done}.</p>')
+    if not shown:
+        body.append('<p>Bu gün takip listenizdeki şirketlerden bildirim yok.</p>' if filtered and items
+                    else '<p>Bu gün yeni iş ilişkisi bildirimi yok.</p>')
+    body.append(look_first_box(shown,reviews))
+    back=f'/day/{day}?{FILTER_PARAM}=1' if filtered else f'/day/{day}'
     for desk,its in groups.items():
         body.append(f'<h2>{e(desk)} ({len(its)})</h2>')
-        body+= [render_item(i,day,reviews.get(i['news_id']),(charts or {}).get(i['news_id'],''),(sources or {}).get(i['news_id']))
-                for i in its]
+        body+=[render_item(i,day,reviews.get(i['news_id']),(charts or {}).get(i['news_id'],''),(sources or {}).get(i['news_id']),
+                           watched=(i['symbol'] in watch_set) if watch_active else None,
+                           back=back if watch_active else None)
+               for i in its]
     body.append('<p class="muted">Kaynak: KAP bildirimleri ve Matriks verisi. Skor kurallı bir sıralamadır, tahmin değildir; '
                 'karar öncesi KAP metnini okuyun.</p>')
-    return page(f'Sabah listesi {day}',''.join(body))
+    return page(f'Sabah listesi {day}',''.join(body),WATCH_CSS if watch_active else '')
 
 
 def render_index(days):
@@ -443,6 +476,11 @@ OVERVIEW_CSS='''.ov{margin:6px 0 4px}.ov figcaption{margin-bottom:6px}
 .hv{font-size:.85rem;color:var(--muted);white-space:nowrap}
 .scroll{overflow-x:auto}table.t th.n,table.t td.n{text-align:right}
 @media (max-width:640px){.hr{grid-template-columns:1fr auto}.hr .hv{order:2}.hr .hbar{order:3;grid-column:1/-1}}'''
+# watchlist layer on the overview (only when the watchlist is shown): inline remove buttons, the add box
+OV_WATCH_CSS=('form.watch.inline{display:inline;margin:0 0 0 6px}'
+              'form.watch.inline button{background:transparent;color:var(--muted);border:1px solid var(--line);font-size:.82rem;padding:1px 7px}'
+              'form.watch.inline button:hover{color:var(--accent);border-color:var(--accent)}'
+              'form.wadd{margin:8px 0}form.wadd input[type=text]{width:14em}')
 EXTRA_CODES={'unknown_item':'bildirim o günün listesinde yok','not_flagged_after_rebuild':'liste yeniden kurulunca işaret kalktı',
              'no_reason_stored':'gerekçe kaydedilmemiş'}
 DECISION_SHORT={'confirm':'Doğru','reject':'Yanlış (çıkarım hatalı)'}
@@ -569,12 +607,50 @@ def days_table(stats):
             f'<th class="n">Kontrol et</th><th class="n">Kontrol edilen</th></tr>{trs}</table></div>')
 
 
-def render_overview(stats,last_items,reviews,rows,rstats):
-    '''One scrolling page in layers; every layer links to its detail page.'''
+def render_overview(stats,last_items,reviews,rows,rstats,watch=None,watch_broken=False,query=''):
+    '''One scrolling page in layers; every layer links to its detail page.
+    watch: the watchlist (None = the layer is not shown, the page stays as before); it comes first, unnumbered.'''
     days=sorted(stats,reverse=True)
     body=[chat.NAV,'<h1>Genel bakış</h1>',
           '<p class="muted">Yeni iş ilişkisi bildirimleri gece okunur, sabah önem sırasıyla listelenir; şüpheli çıkarımlar '
           '"kontrol et" ile analiste gider. Bu sayfa özet; her bölümün ayrıntısı kendi sayfasında.</p>']
+    watch_on=watch is not None or watch_broken
+    if watch_on:
+        body.append('<h2>Takip ettiklerin</h2>')
+        if watch_broken:
+            body.append(f'<div class="card flag">{e(watchlist.MESSAGES["broken"])}</div>')
+        else:
+            from morning import LEVEL_TR
+            from names import company_label
+            msg=takip_message(query)
+            if msg:
+                body.append(msg)
+            wset=set(watch)
+            hits=[i for i in last_items if i['symbol'] in wset]
+            if hits and days:
+                last=days[0]
+                hrows=''.join(f'<li><a href="/day/{e(last)}#c{e(i["news_id"])}"><b>{e(company_label(i["symbol"],short=True))}</b></a> '
+                              f'<span class="muted">{e(i["symbol"])} · {e(LEVEL_TR.get(i["importance"]["level"],i["importance"]["level"]))}</span></li>'
+                              for i in hits)
+                body.append(f'<div class="card"><b>Son listede ({len(hits)})</b><ul>{hrows}</ul></div>')
+            else:
+                body.append('<p class="muted">Son listede takip ettiğin şirketlerden bildirim yok.</p>')
+            if watch:
+                chips=''.join(f'<li><b>{e(company_label(s,short=True))}</b> <span class="muted">{e(s)}</span>'
+                              f'<form method="post" action="/takip" class="watch inline">'
+                              f'<input type="hidden" name="symbol" value="{e(s)}">'
+                              f'<input type="hidden" name="action" value="remove">'
+                              f'<input type="hidden" name="back" value="/genel">'
+                              f'<button>Çıkar</button></form></li>' for s in watch)
+                body.append(f'<ul>{chips}</ul>')
+            else:
+                body.append('<p class="muted">Takip listesi boş.</p>')
+            # maxlength is a convenience only: a POST can send anything, watchlist.normalize decides on the server
+            body.append('<form method="post" action="/takip" class="wadd">'
+                        '<input type="text" name="symbol" maxlength="6" placeholder="Şirket kodu (ör. ASELS)" required> '
+                        '<input type="hidden" name="action" value="add">'
+                        '<input type="hidden" name="back" value="/genel">'
+                        '<button>Takibe al</button></form>')
     if not days:
         body.append('<p>Kayıtlı sabah listesi yok.</p>')
     else:
@@ -595,7 +671,7 @@ def render_overview(stats,last_items,reviews,rows,rstats):
             '<p><a href="/guvenilirlik">Bütün sonuçlar ve grafikler →</a></p>']
     if days:
         body.append('<h2>6. Bütün günler</h2>'+days_table(stats))
-    return page('Genel bakış',''.join(body),OVERVIEW_CSS)
+    return page('Genel bakış',''.join(body),OVERVIEW_CSS+(OV_WATCH_CSS if watch_on else ''))
 
 
 def load_day(day):
@@ -620,6 +696,34 @@ def theme_back(referer):
     if ref.hostname in LOCAL_NAMES and ref.path.startswith('/') and not ref.path.startswith('//'):
         return ref.path+('?'+ref.query if ref.query and ref.path=='/form' else '')
     return '/'
+
+
+FILTER_PARAM='takip'
+MSG_PARAM='takip_msg'
+
+
+def safe_back(back):
+    '''Where a watchlist POST returns: a local path of this panel, never another site or header injection.'''
+    if not isinstance(back,str) or not back.startswith('/') or '//' in back or '\\' in back or '\r' in back or '\n' in back:
+        return '/genel'
+    return back
+
+
+def with_message(back,status):
+    '''Append or replace MSG_PARAM=<status> in back; keeps FILTER_PARAM and other query parameters.'''
+    u=urlparse(back)
+    params=[(k,v) for k,v in parse_qsl(u.query,keep_blank_values=True) if k!=MSG_PARAM]
+    if status in watchlist.MESSAGES:
+        params.append((MSG_PARAM,status))
+    q=urlencode(params)
+    return u.path+('?'+q if q else '')+('#'+u.fragment if u.fragment else '')
+
+
+def takip_message(query):
+    '''Message box for a known MSG_PARAM status code; unknown or missing codes render nothing.'''
+    code=(parse_qs(query or '').get(MSG_PARAM) or [''])[0]
+    msg=watchlist.MESSAGES.get(code)
+    return f'<div class="card">{e(msg)}</div>' if msg else ''
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -651,7 +755,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path=urlparse(self.path).path
-        blocked=window_block(path,urlparse(self.path).query,datetime.now())
+        q=urlparse(self.path).query
+        blocked=window_block(path,q,datetime.now())
         if blocked:
             return self.send(*blocked)
         if path=='/':
@@ -659,6 +764,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/days':
             return self.send(200,render_index(available_days()))
         if path in ('/genel','/kontroller'):  # saved lists + review log only (no DB read, so no night-window block)
+            watch,broken=watchlist.load()
             reviews=load_reviews()
             rows=review_rows(reviews)
             rstats=reason_stats(reviews)
@@ -666,7 +772,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,render_reviews(rows,rstats))
             days=available_days()
             return self.send(200,render_overview(all_day_stats(days,reviews),(load_day(days[0]) or []) if days else [],
-                                                 reviews,rows,rstats))
+                                                 reviews,rows,rstats,watch=watch,watch_broken=broken,query=q))
         m=re.match(r'^/day/(\d{4}-\d{2}-\d{2})$',path)
         if m:
             items=load_day(m.group(1))
@@ -674,8 +780,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
             from price_chart import charts_for_items
             charts={} if demo_mode.ON else charts_for_items(items)  # demo: prices are not even read
+            only=(parse_qs(q).get(FILTER_PARAM) or [''])[0]=='1'
+            watch,broken=watchlist.load()
             return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts,
-                                            sources_for_items(items)))
+                                            sources_for_items(items),watch=watch,only_watched=only,query=q,watch_broken=broken))
         m=re.match(r'^/api/desks/(\d{4}-\d{2}-\d{2}|latest)$',path)
         if m:  # docs/n8n_routing_rule.md: read-only JSON for n8n (no amounts, no disclosure text)
             day=m.group(1)
@@ -696,7 +804,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/guvenilirlik':
             return self.send(200,page('Güvenilirlik',reliability.render_body(chat.NAV)))
         if path=='/form':
-            kind=(parse_qs(urlparse(self.path).query).get('type') or [None])[0]
+            kind=(parse_qs(q).get('type') or [None])[0]
             kind=kind if kind in form.TYPES else None  # unknown type -> step 1
             symbols=load_symbols() if kind and 'symbol' in form.FIELDS[kind] else set()
             return self.send(200,page('Rehberli sorgu',form.render_body(symbols,form.display_names(),form.LAST,
@@ -726,12 +834,19 @@ class Handler(BaseHTTPRequestHandler):
         if origin and urlparse(origin).hostname not in LOCAL_NAMES:
             return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
         path=urlparse(self.path).path
-        if path not in ('/review','/chat','/chat/clear','/form'):
+        if path not in ('/review','/chat','/chat/clear','/form','/takip'):
             return self.send(404,page('Yok','<p>Sayfa yok.</p>'))
         n=body_length(self.headers.get('Content-Length'))
         if n is None:
             return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
         form_data={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8',errors='replace')).items()}
+        if path=='/takip':
+            action=form_data.get('action')
+            if action not in ('add','remove'):
+                return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
+            fn=watchlist.add if action=='add' else watchlist.remove
+            status=fn(watchlist.PATH,form_data.get('symbol',''))
+            return self.send(303,'',location=with_message(safe_back(form_data.get('back')),status))
         if path=='/chat/clear':
             chat.HISTORY.clear()
             return self.send(303,'',location='/')
@@ -920,7 +1035,47 @@ def _self_test():
     assert theme_back('http://evil.example/day/x')=='/' and theme_back('http://localhost:8765/form?type=brief')=='/form?type=brief'
     assert theme_back(None)=='/' and theme_back('http://localhost:8765/days?x=1')=='/days'
     assert 'şükrü'.encode('utf-8')[:-1].decode('utf-8',errors='replace').startswith('şükr')   # a cut character no longer raises
-    print('self-test ok: 70 checks')
+    assert FILTER_PARAM!=MSG_PARAM
+    for bad in ('//kotu','/\\kotu','https://kotu','/genel\r\nX:1','','/a\nb',None):
+        assert safe_back(bad)=='/genel'
+    assert safe_back(f'/day/2026-11-04?{FILTER_PARAM}=1')==f'/day/2026-11-04?{FILTER_PARAM}=1'
+    assert with_message(f'/day/2026-11-04?{FILTER_PARAM}=1','removed')==f'/day/2026-11-04?{FILTER_PARAM}=1&{MSG_PARAM}=removed'
+    assert with_message(f'/day/2026-11-04?{FILTER_PARAM}=1&{MSG_PARAM}=old','added')==f'/day/2026-11-04?{FILTER_PARAM}=1&{MSG_PARAM}=added'
+    assert with_message('/genel','added')==f'/genel?{MSG_PARAM}=added' and with_message(f'/genel?{MSG_PARAM}=old','absent')=='/genel'
+    assert takip_message(f'{MSG_PARAM}=<script>')=='' and takip_message('')==''
+    assert watchlist.MESSAGES['added'] in takip_message(f'{MSG_PARAM}=added')
+    # watchlist day rendering (4b): badge/form, filter, back preservation, escaping, broken warning, byte-identical default
+    c_in=render_item(items[0],'2026-11-09',None,watched=True,back='/day/2026-11-09')
+    c_out=render_item(items[1],'2026-11-09',None,watched=False,back='/day/2026-11-09')
+    assert '<span class="badge">takipte</span>' in c_in and 'value="remove"' in c_in and 'Takipten çıkar' in c_in
+    assert 'takipte</span>' not in c_out and 'value="add"' in c_out and 'Takibe al' in c_out
+    assert render_item(items[0],'2026-11-09',None)==render_item(items[0],'2026-11-09',None,watched=None,back=None)
+    w_all=render_day('2026-11-09',items,sectors,{},{},watch=['AAA'],query=f'{MSG_PARAM}=added')
+    assert 'Sadece takip ettiklerim (1)' in w_all and watchlist.MESSAGES['added'] in w_all
+    assert '<script>' not in w_all and 'name="symbol" value="&lt;script&gt;"' in w_all
+    w_only=render_day('2026-11-09',items,sectors,{},{},watch=['AAA'],only_watched=True)
+    assert 'id="c1"' in w_only and 'id="c2"' not in w_only and '1 bildirim, 1 masa; kontrol gereken 0, kontrol edilen 0.' in w_only
+    assert f'name="back" value="/day/2026-11-09?{FILTER_PARAM}=1"' in w_only
+    w_empty=render_day('2026-11-09',items,sectors,{},{},watch=['ZZZ'],only_watched=True)
+    assert 'takip listenizdeki şirketlerden bildirim yok' in w_empty
+    w_broken=render_day('2026-11-09',items,sectors,{},{},watch=[],watch_broken=True)
+    assert watchlist.MESSAGES['broken'] in w_broken and 'action="/takip"' not in w_broken
+    assert html_out==render_day('2026-11-09',items,sectors,{},{},watch=None) and 'action="/takip"' not in html_out
+    # watchlist layer on the overview (4c): links to the cards, add/remove forms, empty state, escaping, broken file,
+    # byte-identical page without a watchlist; maxlength is only a convenience, the server check decides
+    ov_w=render_overview(dstats,items,{},rows,rs,watch=['AAA'],query=f'{MSG_PARAM}=added')
+    assert '<h2>Takip ettiklerin</h2>' in ov_w and 'href="/day/2026-11-10#c1"' in ov_w and watchlist.MESSAGES['added'] in ov_w
+    assert 'action="/takip"' in ov_w and 'name="action" value="add"' in ov_w and 'name="action" value="remove"' in ov_w
+    assert 'name="back" value="/genel"' in ov_w and 'maxlength="6"' in ov_w
+    assert watchlist.normalize('ABCDEFG')==(None,'bad_code')
+    ov_empty=render_overview(dstats,items,{},rows,rs,watch=['ZZZ'])
+    assert 'Son listede takip ettiğin şirketlerden bildirim yok.' in ov_empty
+    ov_esc=render_overview(dstats,items,{},rows,rs,watch=['<script>'])
+    assert '<script>' not in ov_esc and 'name="symbol" value="&lt;script&gt;"' in ov_esc
+    ov_broken=render_overview(dstats,items,{},rows,rs,watch=[],watch_broken=True)
+    assert watchlist.MESSAGES['broken'] in ov_broken and 'action="/takip"' not in ov_broken
+    assert ov==render_overview(dstats,items,{},rows,rs,watch=None) and 'Takip ettiklerin' not in ov
+    print('self-test ok: 98 checks')
 
 
 def main():

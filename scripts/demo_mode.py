@@ -188,6 +188,10 @@ def fixture_pages():
         'overview':panel.render_overview({day:panel.day_counts(f['items'],reviews)},f['items'],reviews,rows,rstats),
         'reviews':panel.render_reviews(rows,rstats),
         'day':panel.render_day(day,f['items'],f['sectors'],{},{},f['charts'],f['sources']),
+        'day_watch':panel.render_day(day,f['items'],f['sectors'],{},{},f['charts'],f['sources'],
+                                     watch=['ZQXA'],query=f'{panel.MSG_PARAM}=added'),
+        'overview_watch':panel.render_overview({day:panel.day_counts(f['items'],reviews)},f['items'],reviews,rows,rstats,
+                                               watch=['ZQXA'],query=f'{panel.MSG_PARAM}=added'),
         'days':panel.render_index([day]),
         'chat':panel.page('KAP asistanı',chat.render_body(history)),
         'form':panel.page('Rehberli sorgu',form.render_body({'ZQXA'},{},last,chat.NAV,chat.render_answer,kind='brief')),
@@ -215,7 +219,11 @@ def pages_hash(pages):
 # the 7 earlier pages with the two links removed still hash to aab4a6dc9387972c (checked, PROJECT_NOTES 22 Nov) ->
 # 22 Nov outside review: brief/card name the measured fields (agent.FIELDS_NOTE); with the old sentence put back the
 # pages hash to 9b10fac6b84d4d9e (checked) ->
-OFF_SHA256='551d570425036047'
+# 22 Nov watchlist (4b): day_watch fixture page added; the 9 earlier pages still hash to 551d570425036047 ->
+# 22 Nov watchlist UX: neutral "takipte" badge, secondary button (only day_watch changed; 9 pages still 551d570425036047) ->
+# 22 Nov watchlist (Feyza): own WATCH_CSS for the card button (day_watch changed again: 10 pages de1d687f01efac36), then
+# 4c overview_watch page added; the 9 pages before the watchlist still hash to 551d570425036047 (checked) ->
+OFF_SHA256='ec99f5a881d4a55e'
 
 
 def _self_test():

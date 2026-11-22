@@ -159,6 +159,13 @@ All limits: [`docs/system_card.md`](docs/system_card.md). Where we were wrong: [
 ## Related work
 KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) bring KAP news to AI tools; we found no published accuracy number for them. The closest research (arXiv 2607.08346, SEC 8-K filings) uses the same ideas at a larger scale, scored by an LLM judge; here accuracy comes from blind human labels. More: [`docs/metrics_faq.md`](docs/metrics_faq.md).
 
+## How this was built
+I led the project. I chose the problem and the scope with the instructor, obtained the data permission from Matriks, and decided what was adopted and what was dropped. I labeled every gold set by hand (about 350 disclosures in Sets A-D, plus the two pilots) and wrote the evaluation questions and the sealed attack sentences. I designed the measurement rules together with the assistant: I chose what to measure and the key choices, and approved each written rule before its run. I ran every measurement on my own machine, where the licensed data stays.
+
+Most of the code was written with an AI coding assistant (Claude Code) under my direction, as pull requests with tests (CI on every change). By rule, the assistant worked with counts and ids only: it did not read the licensed data, the gold labels or the held-out questions, so it could not tune the system to them (two slips are recorded in [`docs/known_issues.md`](docs/known_issues.md), C3). External reviews were checked item by item against the code.
+
+**I designed, wrote and tested the watchlist myself** ([`scripts/watchlist.py`](scripts/watchlist.py) and its panel integration): an analyst keeps the companies they cover in a local list, filters the morning list to them, and sees them at the top of the overview. The assistant gave hints and reviewed the code.
+
 ## Data, privacy, license
 - Matriks data is used with permission, stays in `data/` and is never committed. All models run locally; nothing is sent out. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
 - The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few self-tests contain short fragments of public KAP disclosure texts.

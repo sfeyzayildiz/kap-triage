@@ -101,6 +101,7 @@ TESTS={
     'daily_collect':'--self-test',
     'e2e_check':'--self-test',
     'sample_data':'--self-test',
+    'watchlist':'--self-test',
     'make_timeline':'--self-test',
     'demo_video':'--self-test',
     'fdv_collect':'--self-test',
@@ -128,7 +129,7 @@ def module_path(name):
 
 
 def main():
-    # --skip NAME[,NAME]: Claude skips daily_collect locally (CLAUDE.md: Claude does not run it); CI runs all
+    # --skip NAME[,NAME]: skip modules locally (daily_collect runs only on the owner's machine and in CI); CI runs all
     skip=dict(SKIP)
     if '--skip' in sys.argv:
         for name in sys.argv[sys.argv.index('--skip')+1].split(','):

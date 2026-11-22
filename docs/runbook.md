@@ -1,6 +1,6 @@
 # Runbook: operating the system
 
-Who runs what: Feyza runs everything that touches Matriks or takes long; Claude writes code and gives the commands.
+Who runs what: I run everything that touches Matriks data or takes long, on my own machine; code changes arrive as pull requests with CI.
 Two folders: `~/projects/kap-explore` (development, branches) and `~/projects/kap-deploy` (always `main`, used by launchd).
 
 ## Nightly (automatic)
@@ -48,7 +48,7 @@ launchctl list com.feyza.kap-daily                                              
 .venv/bin/python scripts/price_collect.py --pull --yes && .venv/bin/python scripts/price_collect.py --load
 .venv/bin/python scripts/sector_collect.py --pull --yes && .venv/bin/python scripts/sector_collect.py --load
 ```
-Then (Claude's commands): rebuild clusters with k = number of sectors, `clusters.py --evaluate` once, fill the desk map in `panel.py`, rebuild the two demo reports.
+Then: rebuild clusters with k = number of sectors, `clusters.py --evaluate` once, fill the desk map in `panel.py`, rebuild the two demo reports.
 
 Finished one-off procedures (prod archive refresh, 10 Nov; capital-increase and stake pilots, 18-19 Nov) are recorded in `docs/PROJECT_NOTES.md`; their scripts are not in this repository.
 
@@ -63,7 +63,7 @@ cd ~/projects/kap-explore && git switch main && git pull -q
 .venv/bin/python scripts/two_run_count.py --start 2026-11-15 --end 2026-11-23   # report only (known_issues A12)
 ```
 Paste the `--load` summary, the score lines and the last `two_run_count` line. **14:00 cutoff:** if the bars or the score are not there by then, stop trying; the submission says "forward test not scored" with the failed step (Note 8).
-Then, by about 15:00: Claude records the result (results, notes, metrics_faq), re-runs `scripts/make_timeline.py`, merges; rebuilds the public copy and shows its check counts (`docs/public_release.md`); Feyza runs the kap-kart leak scan on the copy (`docs/kap_kart_rule.md`, Note 1); Feyza says "aç" and the repository name; Claude creates the public repository and pushes. 15:00-23:59 is spare time.
+Then, by about 15:00: the result is recorded (results, notes, metrics_faq), `scripts/make_timeline.py` re-run and merged; the public copy is rebuilt and its check counts shown (`docs/public_release.md`); I run the kap-kart leak scan on the copy (`docs/kap_kart_rule.md`, Note 1) and choose the repository name; the public repository is created and pushed. 15:00-23:59 is spare time.
 
 ## Daily use
 ```
@@ -76,7 +76,7 @@ cd ~/projects/kap-explore
 Stop the panel before 23:40.
 
 ## Measurements
-- Rule first (`docs/*_rule.md`, committed), then the run in Feyza's terminal, then the score. No scoring while a run is in progress; `INCOMPLETE` means wait.
+- Rule first (`docs/*_rule.md`, committed), then the run in my terminal, then the score. No scoring while a run is in progress; `INCOMPLETE` means wait.
 - Paste only score lines (counts, ids, metrics). Files with amounts go to `/tmp` and are not pasted.
 - Held-out sets unused so far: Set C questions + `data/rag_questions_neg.jsonl` for cited answers (kept for a stronger model).
 

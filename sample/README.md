@@ -45,6 +45,7 @@ Open each link with the panel running. The screen labels are in Turkish; they ar
 | Genel bakış (overview: last list, 30-day chart, look-first items, review decisions, reliability) | yes |
 | Sabah listeleri (morning lists, one per day, by desk) | yes |
 | Kontrol et (confirm / reject a flagged item) and Kontrol geçmişi (every decision, by flag type) | yes, written to `sample/data/review_log.jsonl` |
+| Takip listesi (watchlist: follow a company on a card or on the overview, filter the morning list to it) | yes, written to `sample/data/watchlist.json` |
 | Haftalık temalar (weekly themes) | yes |
 | Güvenilirlik (measured results) | yes |
 | Rehberli sorgu: day list, company history, "why did it move?" | yes |
