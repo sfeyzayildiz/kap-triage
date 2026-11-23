@@ -6,15 +6,15 @@
 
 ![Demo on made-up sample data: overview, morning lists, review, watchlist, why it moved, themes, reliability](docs/img/demo.gif)
 
-Demo, sped up, on made-up sample data (the real data is licensed and stays on my computer). Full 81-second video: [watch](https://github.com/user-attachments/assets/526cb4dc-837d-40f6-bf42-05845d2e9f94).
+Demo, sped up, on made-up sample data (the real data is licensed and stays on my computer). Full video (about 80 seconds): [watch](https://github.com/user-attachments/assets/526cb4dc-837d-40f6-bf42-05845d2e9f94).
 
-A working prototype for "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul. It runs every night on real data, on one laptop, with local models only. The screens are in Turkish because the users are Turkish analysts. Not investment advice: it does not predict prices or recommend trades.
+A working prototype for "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul. It runs nightly on real data, on one laptop, with local models only. The screens are in Turkish because the users are Turkish analysts. Not investment advice: it does not predict prices or recommend trades.
 
 **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)), BTK Akademi AI workshop, Entertech İstanbul Teknokent, Oct-Nov 2026. Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md).
 
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
-- **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk gets its part by e-mail.
+- **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk can get its part by e-mail.
 - **Proof:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test.
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
@@ -24,7 +24,7 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements-test.txt
 .venv/bin/python scripts/panel.py --serve --sample  # open http://127.0.0.1:8765/genel
 ```
-The panel runs on 12 invented companies and 57 invented disclosures; their morning lists were made by the real nightly chain, and only the model's answers were written in advance. No model and no network needed. Tested with Python 3.12, and with 3.14 in a fresh-clone test (23 Nov). A 10-minute guided tour: [`sample/README.md`](sample/README.md).
+The panel runs on 12 invented companies and 57 invented disclosures; their morning lists were made by the real nightly chain, and only the model's answers were written in advance. After the install, no model and no network are needed. Tested with Python 3.12, and with 3.14 in a fresh-clone test (23 Nov). A 10-minute guided tour: [`sample/README.md`](sample/README.md).
 
 Also without a model: `.venv/bin/python scripts/run_self_tests.py` (48 self-tests, run by CI on every pull request) and `.venv/bin/python scripts/e2e_check.py --self-test` (the nightly chain with a fake model). On Windows, use `python -m venv .venv` and `.venv\Scripts\` instead of `.venv/bin/`.
 
@@ -50,7 +50,7 @@ A disclosure text can hide a sentence written for AI tools. The model sometimes 
 Measured on 18 real texts with a planted sentence: without the defence, 9 attacks succeeded silently; with it, 0 (95% upper bound 15.3%), with 3 extra flags on 200 normal texts ([rule](docs/layered_defence_rule.md)). Only texts with a vendor record were measured, with one attack wording. Try it yourself: step 3 of the [tour](sample/README.md#a-10-minute-tour), or the hidden-instruction example in [kap-kart](kap_kart/README.md).
 
 ## How it works
-**The LLM reads text; code decides.** Every number and link that people see comes from code and the database. Purple = LLM, grey = code, blue = data, green = what people see.
+**The LLM reads text; code decides.** The LLM has three jobs: it extracts the facts from the disclosure text, judges whether the sentence an amount came from reads like an instruction, and, in the chat, picks a tool. Every sentence, score, ranking and link that people see is written by code from the database, and every extracted amount is shown next to the sentence it came from. Purple = LLM, grey = code, blue = data, green = what people see.
 
 ```mermaid
 flowchart LR
@@ -81,7 +81,7 @@ flowchart LR
 | when | what happens | built with |
 |---|---|---|
 | **Every night, 23:43** | pulls the day's disclosures (one pull, enforced in code), reads each text twice with a local LLM, checks the facts in code, builds the morning list, sends a phone alert | launchd, Ollama, DuckDB |
-| **Weekdays, 07:30** | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
+| **Weekdays, 07:30** (when Docker is running) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
 | **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures | LangGraph, RAG (`turkish-e5-large` + reranker) |
 | **From local AI tools** | the agent's tools as an MCP server (local clients only); a desk e-mail through a third-party MCP server, sent only after a person approves | MCP, both directions |
 | **On every change** | 48 self-tests; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
@@ -131,7 +131,7 @@ All limits: [`docs/system_card.md`](docs/system_card.md). Where I was wrong: [`d
 ## How this was built
 I led the project. I chose the problem and the scope with the instructor, obtained the data permission from Matriks, and decided what was adopted and what was dropped. I labeled every gold set by hand (about 350 disclosures in Sets A-D, plus the two pilots) and wrote the evaluation questions and the sealed attack sentences. I designed the measurement rules together with the assistant: I chose what to measure and the key choices, and approved each written rule before its run. I ran every measurement on my own machine, where the licensed data stays.
 
-Most of the code was written with an AI coding assistant (Claude Code) under my direction, as pull requests with tests (CI on every change). By rule, the assistant worked with counts and ids only: it did not read the licensed data, the gold labels or the held-out questions, so it could not tune the system to them (two slips are recorded in [`docs/known_issues.md`](docs/known_issues.md), C3). External reviews were checked item by item against the code.
+Most of the code was written with an AI coding assistant (Claude Code) under my direction, as pull requests with tests (CI on every change). By rule, the assistant worked with counts and ids only: it did not read the licensed data, the gold labels or the held-out questions, so it could not tune the system to them (the slips are recorded in [`docs/known_issues.md`](docs/known_issues.md), C3). External reviews were checked item by item against the code.
 
 **I designed, wrote and tested the watchlist myself** ([`scripts/watchlist.py`](scripts/watchlist.py) and its panel integration): an analyst keeps the companies they cover in a local list, filters the morning list to them, and sees them at the top of the overview. The assistant gave hints and reviewed the code.
 
@@ -231,6 +231,6 @@ KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) b
 </details>
 
 ## Data, privacy, license
-- Matriks data is used with permission, stays in `data/` and is never committed. All models run locally; nothing is sent out. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
+- Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out: the only outgoing message is the nightly phone alert (through the ntfy push service), which carries counts only. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the demo-mode screens and the code stay.
 - The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few self-tests contain short fragments of public KAP disclosure texts.
