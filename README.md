@@ -187,7 +187,7 @@ flowchart LR
 <details>
 <summary>kap-kart: the card from any public KAP text</summary>
 
-Paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then open `http://127.0.0.1:8765/kart` in the panel, or run `python main.py kart metin.txt` in the terminal. The card imports no database and no Matriks code ([`kap_triage/web/kart.py`](kap_triage/web/kart.py)). Add a hidden instruction to the text: the card should show "KONTROL ET" (verify) instead of the planted amount.
+Paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then open `http://127.0.0.1:8765/kart` in the panel, or run `python main.py kart metin.txt` in the terminal. The card imports no database and no Matriks code ([`kap_triage/web/kart.py`](kap_triage/web/kart.py)). Add a hidden instruction to the text: the card should carry a "KONTROL ET" (verify) flag instead of letting the planted amount pass without a warning.
 
 </details>
 
