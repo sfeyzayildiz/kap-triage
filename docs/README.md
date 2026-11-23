@@ -1,11 +1,12 @@
 # Documentation index
 
-Every measured part of the project has a rule file (`*_rule.md`) that was committed **before** its measurement, and a result recorded in [`PROJECT_NOTES.md`](PROJECT_NOTES.md) (the development log, every decision in order) and [`results.md`](results.md). Read the rule first, then the result. The measurement scripts are kept out of this repository; the rules name them as `scripts/...`.
+Every measured part of the project has a rule file (`*_rule.md`) that was committed **before** its measurement, and a result recorded in [`PROJECT_NOTES.md`](PROJECT_NOTES.md) (the development log, every decision in order) and [`results.md`](results.md). Read the rule first, then the result. The rule files, the results and `PROJECT_NOTES.md` are a record of what was measured, so they keep the version 1 file names (`scripts/...`); [`v1_to_v2_map.md`](v1_to_v2_map.md) says where each file is now. The measurement scripts are kept out of this repository.
 
 ## Start here
 | file | what it is |
 |---|---|
-| [timeline.md](timeline.md) | Day-by-day development log, generated from the git history (`scripts/make_timeline.py`). |
+| [timeline.md](timeline.md) | Day-by-day development log, generated from the git history by a development script. |
+| [v1_to_v2_map.md](v1_to_v2_map.md) | Where each version 1 file (`scripts/`) is in the version 2 package (`kap_triage/`), and what was left out. |
 | [for_reviewers.md](for_reviewers.md) | A 10-minute review path for a grader or company reviewer, and what is not claimed. |
 | [results.md](results.md) | Every measured result on one page, adopted and not adopted. |
 | [architecture.md](architecture.md) | How the system is built: nightly path, agent, panel, MCP, n8n (diagrams). |
@@ -16,7 +17,7 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 ## Operating the system
 | file | what it is |
 |---|---|
-| [runbook.md](runbook.md) | Nightly job, pulls, pauses, recovery, pilot-day steps. |
+| [runbook.md](runbook.md) | Nightly job, pulls, pauses, recovery, daily use. |
 | [docker.md](docker.md) | Running with Docker (Ollama on the host, `data/` mounted). |
 | [n8n_guide.md](n8n_guide.md) | Desk e-mail workflow: import and run. |
 | [latency.md](latency.md) | What latency is measured and how it is reported. |
@@ -25,7 +26,7 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 | file | what it is |
 |---|---|
 | [extending.md](extending.md) | How the system would extend to other disclosure types. |
-| [public_release.md](public_release.md) | How the public copy is built from the private repository (history kept, internal parts removed) and checked. |
+| [public_release.md](public_release.md) | How the version 1 public copy was built from the private repository (history kept, internal parts removed) and checked. |
 
 ## Labeling guidelines and test-set plans
 | file | what it is |
@@ -91,5 +92,5 @@ Each file states the measurement, the bar and what happens on pass or fail. The 
 - [vendor_audit_rule.md](vendor_audit_rule.md): M1 (existing blind gold) and M2 (new blind pool); strict precision 6/14 is below the 50% bar, so it stays a report tool (`AUDITOR_OFF`).
 
 **Showing the system without licensed data**
-- [demo_mode_rule.md](demo_mode_rule.md): panel display flag that hides Matriks-licensed values; leaks 0, adopted in round 1.
-- [kap_kart_rule.md](kap_kart_rule.md): stand-alone card from pasted KAP text (`kap_kart/`); copies hash-checked, leaks 0 in round 3, trap examples 12/12, adopted (Matriks agreed to publishing the code, 19 Nov).
+- [demo_mode_rule.md](demo_mode_rule.md): panel display flag that hides Matriks-licensed values; leaks 0, adopted in round 1 (version 1 only; version 2 shows made-up sample data instead).
+- [kap_kart_rule.md](kap_kart_rule.md): stand-alone card from pasted KAP text (version 1: `kap_kart/`; version 2: `/kart` in the panel, `kap_triage/web/kart.py`); copies hash-checked, leaks 0 in round 3, trap examples 12/12, adopted (Matriks agreed to publishing the code, 19 Nov).

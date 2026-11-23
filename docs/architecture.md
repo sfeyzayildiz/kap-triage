@@ -2,6 +2,8 @@
 
 Morning triage for KAP "Yeni İş İlişkisi" disclosures. Everything runs on one Mac: models are local (Ollama, sentence-transformers), and no licensed data leaves the machine. The only outgoing message is the nightly phone alert (ntfy): counts on success, a short error line on failure.
 
+The code is the `kap_triage/` package (`collect`, `analysis`, `assistant`, `web`) with one entry point, `main.py`; version 1 kept the same code in `scripts/` ([`v1_to_v2_map.md`](v1_to_v2_map.md)).
+
 Design principle: **the LLM extracts facts, code applies business rules.** Code flags contradictions (`needs_review`) and never fixes them. The LLM's outputs are the extracted fields, the source judge's "fact or instruction" verdict and the chat's tool choice; every sentence, score and KAP link shown to the analyst is written by code, and an extracted amount is shown next to the sentence it came from.
 
 ## What the system does
@@ -13,7 +15,7 @@ For each day's disclosures:
 5. **Price reaction.** Return against XU100 on the first trading day the market could react.
 6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
 7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
-8. **Desk panel.** A local web page that starts on an overview (`/genel`: last list in numbers, a 30-day chart, look-first items, review decisions, measured results), with a chat box for the agent, the list per sector desk (Matriks sector label), a watchlist (follow companies, filter the list to them), a confirm / reject step for flagged items (decisions are logged and counted per flag type on the review history page, `/kontroller`), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, and a reliability page with the measured results as charts. Light / dark theme switch; no JavaScript.
+8. **Desk panel.** A local web page that starts on an overview (`/genel`: last list in numbers, a 30-day chart, look-first items, review decisions, measured results), with a chat box for the agent, the list per sector desk (Matriks sector label), a watchlist (follow companies, filter the list to them), a confirm / reject step for flagged items (decisions are logged and counted per flag type on the review history page, `/kontroller`), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, a reliability page with the measured results as charts, and a card page (`/kart`) for any pasted KAP text. Built with FastAPI; light / dark theme switch; no JavaScript.
 9. **Desk e-mails (n8n).** Every weekday at 07:30 (when Docker is running) a self-hosted n8n workflow sends each sector desk one e-mail with its part of the morning list (company, look-first / check flags, reasons, KAP link; no amounts). The desk, the order and the text are decided in code; n8n only delivers. Delivery goes to a local mail server (Mailpit), so nothing leaves the machine; in a firm only the SMTP setting changes.
 
 An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq", "ASELS geçen ay ne aldı?" (relative periods: this / last week, month, quarter, year, "son 3 ay", read by code) and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). In the chat, the LLM reads the question and picks a tool; the answer's text, numbers and links are written by code from the database (a card's fields come from the same extraction as the morning list). A guided form (`/form`) offers the same tools without free text: the analyst picks the question type, then the company and the day, so nothing can be misunderstood; free questions stay in the chat.
@@ -28,7 +30,7 @@ flowchart TD
     classDef out fill:#1a7f37,stroke:#1a7f37,color:#ffffff
 
     SRC["Matriks (licensed)<br/>new-business-api, news, daily bars"]:::code
-    COL["daily_collect.py + collector.py<br/>launchd 23:43, 1 req/s, one pull per day<br/>ntfy alert OK / FAILED"]:::code
+    COL["collect/nightly.py + collector.py<br/>launchd 23:43, 1 req/s, one pull per day<br/>ntfy alert OK / FAILED"]:::code
     DB[("DuckDB<br/>disclosures, new_business, daily_bars")]:::store
 
     LLM["1 Extraction (LLM)<br/>gemma4:e4b, prompt v3"]:::llm
@@ -38,7 +40,7 @@ flowchart TD
     IDX["5 Similar earlier disclosures<br/>turkish-e5-large index"]:::code
 
     MORN["Morning list<br/>ranked, KONTROL ET for flagged, KAP link per item"]:::out
-    API["/api/desks/day (code)<br/>desk = Matriks sector, order, e-mail text<br/>no amounts"]:::code
+    API["/api/v1/desks/day (code)<br/>desk = Matriks sector, order, e-mail text<br/>no amounts"]:::code
     N8N["n8n (self-hosted)<br/>weekdays 07:30: GET, split per desk, send"]:::code
     MAIL["Desk inboxes<br/>Mailpit, local SMTP<br/>(in a firm: corporate e-mail / Teams)"]:::out
 
@@ -51,7 +53,7 @@ flowchart TD
 
 Purple = LLM, blue = data, grey = code, green = output. n8n carries the code's decision; it chooses no desk, order or text (`docs/n8n_routing_rule.md`).
 
-## 2. Agent: answering an analyst's question (`agent.py`, LangGraph)
+## 2. Agent: answering an analyst's question (`assistant/agent.py`, LangGraph)
 
 ```mermaid
 flowchart LR
@@ -80,15 +82,15 @@ flowchart LR
     SW --> B --> A
 ```
 
-The router LLM only reads the question and picks a tool; it never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Three scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9), an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3) and a separate yes/no judge only where a card or list would be shown (28/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
+The router LLM only reads the question and picks a tool; it never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Three scope checks were measured and not adopted (their code is not in version 2): a word list before the router (7/10 blocked, bar 9), an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3) and a separate yes/no judge only where a card or list would be shown (28/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
 
 The same tools are also an MCP server: section 4.
 
 ## 3. Search (RAG)
-- **Documents:** one per disclosure (a `SYMBOL | date | kind | headline` header and the normalized text, `build_docs.py`). Texts are short (median 52 words), so there is no chunking; course-style chunks (420/80) were tested and did worse (`docs/chunking_rule.md`).
-- **Retrieval:** `turkish-e5-large` vectors in a small numpy index (`rag_index.py`; enough for about 1,300 documents, so no vector database). Top 20, then the cross-encoder `bge-reranker-v2-m3` keeps the top 5, each with its KAP link.
+- **Documents:** one per disclosure (a `SYMBOL | date | kind | headline` header and the normalized text, `assistant/search.py`). Texts are short (median 52 words), so there is no chunking; course-style chunks (420/80) were tested and did worse (`docs/chunking_rule.md`).
+- **Retrieval:** `turkish-e5-large` vectors in a small numpy index (`assistant/search.py`; enough for about 1,300 documents, so no vector database). Top 20, then the cross-encoder `bge-reranker-v2-m3` keeps the top 5, each with its KAP link.
 - **Measured:** the model was chosen from three by a pre-written rule (`docs/rag_model_choice.md`); on unseen questions recall@5 is 0.875; with the reranker the right disclosure is in the top 5 for 20/20 questions (`docs/rerank_rule.md`). BM25 and hybrid search were rejected (`docs/bm25_hybrid_rule.md`).
-- **Used by:** the agent's search tool, "similar earlier disclosures" on each card, and the weekly themes (`clusters.py`).
+- **Used by:** the agent's search tool, "similar earlier disclosures" on each card, and the weekly themes (`assistant/clusters.py`).
 
 ## 4. MCP: both directions
 ```mermaid
@@ -98,22 +100,22 @@ flowchart LR
     classDef out fill:#1a7f37,stroke:#1a7f37,color:#ffffff
 
     subgraph OUT["Our MCP server: the agent's tools, out"]
-        C["Local clients<br/>mcp_client.py, MCP Inspector,<br/>mcp_agent.py (model picks the tool)"]:::out -- stdio --> S["mcp_server.py<br/>5 read-only tools"]:::code
+        C["Local clients<br/>MCP Inspector, test clients"]:::out -- stdio --> S["web/mcp_server.py<br/>5 read-only tools"]:::code
         S --> G["Same LangGraph tools<br/>(intent preset, no router)"]:::code
     end
     subgraph IN["A third-party MCP server: desk e-mail, in"]
-        M["mail_mcp.py<br/>desk text from code, no amounts"]:::code --> H{"Person approves?<br/>(e / h)"}:::out
+        M["web/mail_mcp.py<br/>desk text from code, no amounts"]:::code --> H{"Person approves?<br/>(e / h)"}:::out
         H -- yes --> SM["@ni-c/smtp-mcp 0.2.0<br/>pinned, stdio, only @masa.local"]:::code --> MP["Mailpit (local inbox)"]:::out
         H -- no --> X["nothing is sent"]:::out
     end
 ```
-- **Our server** (`scripts/mcp_server.py`, official Python SDK): `morning_list`, `company_history`, `search_disclosures`, `why_moved`, `company_brief`. Each tool enters the graph like the guided form, so the output is the measured tool's own text: identical 10/10, overhead 0.011 s (`docs/mcp_v2_rule.md`). A free tool-calling agent picked the right tool 12/16, our constrained router 14/16, so production keeps the router.
-- **A third-party server as a client** (`scripts/mail_mcp.py`, `docs/smtp_mcp_rule.md`): sends one desk e-mail on demand, only after a person types "e". Addresses outside `@masa.local` refused 7/7; unapproved e-mails sent 0.
-- **Local only:** tool results contain licensed data, so never connect a cloud client. Try it: `.venv/bin/python scripts/mcp_client.py --list`, `.venv/bin/python scripts/mcp_agent.py --ask "ASELS son 3 ayda hangi işleri aldı?"`, or `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python scripts/mcp_server.py`.
+- **Our server** (`kap_triage/web/mcp_server.py`, official Python SDK, `python main.py mcp`): `morning_list`, `company_history`, `search_disclosures`, `why_moved`, `company_brief`. Each tool enters the graph like the guided form, so the output is the measured tool's own text: identical 10/10, overhead 0.011 s (`docs/mcp_v2_rule.md`). A free tool-calling agent picked the right tool 12/16, our constrained router 14/16, so production keeps the router.
+- **A third-party server as a client** (`kap_triage/web/mail_mcp.py`, `python main.py mail`, `docs/smtp_mcp_rule.md`): sends one desk e-mail on demand, only after a person types "e". Addresses outside `@masa.local` refused 7/7; unapproved e-mails sent 0.
+- **Local only:** tool results contain licensed data, so never connect a cloud client. Try it: `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python main.py mcp`. The two test clients used for the measurement (a fixed-call client and a free tool-calling agent) stay in the development repository.
 
 ## 5. n8n: desk e-mails
-- Every weekday at 07:30 (when Docker is running), n8n asks the panel for the day's list per desk (`/api/desks/<day>`), splits it and sends one e-mail per sector desk to Mailpit, a local inbox (diagram in section 1).
-- Code decides the desk, the order and the text (`desk_mail.py`); n8n only delivers. E-mails carry no amounts. In a firm only the SMTP setting changes.
+- Every weekday at 07:30 (when Docker is running), n8n asks the panel for the day's list per desk (`/api/v1/desks/<day>`), splits it and sends one e-mail per sector desk to Mailpit, a local inbox (diagram in section 1).
+- Code decides the desk, the order and the text (`kap_triage/analysis/desks.py`); n8n only delivers. E-mails carry no amounts. In a firm only the SMTP setting changes.
 - Measured on all 15 saved days: 33 e-mails, 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks (`docs/n8n_routing_rule.md`). Workflow: `n8n/desk_routing.json`; setup: `docs/n8n_guide.md`.
 
 ## Where the LLM is used, and where it is not

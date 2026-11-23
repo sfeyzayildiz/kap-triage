@@ -22,10 +22,11 @@ The same compose file starts `n8n` (`127.0.0.1:5678`, telemetry, version checks,
 
 ## Other commands in the same image
 ```
-docker compose run --rm panel python scripts/run_self_tests.py --skip daily_collect
-docker compose run --rm panel python scripts/morning.py --date 2026-09-17 --from-pipeline data/morning_2026-09-17.jsonl
-docker compose run --rm panel python scripts/agent.py "Bugün neye bakmalıyım?"
+docker compose run --rm panel python main.py agent "Bugün neye bakmalıyım?"
+docker compose run --rm panel python -m kap_triage.analysis.morning --date 2026-09-17 --from-pipeline data/pipeline_2026-09-17.jsonl
+docker compose run --rm panel python main.py panel --stats
 ```
+The image holds the package, `main.py` and `sample/` (the kap-kart examples); the tests run outside it (`pytest`, also in CI).
 
 ## Not in Docker (on purpose)
 - **Nightly collection** stays on the Mac (launchd, `~/projects/kap-deploy`): Matriks allows one pull per day, and `pull_guard` counts pulls per machine. Running collection from a container as well would risk a second pull.
