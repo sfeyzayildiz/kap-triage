@@ -12,10 +12,12 @@ A working prototype for "Yeni İş İlişkisi" (new business relationship) discl
 
 **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)), BTK Akademi AI workshop, Entertech İstanbul Teknokent, Oct-Nov 2026. Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md).
 
+This repository is version 2: the same system, reorganised as a Python package with a FastAPI panel and pytest. The version submitted to the workshop is [`kap-disclosure-triage`](https://github.com/sfeyzayildiz/kap-disclosure-triage).
+
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
 - **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk can get its part by e-mail.
-- **Proof:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test.
+- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test.
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
 ## Try it in 2 minutes (no licensed data needed)
@@ -86,13 +88,13 @@ flowchart LR
 |---|---|---|
 | **Every night, 23:43** | pulls the day's disclosures (one pull, enforced in code), reads each text twice with a local LLM, checks the facts in code, builds the morning list, sends a phone alert | launchd, Ollama, DuckDB |
 | **Weekdays, 07:30** (when Docker is running) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
-| **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures | LangGraph, RAG (`turkish-e5-large` + reranker) |
+| **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures; a card from any pasted KAP text (`/kart`) | LangGraph, RAG (`turkish-e5-large` + reranker) |
 | **From local AI tools** | the agent's tools as an MCP server (local clients only); a desk e-mail through a third-party MCP server, sent only after a person approves | MCP, both directions |
 | **On every change** | ruff + pytest; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
 Real data since October 2024: about 1,300 disclosures, 1-2 new ones a day. More: [`docs/architecture.md`](docs/architecture.md).
 
-## Measured, not assumed
+## What was measured
 Each test has a rule file with the measurement and the pass bar, committed before the run; the result was recorded after one run, in the rule file or in [`docs/results.md`](docs/results.md). The panel-review row is anecdotal and has no rule.
 
 | part | measured | rule |
@@ -137,7 +139,7 @@ I led the project. I chose the problem and the scope with the instructor, obtain
 
 Most of the code was written with an AI coding assistant (Claude Code) under my direction, as pull requests with tests (CI on every change). By rule, the assistant worked with counts and ids only: it did not read the licensed data, the gold labels or the held-out questions, so it could not tune the system to them (the slips are recorded in [`docs/known_issues.md`](docs/known_issues.md), C3). External reviews were checked item by item against the code. Version 2 (the `kap_triage/` package, from 23 Nov) is developed the same way, with the support of an AI coding assistant, and every v2 change is merged only after I have read and approved it.
 
-**I designed, wrote and tested the watchlist myself** ([`kap_triage/web/watchlist.py`](kap_triage/web/watchlist.py) and its panel integration): an analyst keeps the companies they cover in a local list, filters the morning list to them, and sees them at the top of the overview. The assistant gave hints and reviewed the code.
+I designed, wrote and tested the watchlist myself ([`kap_triage/web/watchlist.py`](kap_triage/web/watchlist.py) and its panel integration): an analyst keeps the companies they cover in a local list, filters the morning list to them, and sees them at the top of the overview. The assistant gave hints and reviewed the code.
 
 **Skills and tools:** Python · LLM evaluation (pre-registered rules, held-out sets, 95% bounds) · local LLMs with Ollama (`gemma4:e4b`) · RAG (`turkish-e5-large` embeddings + `bge-reranker-v2-m3`) · LangGraph agent · MCP server and client · prompt-injection defence · DuckDB · FastAPI · pytest · n8n · Docker · GitHub Actions CI · launchd.
 
