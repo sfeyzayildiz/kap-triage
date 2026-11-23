@@ -23,5 +23,5 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 - No user or time study; analyst time saved is not measured.
 - One person labeled every gold set; held-out sets are new disclosures, not new companies.
 - The importance score did not beat sorting by amount; the live order is a simple, measured rule.
-- The forward test (lists sealed each night before prices exist) was shortened to end with 20 Nov so it could be scored once on 24 Nov (rule Note 7); with so few items the expected answer is `TOO_FEW`. It checks the live pipeline without hindsight; it is not a trading claim.
+- The forward test (lists sealed each night before prices exist) was shortened to end with 20 Nov and scored once on 24 Nov (rule Notes 7-9): seals intact, 3 look-first and 3 other items, so the decision is `TOO_FEW` (the bar needs 4 per group). It shows that sealing, the later price pull and the one-time scoring work end to end; it is not a trading claim.
 - Running the full system needs a Matriks token; the README screenshots come from version 1's demo mode because the license forbids showing vendor values, and the panel in this repository runs on made-up sample data.

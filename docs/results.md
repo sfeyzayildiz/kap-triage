@@ -89,6 +89,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice); it orders items inside each group, while which items enter "Önce bak" still comes from the v1 level (high) or a review flag |
 | Clustering k = 27 vs. Matriks sectors | 1288 disclosures | company-level ARI 0.144 vs. shuffled p99 0.032; ARI vs. company 0.298 | reflects sector, weakly; desks use the sector label, clusters only for the weekly themes page |
 | Author's review of flags in the panel (no rule) | first day; then all decisions to 22 Nov | first day: 3 of 6 flags were real extraction errors; by 22 Nov: 8 decisions, 5 real errors | anecdotal, small sample |
+| Forward test: sealed look-first vs other items, abnormal move after the list (`docs/forward_test_rule.md`) | 3 sealed days (15, 16, 20 Nov), 6 disclosures, scored once on 24 Nov | seals intact; look-first 3, other 3; mean absolute AR difference -1.87 points (p 0.85) | **TOO_FEW** (bar: 4 per group); shows the sealing and scoring chain works, not that the order predicts moves |
 
 ## Second disclosure type: capital increase pilot (`docs/capital_increase_rule.md`)
 | what | set | result | decision |
