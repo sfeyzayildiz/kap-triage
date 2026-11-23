@@ -2,7 +2,7 @@
 
 Paste the text of a public KAP "Yeni İş İlişkisi" (new business relationship) disclosure, get a card: amount, currency, revision, counterparty, duration, the source sentence with the amount marked, and a **KONTROL ET** (check this) warning with reasons when the text is ambiguous.
 
-It is the extraction step of a larger, measured analyst system, copied unchanged. Everything runs on your own computer with a local model; the text is never sent anywhere and never written to disk.
+It is the extraction step of a larger, measured analyst system, copied byte for byte (one file without its self-test, see Files). Everything runs on your own computer with a local model; the text is never sent anywhere and never written to disk.
 
 ## Hızlı başlangıç (Türkçe)
 1. [Ollama](https://ollama.com) kurun ve açın. Modeli bir kez indirin (yaklaşık 9,5 GB): `ollama pull gemma4:e4b`
@@ -20,7 +20,7 @@ Komut satırı: `python kap_kart.py metin.txt` ya da `pbpaste | python kap_kart.
 Fields and flags come from the LLM and from code; business rules live in code, and the code only flags contradictions.
 
 ## Measured reliability (in the source project, not re-measured here)
-- Held-out test set of 100 disclosures: **1 silent error** (wrong value without a warning; 95% upper bound 4.7%), 11 flagged. The best regex without an LLM: 25 silent errors on the same set.
+- Held-out test set of 100 disclosures: **1 silent error** (wrong value without a warning; 95% upper bound 4.7%), 11 flagged (with all checks of the live system, about 20-22% of new texts were flagged). The strongest regex in the source project, without an LLM: 25 silent errors on the same set.
 - Prompt injection: with no defence, one appended sentence changed the amount silently in 14 of 20 texts. The adopted defence (vendor cross-check + the source-sentence judge) took silent errors from 9 to 0 on 18 sealed attacks.
 - Run to run, 3 of 100 texts changed amount or currency, which is why the card reads every text twice.
 

@@ -7,7 +7,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 
 | system | set | Hit@1 | Hit@3 | Hit@5 |
 |---|---|---|---|---|
-| **live: e5-large + cross-encoder rerank** | Set D, 20 hand-written (held-out for the rerank decision) | 17/20 = 0.85 | **20/20 = 1.00** | 20/20 = 1.00 |
+| **live: e5-large + cross-encoder rerank** | Set D, 20 hand-written (second use, after the BM25 / hybrid test) | 17/20 = 0.85 | **20/20 = 1.00** | 20/20 = 1.00 |
 | live: e5-large + rerank | dev, 59 | 43/59 = 0.73 | 52/59 = 0.88 | 55/59 = 0.93 |
 | e5-large, embedding only | **Set C, 48 (held-out)** | 32/48 = 0.67 | 37/48 = 0.77 | 42/48 = 0.875 |
 | e5-large, embedding only | Set D, 20 | 15/20 | 19/20 | 19/20 |

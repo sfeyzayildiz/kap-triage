@@ -10,7 +10,7 @@ Morning triage of KAP "Yeni İş İlişkisi" (new business relationship) disclos
 
 ## Data
 - Source: Matriks API (licensed, used with permission): new-business records (prod), KAP disclosure texts (test environment, counts match prod), daily price bars, sector labels. About 1,300 disclosures since 2024-10-31, 1-2 new per day.
-- Collected once a night on one Mac (one pull per day, enforced in code). The licensed data never leaves the machine: local models, nothing in git or in the Docker image. The only outgoing message is the nightly phone alert (ntfy push service), which carries counts only.
+- Collected once a night on one Mac (one pull per day, enforced in code). The licensed data never leaves the machine: local models, nothing in git or in the Docker image. The only outgoing message is the nightly phone alert (ntfy push service): counts on success, a short error line (up to 300 characters) on failure.
 
 ## How it works (short)
 A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counterparty, duration, revision, related party). Code checks contradictions and flags them (`needs_review`) instead of fixing them; a layered defence checks the amount against Matriks' own record and the sentence it came from. Code computes the importance score, the ordering (long contract first, then amount), the price reaction against XU100, the history and similar disclosures (embedding search + reranker). The LLM's only outputs are the extracted fields, the source judge's "fact or instruction" verdict and, in the chat, the choice of tool; every sentence, score and link shown to the analyst is written by code, and an extracted amount is shown next to the sentence it came from.

@@ -225,7 +225,9 @@ def pages_hash(pages):
 # 4c overview_watch page added; the 9 pages before the watchlist still hash to 551d570425036047 (checked) ->
 # ec99f5a881d4a55e -> 22 Nov second outside review: reliability tiles name the live flag rate (Set D) and the 12/12
 # amount-only order, limits line 100/48/20/18; with reliability.py put back the pages hash to ec99f5a881d4a55e (checked) ->
-OFF_SHA256='9627515c0eb5328f'
+# 9627515c0eb5328f -> 23 Nov audit: "En iyi regex" -> "Repodaki en güçlü regex" on the reliability page (README wording);
+# with reliability.py put back the pages hash to 9627515c0eb5328f (checked) ->
+OFF_SHA256='74722eb763ca586d'
 
 
 def _self_test():

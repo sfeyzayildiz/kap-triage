@@ -15,7 +15,7 @@ docker compose up --build        # first build takes several minutes (torch CPU,
 | Ollama + `gemma4:e4b` | runs on the host; the container calls `OLLAMA_HOST=http://host.docker.internal:11434` | On a Mac, Docker cannot use the GPU; a model inside the container would be many times slower. On a Linux GPU server, Ollama (or vLLM) would run as a second service next to the app. |
 | Embedding and reranker weights | named volume `model-cache` | Downloaded once on the first search, kept across rebuilds. |
 
-The port is published on `127.0.0.1` only, like the Mac setup: the panel is never reachable from the network. Inside the container it binds `0.0.0.0` (`PANEL_HOST`), which is required for the port mapping; the Origin / Referer checks accept `127.0.0.1` and `localhost` only.
+With `docker-compose.yml` the port is published on `127.0.0.1` only, like the Mac setup, so the panel is not reachable from the network (a hand-written `docker run -p 8765:8765` would publish it more widely). Inside the container it binds `0.0.0.0` (`PANEL_HOST`), which is required for the port mapping. Requests must carry a `Host` of `127.0.0.1`, `localhost` or `panel` (the compose name n8n uses); POST forms also check `Origin` against `127.0.0.1` and `localhost`.
 
 ## n8n and Mailpit (desk e-mails)
 The same compose file starts `n8n` (`127.0.0.1:5678`, telemetry, version checks, templates and personalization off) and `mailpit` (local SMTP + web inbox, `127.0.0.1:8025`, version check off). n8n reaches the panel as `http://panel:8765` and Mailpit as `mailpit:1025` inside the Docker network; only the two UIs are published, on `127.0.0.1`. One-time import and the measured check: `docs/n8n_guide.md`; rule and result: `docs/n8n_routing_rule.md`.

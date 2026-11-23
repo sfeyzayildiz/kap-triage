@@ -231,6 +231,6 @@ KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) b
 </details>
 
 ## Data, privacy, license
-- Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out: the only outgoing message is the nightly phone alert (through the ntfy push service), which carries counts only. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
+- Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out: the only outgoing message is the nightly phone alert (through the ntfy push service): counts on success, a short error line on failure. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the demo-mode screens and the code stay.
 - The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few self-tests contain short fragments of public KAP disclosure texts.

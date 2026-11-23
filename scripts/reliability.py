@@ -19,7 +19,7 @@ e=lambda x:html.escape('' if x is None else str(x))
 EXTRACTION=[('Set A · geliştirme seti',0,100,False),('Set B · dondurulmuş sistem, yeni set',4,100,False),
             ('Set C · + kod kontrolleri, yeni set',1,100,True)]
 # without an LLM, same Set C and gold -- regex_baseline_rule.md result (11 Nov)
-NO_LLM=[('En iyi regex',25,100,False),('Regex + tüm kod kontrolleri',23,100,False),('Canlı sistem (LLM + kod kontrolleri)',1,100,True)]
+NO_LLM=[('Repodaki en güçlü regex',25,100,False),('Regex + tüm kod kontrolleri',23,100,False),('Canlı sistem (LLM + kod kontrolleri)',1,100,True)]
 # amount attack: silent successes without and with each defence, on its own new texts (9 Nov)
 ASSISTANT=[('Göreli dönemler ("geçen hafta", "son 3 ay"), 15 yeni soru','tarih tam doğru 10/10; yanlış dönem 1/5; eski 205 soruda yanlış 0/9','benimsendi'),
            ('Masalara e-posta (n8n, yerel posta), 15 gün, 43 bildirim','kayıp 0, çift 0, yanlış masa 0, tutar sızıntısı 0; günde 0,2 sn','benimsendi'),
@@ -132,7 +132,7 @@ def render_body(nav):
            f'<figure class="rel">{bars(ext,25,"Sessiz hata, 100 bildirimde")}</figure>',
            table(('set','sessiz hata','%95 üst sınır'),[(l,f'{k}/{n}',pct(upper95(k,n))) for l,k,n,_ in EXTRACTION]),
            '<h2>2. LLM olmadan çözülebilir miydi?</h2>',
-           '<p class="muted">Aynı 100 bildirim, aynı doğru cevaplar. En iyi kural tabanlı sistem işlerin yaklaşık dörtte birini '
+           '<p class="muted">Aynı 100 bildirim, aynı doğru cevaplar. Repodaki en güçlü kural tabanlı sistem işlerin yaklaşık dörtte birini '
            'uyarısız yanlış okuyor; çoğu, kalıbın kapsamadığı yazımlar ve birden fazla tutar.</p>',
            f'<figure class="rel">{bars(nollm,30,"Sessiz hata, LLM olmadan ve LLM ile")}</figure>',
            table(('sistem','sessiz hata'),[(l,f'{k}/{n}') for l,k,n,_ in NO_LLM]),

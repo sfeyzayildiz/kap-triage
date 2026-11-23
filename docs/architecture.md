@@ -1,8 +1,8 @@
 # Architecture
 
-Morning triage for KAP "Yeni İş İlişkisi" disclosures. Everything runs on one Mac: models are local (Ollama, sentence-transformers), and no data leaves the machine.
+Morning triage for KAP "Yeni İş İlişkisi" disclosures. Everything runs on one Mac: models are local (Ollama, sentence-transformers), and no licensed data leaves the machine. The only outgoing message is the nightly phone alert (ntfy): counts on success, a short error line on failure.
 
-Design principle: **the LLM extracts facts, code applies business rules.** Code flags contradictions (`needs_review`) and never fixes them. Every number and KAP link shown to the analyst comes from code, not from model text.
+Design principle: **the LLM extracts facts, code applies business rules.** Code flags contradictions (`needs_review`) and never fixes them. The LLM's outputs are the extracted fields, the source judge's "fact or instruction" verdict and the chat's tool choice; every sentence, score and KAP link shown to the analyst is written by code, and an extracted amount is shown next to the sentence it came from.
 
 ## What the system does
 For each day's disclosures:
@@ -16,7 +16,7 @@ For each day's disclosures:
 8. **Desk panel.** A local web page that starts on an overview (`/genel`: last list in numbers, a 30-day chart, look-first items, review decisions, measured results), with a chat box for the agent, the list per sector desk (Matriks sector label), a watchlist (follow companies, filter the list to them), a confirm / reject step for flagged items (decisions are logged and counted per flag type on the review history page, `/kontroller`), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, and a reliability page with the measured results as charts. Light / dark theme switch; no JavaScript.
 9. **Desk e-mails (n8n).** Every weekday at 07:30 (when Docker is running) a self-hosted n8n workflow sends each sector desk one e-mail with its part of the morning list (company, look-first / check flags, reasons, KAP link; no amounts). The desk, the order and the text are decided in code; n8n only delivers. Delivery goes to a local mail server (Mailpit), so nothing leaves the machine; in a firm only the SMTP setting changes.
 
-An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq", "ASELS geçen ay ne aldı?" (relative periods: this / last week, month, quarter, year, "son 3 ay", read by code) and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). The LLM only reads the question. Every number and link in the answer comes from the database through code. A guided form (`/form`) offers the same tools without free text: the analyst picks the question type, then the company and the day, so nothing can be misunderstood; free questions stay in the chat.
+An agent built with LangGraph answers questions such as "What should I look at today?", "What deals did ASELS announce this year?", "Why did KONTR fall on 28 October?", "Disclosures about projects in Iraq", "ASELS geçen ay ne aldı?" (relative periods: this / last week, month, quarter, year, "son 3 ay", read by code) and "ASELS'e bak" (a multi-step company brief: latest disclosure with its card and importance level, price reaction, 12-month history, similar earlier disclosures). In the chat, the LLM reads the question and picks a tool; the answer's text, numbers and links are written by code from the database (a card's fields come from the same extraction as the morning list). A guided form (`/form`) offers the same tools without free text: the analyst picks the question type, then the company and the day, so nothing can be misunderstood; free questions stay in the chat.
 
 ## 1. Daily flow: from Matriks to the morning list
 
@@ -80,7 +80,7 @@ flowchart LR
     SW --> B --> A
 ```
 
-The LLM only reads the question. It never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Three scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9), an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3) and a separate yes/no judge only where a card or list would be shown (28/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
+The router LLM only reads the question and picks a tool; it never writes a number or a link. The guided form (`/form`) enters the same graph with the intent already chosen by the analyst, so the route step is skipped (no LLM, no switches). The detail card and the brief run the production extraction (LLM) on one disclosure, with the same code checks as the morning list. Three scope checks were measured and kept off: a word list before the router (7/10 blocked, bar 9), an `out_of_scope` intent for the router (10/10 blocked, but 29/185 normal questions blocked, bar 3) and a separate yes/no judge only where a card or list would be shown (28/185 normal questions blocked, bar 3). Relative periods are read by code from a fixed phrase table, not by the router (10/10 exact).
 
 The same tools are also an MCP server: section 4.
 
@@ -112,7 +112,7 @@ flowchart LR
 - **Local only:** tool results contain licensed data, so never connect a cloud client. Try it: `.venv/bin/python scripts/mcp_client.py --list`, `.venv/bin/python scripts/mcp_agent.py --ask "ASELS son 3 ayda hangi işleri aldı?"`, or `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python scripts/mcp_server.py`.
 
 ## 5. n8n: desk e-mails
-- Every weekday at 07:30, n8n asks the panel for the day's list per desk (`/api/desks/<day>`), splits it and sends one e-mail per sector desk to Mailpit, a local inbox (diagram in section 1).
+- Every weekday at 07:30 (when Docker is running), n8n asks the panel for the day's list per desk (`/api/desks/<day>`), splits it and sends one e-mail per sector desk to Mailpit, a local inbox (diagram in section 1).
 - Code decides the desk, the order and the text (`desk_mail.py`); n8n only delivers. E-mails carry no amounts. In a firm only the SMTP setting changes.
 - Measured on all 15 saved days: 33 e-mails, 0 lost, 0 duplicated, 0 wrong desk, 0 amount leaks (`docs/n8n_routing_rule.md`). Workflow: `n8n/desk_routing.json`; setup: `docs/n8n_guide.md`.
 
@@ -176,7 +176,7 @@ The vendor auditor (a measurement script, kept out of this repository) compares 
 - Document-to-document similarity ("similar earlier disclosures"): no measured quality.
 - Search ranks a same-company or same-region document above an exact proper-noun match; all 16 recall@1 misses on Set C were the right company. BM25 / hybrid did not clear the bar on Set D; a cross-encoder rerank did (17/20 at rank 1, exactly the bar). On dev it fixed and broke 5 each at rank 1, so rank-1 gains need a fresh question set to confirm.
 - Similarity cannot say "no such disclosure": negative and answerable questions overlap.
-- Disclosure texts come from apitest; `new_business` from prod.
+- Disclosure texts come from the Matriks test environment (counts match prod); `new_business` from prod.
 
 ## Why these choices
 

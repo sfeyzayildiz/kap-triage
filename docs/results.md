@@ -1,6 +1,6 @@
 # Results on one page
 
-Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in [`PROJECT_NOTES.md`](PROJECT_NOTES.md)). "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-20.
+Every row below was decided by a rule committed before the run (`docs/*_rule.md`, or the dated entry in [`PROJECT_NOTES.md`](PROJECT_NOTES.md)), unless it is marked "no rule". "Dev" = used to build or choose. "Held-out" = not seen before the run. Rejected results are listed too. Last updated 2026-11-23.
 
 ## What Matriks already gives, and what this system adds (existing measurements, no new run)
 The first question a data company asks: Matriks sells a structured `new_business` record per disclosure, so why extract anything?
@@ -30,7 +30,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Prompt v1 / v2, adjudicated amount | Set A (dev, 100) | 96/99 both | v1 = v2; error analysis led to rules R1-R5 |
 | Frozen prompt v3 | Set B (held-out, 100) | 4 silent errors, 8 flagged | **FAIL** |
 | v3 + code checks from the Set B error analysis | Set C (held-out, 100) | **1 silent error (95% upper 4.7%), 11 flagged** | **PASS** |
-| Without an LLM: best regex / regex + all code checks | Set C | 25 / 23 silent errors out of 100 | an LLM is needed |
+| Without an LLM: the strongest regex in the repo (written for the code checks) / regex + all code checks | Set C | 25 / 23 silent errors out of 100 | an LLM is needed |
 | Other model families (qwen3:14b, Turkish-Gemma-9b), plus e4b / 26b without thinking | Set A | 0/15, 5/27, 5/8, 9/4 (silent / flagged) vs. e4b with thinking 0/10 | e4b stays; report only |
 
 ## Search (RAG retrieval)
@@ -77,7 +77,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Desk e-mails via n8n + local Mailpit | all 15 saved days, 43 items, 33 e-mails | lost 0, duplicated 0, wrong desk 0, amount leaks 0; median 0.2 s per day (bar 10 s) | **adopted** |
 | Relative periods (code phrase table) | 15 new + 205 earlier questions | exact period 10/10 (bar 9); false period 1/5 (bar 1); wrong fires 0/9 of 205 earlier (bar 2) | **adopted** |
 | Data-vendor auditor: which Matriks records disagree with the KAP text (`docs/vendor_audit_rule.md`) | M2: 641 unseen disclosures, all 14 flags + 14 random controls, labeled blind | strict precision **6/14 = 43%** (95% CI 18-71%, bar 50%); every flag a real difference (14/14 incl. 8 convention differences); controls 0/14 mismatches; M1 on gold sets B/C/D: 1 of 2 flags right, 1 of 9 record-text mismatches caught | **AUDITOR_OFF** (report tool only) |
-| kap-kart: card from pasted public KAP text, no Matriks data (`docs/kap_kart_rule.md`) | synthetic checks + leak scan on 1,296 texts + 4 trap examples × 3 + visual check | copies identical, equivalence with the nightly path 26/26, sockets / raw tags / outside imports 0; leaks 0 in round 3 (rounds 1-2 found a real fragment in two self-tests); examples **12/12**, median 27.0 s per card (max 31.5 s) | **adopted** (Matriks agreed to publishing the code, 19 Nov) |
+| kap-kart: card from pasted public KAP text, no Matriks data (`docs/kap_kart_rule.md`) | synthetic checks + leak scan on 1,296 texts + 4 trap examples × 3 + visual check | copies identical to the system's files (`amount_checks.py` cut before its self-test), equivalence with the nightly path 26/26, sockets / raw tags / outside imports 0; leaks 0 in round 3 (rounds 1-2 found a real fragment in two self-tests); examples **12/12**, median 27.0 s per card (max 31.5 s) | **adopted** (Matriks agreed to publishing the code, 19 Nov) |
 | Scope guard v2 (word list or router `out_of_scope`) | 20 new + 185 earlier questions | blocked 10/10 out-of-scope (bar 9); false blocks 0/10 new, **29/185** earlier (bar 3), 1/14 correctly routed (bar 1); median 4.4 s | **off** |
 | Scope guard v3 (router untouched; separate yes/no judge only where a card or list would be shown) | 20 new + 185 earlier questions | out-of-scope without disclosure content 10/10 (blocked 6/10); false blocks 1/10 new, **28/185** earlier (bar 3), 1/14 correctly routed; median 3.2 s | **off** |
 
@@ -88,7 +88,7 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Importance score vs. my blind look-first choice (the author, not an external analyst) | 10 unseen days, 49 disclosures, 47 pairs | AUC 0.681 (random p95 0.670) = amount only 0.681; top pick amount 7/10, score 3/10 | **AMOUNT_EXPLAINS**, weights unchanged |
 | Ordering v2 (dev choice: long contract, then amount) | 12 new days, 52 disclosures, 53 pairs | AUC 0.877 vs v1 0.792; top pick 11 vs 5.5 of 12; amount alone 0.953, 12/12 | **adopted** (amount alone was not the dev choice); it orders items inside each group, while which items enter "Önce bak" still comes from the v1 level (high) or a review flag |
 | Clustering k = 27 vs. Matriks sectors | 1288 disclosures | company-level ARI 0.144 vs. shuffled p99 0.032; ARI vs. company 0.298 | reflects sector, weakly; desks use the sector label, clusters only for the weekly themes page |
-| Analyst review of flags in the panel | one day | 3 of 6 flags were real extraction errors | first real use, small sample |
+| Author's review of flags in the panel (no rule) | first day; then all decisions to 22 Nov | first day: 3 of 6 flags were real extraction errors; by 22 Nov: 8 decisions, 5 real errors | anecdotal, small sample |
 
 ## Second disclosure type: capital increase pilot (`docs/capital_increase_rule.md`)
 | what | set | result | decision |
