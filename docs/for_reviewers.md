@@ -8,7 +8,7 @@ For a grader or a company reviewer who has not seen the project. Everything belo
 
 ## Minutes 3-6: is it measured honestly?
 3. `docs/results.md`, tables "Extraction" and "Security": Set B failed (4/100 silent), the fix was designed from its errors, Set C (unseen) passed (1/100, 95% upper bound 4.7%); the regex baseline gets 25/100; prompt injection 9/18 → 0/18 with the layered defence. Rejected attempts are listed next to adopted ones.
-4. Pick any rule file, for example `docs/scope_guard_v3_rule.md` or `docs/kap_kart_rule.md`: the rule, the bar and the decision line were committed before the measurement; the result section was added after one run. Git history shows the order.
+4. Pick a rule file, for example `docs/fdv_pilot_rule.md` or `docs/source_sentence_rule.md`, and run `git log -- <file>`: the rule, the bar and the decision line come in one commit, the notes and the result in later ones (FDV: rule 19 Nov 02:27, freeze 16:19, result 17:07; source sentence: rule 20 Nov 02:19, result 02:42). Every pull request was squash-merged, so where a rule and its result were merged in the same pull request (for example `scope_guard_v3_rule.md`, `kap_kart_rule.md`, `demo_mode_rule.md`), `main` shows one commit for both. For those, the rule's own earlier commit is kept in the pull request of the private working repository (kap-kart rule 19 Nov 00:12, scope guard v3 rule 01:21, demo mode rule 18 Nov 21:03), and `docs/PROJECT_NOTES.md` has a dated "rule before code" entry for each.
 5. `docs/known_issues.md`: what went wrong and what was done, including what an outside review found.
 
 ## Minutes 6-8: how it is built
