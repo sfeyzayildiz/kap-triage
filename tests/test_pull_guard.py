@@ -1,4 +1,4 @@
-'''Tests moved from pull_guard.py (v1 self-test).'''
+'''kap_triage/collect/pull_guard.py: the checks of the v1 self-test in pull_guard.py, on made-up data (no network, no real data).'''
 import os
 import tempfile
 from datetime import date

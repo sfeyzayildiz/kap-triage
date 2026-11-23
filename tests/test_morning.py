@@ -1,4 +1,4 @@
-'''Tests moved from morning.py (v1 self-test).'''
+'''kap_triage/analysis/morning.py: the checks of the v1 self-test in morning.py, on made-up data (no network, no real data).'''
 from datetime import datetime
 import duckdb
 from kap_triage.analysis.morning import history, priority, render

@@ -58,7 +58,7 @@
       "typeVersion": 4.2,
       "position": [480, 100],
       "parameters": {
-        "url": "=http://panel:8765/api/desks/{{ $json.day }}",
+        "url": "=http://panel:8765/api/v1/desks/{{ $json.day }}",
         "options": {
           "timeout": 30000
         }
@@ -117,7 +117,7 @@
       "parameters": {
         "width": 560,
         "height": 200,
-        "content": "## Karar kodda, n8n taşır\nMasa = şirketin Matriks sektörü; sıra ve metin panelin `/api/desks/<gün>` adresinde **kodla** üretilir. n8n masa, öncelik ya da metin seçmez.\nE-postada tutar, oran ve bildirim metni yok; ayrıntı panelde."
+        "content": "## Karar kodda, n8n taşır\nMasa = şirketin Matriks sektörü; sıra ve metin panelin `/api/v1/desks/<gün>` adresinde **kodla** üretilir. n8n masa, öncelik ya da metin seçmez.\nE-postada tutar, oran ve bildirim metni yok; ayrıntı panelde."
       }
     },
     {

@@ -8,8 +8,8 @@ The real data comes from Matriks under a license and cannot be shared. This fold
 Tested with Python 3.12 (the package versions are pinned).
 ```
 python3 -m venv .venv
-.venv/bin/pip install -r requirements-test.txt
-.venv/bin/python scripts/panel.py --serve --sample
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/python main.py panel --sample
 ```
 Open `http://127.0.0.1:8765/genel` (overview). The first start builds `sample/data/` (a few seconds). On Windows, create the environment with `python -m venv .venv` and replace `.venv/bin/` with `.venv\Scripts\` in the other two commands.
 
@@ -55,9 +55,10 @@ Open each link with the panel running. The screen labels are in Turkish; they ar
 | Rehberli sorgu: day list, company history, "why did it move?" | yes |
 | Rehberli sorgu: Şirket özeti (company brief) | needs Ollama with `gemma4:e4b` (it reads the latest disclosure); its "similar earlier disclosures" part says the search index is missing |
 | Sohbet (chat), topic search, and the detail card (the answer to a question in the chat or the guided form) | needs Ollama with `gemma4:e4b` and the embedding model |
+| KAP kartı (`/kart`: paste a disclosure text, get the card; the four trap examples are in `sample/kart/`) | needs Ollama with `gemma4:e4b` |
 
 ## How it is built
-`scripts/sample_data.py` writes the texts and records, then runs the **real nightly chain** on them: extraction checks, vendor cross-check, two readings, source-sentence check, importance score, price reaction, company history. Only the language model is replaced by pre-written answers (what the model reads from each text), so no model is needed. Similar earlier disclosures stay empty, because they need the embedding model.
+`kap_triage/sample.py` writes the texts and records, then runs the **real nightly chain** on them: extraction checks, vendor cross-check, two readings, source-sentence check, importance score, price reaction, company history. Only the language model is replaced by pre-written answers (what the model reads from each text), so no model is needed. Similar earlier disclosures stay empty, because they need the embedding model.
 
 Some disclosures are built to show one behavior each:
 
@@ -74,4 +75,4 @@ Some disclosures are built to show one behavior each:
 | 12 Nov | SVN2 | the vendor record is 10 times the amount in the text: flagged |
 | 18 Nov | BLS2 | the price falls with no disclosure before it ("why did it move?") |
 
-Rebuild after a change: `.venv/bin/python scripts/sample_data.py --build` (this deletes `sample/data/` first, so it also resets the review log and the watchlist). `sample/data/` is not committed; it is built on your computer.
+Rebuild after a change: `.venv/bin/python main.py sample` (this deletes `sample/data/` first, so it also resets the review log and the watchlist). `sample/data/` is not committed; it is built on your computer.

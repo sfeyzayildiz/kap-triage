@@ -1,4 +1,4 @@
-'''Tests moved from watchlist.py (v1 self-test).'''
+'''kap_triage/web/watchlist.py: the checks of the v1 self-test in watchlist.py, on made-up data (no network, no real data).'''
 import os
 import tempfile
 from kap_triage.web.watchlist import MAX, MESSAGES, add, load, normalize, remove

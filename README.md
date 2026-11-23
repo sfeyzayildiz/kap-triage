@@ -21,12 +21,12 @@ A working prototype for "Yeni İş İlişkisi" (new business relationship) discl
 ## Try it in 2 minutes (no licensed data needed)
 ```
 python3 -m venv .venv
-.venv/bin/pip install -r requirements-test.txt
-.venv/bin/python scripts/panel.py --serve --sample  # open http://127.0.0.1:8765/genel
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/python main.py panel --sample   # open http://127.0.0.1:8765/genel
 ```
-The panel runs on 12 invented companies and 57 invented disclosures; their morning lists were made by the real nightly chain, and only the model's answers were written in advance. After the install, no model and no network are needed. Tested with Python 3.12, and with 3.14 in a fresh-clone test (23 Nov). A 10-minute guided tour: [`sample/README.md`](sample/README.md).
+The panel runs on 12 invented companies and 57 invented disclosures; their morning lists were made by the real nightly chain, and only the model's answers were written in advance. After the install, no model and no network are needed. Tested with Python 3.12. A 10-minute guided tour: [`sample/README.md`](sample/README.md).
 
-Also without a model: `.venv/bin/python scripts/run_self_tests.py` (48 self-tests, run by CI on every pull request) and `.venv/bin/python scripts/e2e_check.py --self-test` (the nightly chain with a fake model). On Windows, use `python -m venv .venv` and `.venv\Scripts\` instead of `.venv/bin/`.
+Also without a model: `.venv/bin/pytest` and `.venv/bin/ruff check .` (both run by CI on every pull request; `tests/test_sample_data.py` runs the nightly chain with a fake model). On Windows, use `python -m venv .venv` and `.venv\Scripts\` instead of `.venv/bin/`.
 
 ## The story: it failed first
 | step | data | silent errors | result | why it counts or not |
@@ -51,7 +51,7 @@ A disclosure text can hide a sentence written for AI tools. The model sometimes 
 
 The same card in the panel (sample data, made up). The source sentence is the planted instruction, and the flag gives both reasons: the amount is more than twice the vendor's record, and it comes from an instruction-like sentence.
 
-Measured on 18 real texts with a planted sentence: without the defence, 9 attacks succeeded silently; with it, 0 (95% upper bound 15.3%), with 3 extra flags on 200 normal texts ([rule](docs/layered_defence_rule.md)). Only texts with a vendor record were measured, with one attack wording. Try it yourself: step 3 of the [tour](sample/README.md#a-10-minute-tour), or the hidden-instruction example in [kap-kart](kap_kart/README.md).
+Measured on 18 real texts with a planted sentence: without the defence, 9 attacks succeeded silently; with it, 0 (95% upper bound 15.3%), with 3 extra flags on 200 normal texts ([rule](docs/layered_defence_rule.md)). Only texts with a vendor record were measured, with one attack wording. Try it yourself: step 3 of the [tour](sample/README.md#a-10-minute-tour), or the hidden-instruction example of kap-kart ([`sample/kart/4_gizli_talimat.txt`](sample/kart/4_gizli_talimat.txt), paste it into `/kart`).
 
 ## How it works
 **The LLM reads text; code decides.** The LLM has three jobs: it extracts the facts from the disclosure text, judges whether the sentence an amount came from reads like an instruction, and, in the chat, picks a tool. Every sentence, score, ranking and link that people see is written by code from the database, and every extracted amount is shown next to the sentence it came from. Purple = LLM, grey = code, blue = data, green = what people see.
@@ -63,13 +63,13 @@ flowchart LR
     classDef store fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef out fill:#1a7f37,stroke:#1a7f37,color:#ffffff
 
-    subgraph NIGHT["Every night, 23:43"]
+    subgraph NIGHT["Nightly, 23:43"]
         M["Matriks API<br/>new disclosures"]:::code --> C["Collector<br/>one pull per day"]:::code --> DB[("DuckDB")]:::store
         DB --> X["LLM extraction<br/>gemma4:e4b, read twice"]:::llm
-        X --> K["Code checks +<br/>injection defence<br/>flag, never fix"]:::code
+        X --> K["Code checks +<br/>injection defence<br/>(code + LLM judge)<br/>flag, never fix"]:::code
         K --> S["Importance<br/>and order (code)"]:::code
         S --> L["Morning list<br/>reasons + KAP links"]:::out
-        L --> AL["Phone alert<br/>(counts only)"]:::out
+        L --> AL["Phone alert<br/>(counts; error line<br/>on failure)"]:::out
     end
     subgraph MORNING["Every morning"]
         P["Panel<br/>analyst confirms or<br/>rejects each flag"]:::out
@@ -88,12 +88,12 @@ flowchart LR
 | **Weekdays, 07:30** (when Docker is running) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
 | **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures | LangGraph, RAG (`turkish-e5-large` + reranker) |
 | **From local AI tools** | the agent's tools as an MCP server (local clients only); a desk e-mail through a third-party MCP server, sent only after a person approves | MCP, both directions |
-| **On every change** | 48 self-tests; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
+| **On every change** | ruff + pytest; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
 Real data since October 2024: about 1,300 disclosures, 1-2 new ones a day. More: [`docs/architecture.md`](docs/architecture.md).
 
 ## Measured, not assumed
-Each test has a rule file with the measurement and the pass bar, committed before the run; the result was added after one run.
+Each test has a rule file with the measurement and the pass bar, committed before the run; the result was recorded after one run, in the rule file or in [`docs/results.md`](docs/results.md). The panel-review row is anecdotal and has no rule.
 
 | part | measured | rule |
 |---|---|---|
@@ -106,7 +106,7 @@ Each test has a rule file with the measurement and the pass bar, committed befor
 <details>
 <summary>All measured parts (10)</summary>
 
-| part | job | measured | rule and result |
+| part | job | measured | rule or result |
 |---|---|---|---|
 | Local LLM extraction | extracts the deal facts | 1 silent error in 100 unseen texts (one reading, Set C); ~15 s per reading, ~31 s per disclosure in the nightly list, which reads each text twice | [rule](docs/set_c_plan.md) |
 | Without an LLM | the strongest regex in the repo (written for the code checks) on the same texts | 25 silent errors in 100 | [rule](docs/regex_baseline_rule.md) |
@@ -117,7 +117,7 @@ Each test has a rule file with the measurement and the pass bar, committed befor
 | MCP server (ours) | the agent's 5 tools for local MCP clients | output identical 10/10, +0.011 s | [rule](docs/mcp_v2_rule.md) |
 | MCP client (third-party e-mail server) | one desk e-mail on demand, after a person approves | outside addresses refused 7/7; unapproved sent 0 | [rule](docs/smtp_mcp_rule.md) |
 | n8n desk e-mails | weekday e-mail to each sector desk | 15 saved days, 33 e-mails: 0 lost, 0 wrong desk, 0 amount leaks | [rule](docs/n8n_routing_rule.md) |
-| Panel review | the analyst confirms or rejects each flag | one day, 6 flags (anecdotal, no rule): 3 were real errors | [result](docs/results.md#scoring-desks-themes) |
+| Panel review | the analyst confirms or rejects each flag | first day: 3 of 6 flags were real errors; by 22 Nov: 8 decisions, 5 real errors (anecdotal, no rule) | [result](docs/results.md#scoring-desks-themes) |
 
 </details>
 
@@ -135,15 +135,15 @@ All limits: [`docs/system_card.md`](docs/system_card.md). Where I was wrong: [`d
 ## How this was built
 I led the project. I chose the problem and the scope with the instructor, obtained the data permission from Matriks, and decided what was adopted and what was dropped. I labeled every gold set by hand (about 350 disclosures in Sets A-D, plus the two pilots) and wrote the evaluation questions and the sealed attack sentences. I designed the measurement rules together with the assistant: I chose what to measure and the key choices, and approved each written rule before its run. I ran every measurement on my own machine, where the licensed data stays.
 
-Most of the code was written with an AI coding assistant (Claude Code) under my direction, as pull requests with tests (CI on every change). By rule, the assistant worked with counts and ids only: it did not read the licensed data, the gold labels or the held-out questions, so it could not tune the system to them (the slips are recorded in [`docs/known_issues.md`](docs/known_issues.md), C3). External reviews were checked item by item against the code.
+Most of the code was written with an AI coding assistant (Claude Code) under my direction, as pull requests with tests (CI on every change). By rule, the assistant worked with counts and ids only: it did not read the licensed data, the gold labels or the held-out questions, so it could not tune the system to them (the slips are recorded in [`docs/known_issues.md`](docs/known_issues.md), C3). External reviews were checked item by item against the code. Version 2 (the `kap_triage/` package, from 23 Nov) is developed the same way, with the support of an AI coding assistant, and every v2 change is merged only after I have read and approved it.
 
-**I designed, wrote and tested the watchlist myself** ([`scripts/watchlist.py`](scripts/watchlist.py) and its panel integration): an analyst keeps the companies they cover in a local list, filters the morning list to them, and sees them at the top of the overview. The assistant gave hints and reviewed the code.
+**I designed, wrote and tested the watchlist myself** ([`kap_triage/web/watchlist.py`](kap_triage/web/watchlist.py) and its panel integration): an analyst keeps the companies they cover in a local list, filters the morning list to them, and sees them at the top of the overview. The assistant gave hints and reviewed the code.
 
-**Skills and tools:** Python · LLM evaluation (pre-registered rules, held-out sets, 95% bounds) · local LLMs with Ollama (`gemma4:e4b`) · RAG (`turkish-e5-large` embeddings + `bge-reranker-v2-m3`) · LangGraph agent · MCP server and client · prompt-injection defence · DuckDB · n8n · Docker · GitHub Actions CI · launchd.
+**Skills and tools:** Python · LLM evaluation (pre-registered rules, held-out sets, 95% bounds) · local LLMs with Ollama (`gemma4:e4b`) · RAG (`turkish-e5-large` embeddings + `bge-reranker-v2-m3`) · LangGraph agent · MCP server and client · prompt-injection defence · DuckDB · FastAPI · pytest · n8n · Docker · GitHub Actions CI · launchd.
 
 ## More
 <details>
-<summary>Screenshots (demo mode: licensed values hidden)</summary>
+<summary>Screenshots (v1 demo mode: licensed values hidden; v2 has no demo mode)</summary>
 
 | Morning list per desk | Guided form: company brief | Reliability page |
 |---|---|---|
@@ -190,7 +190,7 @@ flowchart LR
 <details>
 <summary>kap-kart: the card from any public KAP text</summary>
 
-Paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then `./kap_kart/run.sh` (macOS, Linux) and open `http://127.0.0.1:8770`. On Windows: `cd kap_kart`, `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python kap_kart.py --serve`. Add a hidden instruction to the text: the card should show "KONTROL ET" (verify) instead of the planted amount. More: [`kap_kart/README.md`](kap_kart/README.md).
+Paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the same extraction code and a local model. Needs [Ollama](https://ollama.com) and `ollama pull gemma4:e4b` (about 9.5 GB, once); then open `http://127.0.0.1:8765/kart` in the panel, or run `python main.py kart metin.txt` in the terminal. The card imports no database and no Matriks code ([`kap_triage/web/kart.py`](kap_triage/web/kart.py)). Add a hidden instruction to the text: the card should show "KONTROL ET" (verify) instead of the planted amount.
 
 </details>
 
@@ -199,12 +199,11 @@ Paste any "Yeni İş İlişkisi" text from kap.org.tr and get the card, with the
 
 Needs Python 3.12, Ollama with `gemma4:e4b`, and `KAP_TOKEN` in `.env`.
 ```
-python -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python scripts/daily_collect.py                      # nightly collection (launchd: deploy/)
-.venv/bin/python scripts/morning.py --date 2026-10-30          # morning list for one day
-.venv/bin/python scripts/agent.py "Bugün neye bakmalıyım?"      # ask the agent ("What should I look at today?")
-.venv/bin/python scripts/panel.py --serve                      # panel: http://127.0.0.1:8765
-.venv/bin/python scripts/panel.py --serve --demo --port 8766   # demo mode: licensed values hidden
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install --no-deps -e .
+.venv/bin/python main.py nightly                                       # nightly collection + morning list (launchd: deploy/)
+.venv/bin/python -m kap_triage.analysis.morning --date 2026-10-30      # morning list for one day
+.venv/bin/python main.py agent "Bugün neye bakmalıyım?"                 # ask the agent ("What should I look at today?")
+.venv/bin/python main.py panel                                         # panel: http://127.0.0.1:8765
 ```
 With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). Operations: [`docs/runbook.md`](docs/runbook.md).
 
@@ -215,15 +214,18 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 
 | path | what is there |
 |---|---|
-| `scripts/` | the running system, 55 modules: [start here](scripts/README.md) |
-| `sample/` | made-up sample data for the panel (built on your computer by `scripts/sample_data.py`) |
+| `main.py` | one entry point: `panel`, `sample`, `nightly`, `agent`, `mcp`, `mail`, `index`, `kart` |
+| `kap_triage/collect/` | Matriks collection, the nightly job, price and sector pulls, the forward-test seal |
+| `kap_triage/analysis/` | extraction (`llm.py` + `prompt_v3.txt`, frozen), code rules, defences, importance, morning list, desks |
+| `kap_triage/assistant/` | search index, clustering and weekly themes, the LangGraph agent and its question parsing |
+| `kap_triage/web/` | FastAPI app (`app.py`), page rendering, chat, guided form, watchlist, kap-kart, MCP |
+| `tests/` | pytest, made-up data only (CI: ruff + pytest) |
+| `sample/` | made-up sample data for the panel (built on your computer by `main.py sample`), kap-kart examples |
 | `docs/` | rules, results, architecture details, development log: [index](docs/README.md) |
-| `kap_kart/` | the card tool that needs no vendor data |
-| `prompts/` | `extract_v3.txt` is live and frozen; v1, v2 and v4 are earlier versions |
 | `n8n/`, `mcp/smtp/`, `deploy/` | desk e-mail workflow, the pinned e-mail MCP server, the nightly launchd job |
 | `data/` | local only, never committed |
 
-New to the code? Read `daily_collect.py` → `pipeline.py` → `llm_extract.py` → `importance.py` → `morning.py` → `agent.py` ([why these six](scripts/README.md)).
+New to the code? Read `collect/nightly.py` → `analysis/pipeline.py` → `analysis/llm.py` → `analysis/importance.py` → `analysis/morning.py` → `assistant/agent.py`: the path of one disclosure from collection to answer.
 
 </details>
 
@@ -236,5 +238,5 @@ KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) b
 
 ## Data, privacy, license
 - Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out: the only outgoing message is the nightly phone alert (through the ntfy push service): counts on success, a short error line on failure. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
-- The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the demo-mode screens and the code stay.
-- The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few self-tests contain short fragments of public KAP disclosure texts.
+- The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the sample data and the code stay.
+- The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few tests contain short fragments of public KAP disclosure texts.

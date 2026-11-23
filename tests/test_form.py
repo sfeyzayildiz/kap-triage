@@ -1,4 +1,4 @@
-'''Tests moved from form.py (v1 self-test).'''
+'''kap_triage/web/form.py: the checks of the v1 self-test in form.py, on made-up data (no network, no real data).'''
 from datetime import date, datetime
 from kap_triage.web.form import LAST, TYPES, build_request, display_names, e, render_body, render_choices, run
 

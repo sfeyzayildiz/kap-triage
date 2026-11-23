@@ -1,4 +1,4 @@
-'''Tests moved from price_collect.py (v1 self-test).'''
+'''kap_triage/collect/prices.py: the checks of the v1 self-test in price_collect.py, on made-up data (no network, no real data).'''
 import gzip
 import json
 from datetime import date, datetime

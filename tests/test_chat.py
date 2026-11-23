@@ -1,4 +1,4 @@
-'''Tests moved from chat.py (v1 self-test).'''
+'''kap_triage/web/chat.py: the checks of the v1 self-test in chat.py, on made-up data (no network, no real data).'''
 from datetime import datetime
 from kap_triage.web.chat import EXAMPLES, MAX_HISTORY, ask, linkify, render_answer, render_body
 

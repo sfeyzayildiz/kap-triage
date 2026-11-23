@@ -1,4 +1,4 @@
-'''Tests moved from desk_mail.py (v1 self-test).'''
+'''kap_triage/analysis/desks.py: the checks of the v1 self-test in desk_mail.py, on made-up data (no network, no real data).'''
 from kap_triage.analysis.desks import leaks, mailbox, payload
 
 

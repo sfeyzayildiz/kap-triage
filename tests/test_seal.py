@@ -1,4 +1,4 @@
-'''Tests moved from forward_seal.py (v1 self-test).'''
+'''kap_triage/collect/seal.py: the checks of the v1 self-test in forward_seal.py, on made-up data (no network, no real data).'''
 import json
 import os
 from kap_triage.collect.seal import canonical, seal, seal_day, sha, verify

@@ -1,5 +1,5 @@
-'''Desk panel: chat with the agent (start page) and the morning list per sector desk, with a human
-confirm step for flagged items.
+'''Panel pages: chat with the agent (start page) and the morning list per sector desk, with a human
+confirm step for flagged items. The routes are in app.py (FastAPI); this module renders the HTML.
 
 Local only (binds 127.0.0.1). Reads the saved morning list data/morning_<day>.jsonl (no LLM,
 no network). Desk = Matriks sector of the symbol (table symbol_sectors), optionally grouped by
@@ -13,12 +13,12 @@ Reading map (search for these names; the last part is tests only):
   2. page frame and safety: CSS, page, reads_db / window_block (no DB read in the night window)
   3. day page: render_item, look_first_box, render_day; themes: render_themes_index, render_week
   4. overview /genel and review history /kontroller: column_chart, flag_chart, render_overview, render_reviews
-  5. web server: body_length, theme_back, safe_back, Handler (do_GET routes, do_POST review / chat / form / takip)
-  6. tests are in tests/; main: command line
+  5. request helpers used by app.py: theme_back, safe_back, with_message, host_ok
+  6. main: command line (tests are in tests/)
 
 Usage:
-  python -m kap_triage.web.panel --serve            # http://127.0.0.1:8765 (chat), /genel (overview), /days (morning lists)
-  python -m kap_triage.web.panel --stats            # counts only: confirmed / rejected, overall and per reason code
+  python main.py panel [--sample]     # http://127.0.0.1:8765 (chat), /genel (overview), /days (morning lists)
+  python main.py panel --stats        # counts only: confirmed / rejected, overall and per reason code
 '''
 import argparse
 import glob
@@ -28,13 +28,11 @@ import os
 import re
 from collections import Counter
 from datetime import date, datetime
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse
 
 import kap_triage.web.chat as chat
 import kap_triage.web.form as form
 import kap_triage.web.reliability as reliability
-import kap_triage.assistant.themes as themes
 import kap_triage.web.watchlist as watchlist
 from kap_triage.settings import settings
 
@@ -225,7 +223,7 @@ WINDOW_MSG='Gece toplama penceresi (23:40-23:50): veritabanına dokunulmuyor. 23
 def reads_db(path,query=''):
     '''GET routes that open the DB (day page: sectors, prices, source sentences; desks JSON: sectors;
     form step 2 with a company: symbols; themes: counts, sectors, links).'''
-    if re.match(r'^/(day|api/desks)/',path) or path=='/themes' or path.startswith('/themes/'):
+    if re.match(r'^/(day|api/v1/desks)/',path) or path=='/themes' or path.startswith('/themes/'):
         return True
     if path=='/form':
         kind=(parse_qs(query).get('type') or [None])[0]
@@ -670,17 +668,6 @@ def load_day(day):
     return load_saved(day)
 
 
-MAX_BODY=4096
-
-
-def body_length(value):
-    '''Content-Length clamped to 0..MAX_BODY; None for a value that is not a number (the request is refused).'''
-    try:
-        return max(0,min(int(value or 0),MAX_BODY))
-    except ValueError:
-        return None
-
-
 def theme_back(referer):
     '''Where the theme switch returns: a local page of this panel, never another site (a "//host" path is one).'''
     ref=urlparse(referer or '')
@@ -724,163 +711,6 @@ def takip_message(query):
     code=(parse_qs(query or '').get(MSG_PARAM) or [''])[0]
     msg=watchlist.MESSAGES.get(code)
     return f'<div class="card">{e(msg)}</div>' if msg else ''
-
-
-class Handler(BaseHTTPRequestHandler):
-    def theme(self):
-        for part in (self.headers.get('Cookie') or '').split(';'):
-            k,_,v=part.strip().partition('=')
-            if k=='theme' and v in THEMES:
-                return v
-        return 'auto'
-
-    def send(self,code,body,ctype='text/html; charset=utf-8',location=None,cookie=None):
-        t=self.theme()
-        if t!='auto':
-            body=body.replace('<html lang="tr">',f'<html lang="tr" data-theme="{t}">',1)
-        data=body.encode('utf-8')
-        self.send_response(code)
-        self.send_header('Content-Type',ctype)
-        self.send_header('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'")
-        if location:
-            self.send_header('Location',location)
-        if cookie:
-            self.send_header('Set-Cookie',cookie)
-        self.send_header('Content-Length',str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-    def log_message(self,*args):  # no request lines (paths carry dates only, but keep stdout quiet)
-        pass
-
-    def do_GET(self):
-        if not host_ok(self.headers.get('Host')):
-            return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
-        path=urlparse(self.path).path
-        q=urlparse(self.path).query
-        blocked=window_block(path,q,datetime.now())
-        if blocked:
-            return self.send(*blocked)
-        if path=='/':
-            return self.send(200,page('KAP asistanı',chat.render_body(chat.HISTORY)))
-        if path=='/days':
-            return self.send(200,render_index(available_days()))
-        if path in ('/genel','/kontroller'):  # saved lists + review log only (no DB read, so no night-window block)
-            watch,broken=watchlist.load()
-            reviews=load_reviews()
-            rows=review_rows(reviews)
-            rstats=reason_stats(reviews)
-            if path=='/kontroller':
-                return self.send(200,render_reviews(rows,rstats))
-            days=available_days()
-            return self.send(200,render_overview(all_day_stats(days,reviews),(load_day(days[0]) or []) if days else [],
-                                                 reviews,rows,rstats,watch=watch,watch_broken=broken,query=q))
-        m=re.match(r'^/day/(\d{4}-\d{2}-\d{2})$',path)
-        if m:
-            items=load_day(m.group(1))
-            if items is None:
-                return self.send(404,page('Yok','<p>Bu gün için sabah listesi yok.</p>'))
-            from kap_triage.web.charts import charts_for_items
-            charts=charts_for_items(items)
-            only=(parse_qs(q).get(FILTER_PARAM) or [''])[0]=='1'
-            watch,broken=watchlist.load()
-            return self.send(200,render_day(m.group(1),items,load_sectors(),DESKS,load_reviews(),charts,
-                                            sources_for_items(items),watch=watch,only_watched=only,query=q,watch_broken=broken))
-        m=re.match(r'^/api/desks/(\d{4}-\d{2}-\d{2}|latest)$',path)
-        if m:  # docs/n8n_routing_rule.md: read-only JSON for n8n (no amounts, no disclosure text)
-            day=m.group(1)
-            if day=='latest':
-                days=available_days()
-                day=days[0] if days else None
-            items=load_day(day) if day else None
-            if items is None:
-                return self.send(404,json.dumps({'error':'no morning list','day':day}),ctype='application/json')
-            import kap_triage.analysis.desks as desk_mail
-            return self.send(200,json.dumps(desk_mail.payload(day,items,load_sectors(),DESKS),ensure_ascii=False),
-                             ctype='application/json; charset=utf-8')
-        if path=='/tema':  # theme switch without JavaScript: next theme in a cookie, back to the same page
-            nxt=THEMES[(THEMES.index(self.theme())+1)%len(THEMES)]
-            back=theme_back(self.headers.get('Referer'))
-            age=0 if nxt=='auto' else 31536000
-            return self.send(303,'',location=back,cookie=f'theme={nxt}; Path=/; Max-Age={age}; SameSite=Strict')
-        if path=='/guvenilirlik':
-            return self.send(200,page('Güvenilirlik',reliability.render_body(chat.NAV)))
-        if path=='/form':
-            kind=(parse_qs(q).get('type') or [None])[0]
-            kind=kind if kind in form.TYPES else None  # unknown type -> step 1
-            symbols=load_symbols() if kind and 'symbol' in form.FIELDS[kind] else set()
-            return self.send(200,page('Rehberli sorgu',form.render_body(symbols,form.display_names(),form.LAST,
-                                                                        chat.NAV,chat.render_answer,kind=kind)))
-        if path=='/themes':
-            out=themes.load_clusters()
-            if out is None:
-                return self.send(200,render_themes_index([],None,0))
-            last=themes.last_clustered(out['assign'])
-            return self.send(200,render_themes_index(themes.weeks(out['assign']),last,themes.count_after(last)))
-        m=re.match(r'^/themes/(\d{4}-\d{2}-\d{2})$',path)
-        if m:
-            out=themes.load_clusters()
-            try:
-                start=date.fromisoformat(m.group(1))
-            except ValueError:
-                start=None
-            if out is None or start is None or themes.week_start(start)!=start:
-                return self.send(404,page('Yok','<p>Bu hafta yok (hafta pazartesi ile başlar).</p>'))
-            view=themes.week_view(out,start)
-            urls=themes.load_meta([a['news_id'] for v in view for a in v['items']])
-            return self.send(200,render_week(str(start),view,load_sectors(),urls))
-        self.send(404,page('Yok','<p>Sayfa yok.</p>'))
-
-    def do_POST(self):
-        origin=self.headers.get('Origin')
-        if not host_ok(self.headers.get('Host')) or (origin and urlparse(origin).hostname not in LOCAL_NAMES):
-            return self.send(403,page('Hayır','<p>Yalnızca yerel istek.</p>'))
-        path=urlparse(self.path).path
-        if path not in ('/review','/chat','/chat/clear','/form','/takip'):
-            return self.send(404,page('Yok','<p>Sayfa yok.</p>'))
-        n=body_length(self.headers.get('Content-Length'))
-        if n is None:
-            return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
-        form_data={k:v[0] for k,v in parse_qs(self.rfile.read(n).decode('utf-8',errors='replace')).items()}
-        if path=='/takip':
-            action=form_data.get('action')
-            if action not in ('add','remove'):
-                return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
-            fn=watchlist.add if action=='add' else watchlist.remove
-            status=fn(watchlist.PATH,form_data.get('symbol',''))
-            return self.send(303,'',location=with_message(safe_back(form_data.get('back')),status))
-        if path=='/chat/clear':
-            chat.HISTORY.clear()
-            return self.send(303,'',location='/')
-        if path=='/form':
-            from kap_triage.assistant.agent import load_context
-            try:
-                ctx=None if chat.in_collection_window(datetime.now()) else load_context()  # no DB read in the window
-                rec=form.run(form_data,ctx)
-            except Exception as ex:  # DB missing or locked: show the type, keep the page alive
-                rec={'form':{k:form_data.get(k,'') for k in ('type','symbol','day','text')},'seconds':0.0,'error':True,
-                     'at':datetime.now().strftime('%H:%M'),'answer':f'Veritabanı okunamadı ({type(ex).__name__}).'}
-                form.LAST.clear()
-                form.LAST.update(rec)
-            print(f'form: type={rec["form"]["type"]} seconds={rec["seconds"]} error={rec["error"]}',flush=True)  # no text
-            kind=rec['form'].get('type')
-            return self.send(303,'',location=f'/form?type={kind}#son' if kind in form.TYPES else '/form')
-        if path=='/chat':
-            q=(form_data.get('q') or '').strip()
-            if not q or len(q)>chat.MAX_QUESTION:
-                return self.send(400,page('Hata','<p>Soru boş ya da çok uzun.</p>'))
-            rec=chat.ask(q)
-            print(f'chat: intent={rec["intent"]} seconds={rec["seconds"]} error={rec["error"]}',flush=True)  # no text
-            return self.send(303,'',location='/#son')
-        day=form_data.get('day','')
-        if not DAY_RE.match(day) or form_data.get('decision') not in DECISIONS or not form_data.get('news_id'):
-            return self.send(400,page('Hata','<p>Geçersiz istek.</p>'))
-        flagged={i['news_id']:i for i in (load_day(day) or []) if i['importance']['needs_review']}
-        if form_data['news_id'] not in flagged:
-            return self.send(400,page('Hata','<p>Bu bildirim o günün kontrol listesinde yok.</p>'))
-        record_review(form_data['news_id'],day,form_data['decision'],form_data.get('note'),
-                      reasons=flagged[form_data['news_id']]['importance']['needs_review_reasons'])
-        self.send(303,'',location=f'/day/{day}')
 
 
 def stats(path=None):
@@ -941,7 +771,9 @@ def main():
               f'review log={LOG_PATH}'+(' data=sample/data (made up)' if SAMPLE else ''))
         if SAMPLE:
             print(f'start here: http://127.0.0.1:{args.port}/genel',flush=True)
-        ThreadingHTTPServer((HOST,args.port),Handler).serve_forever()
+        import uvicorn
+        from kap_triage.web.app import app
+        uvicorn.run(app,host=HOST,port=args.port,log_level='warning',access_log=False)   # no request log
     else:
         ap.error('give --serve, --stats')
 

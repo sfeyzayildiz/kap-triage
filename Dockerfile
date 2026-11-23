@@ -24,7 +24,10 @@ COPY pyproject.toml main.py ./
 COPY kap_triage/ kap_triage/
 COPY docs/ docs/
 COPY README.md LICENSE ./
-RUN pip install --no-deps .
+# sample/: the kap-kart examples and the folder `main.py panel --sample` builds into (sample/data/ is not copied)
+COPY sample/ sample/
+# editable, so the package and sample/ are found from /app, the same as in a git clone
+RUN pip install --no-deps -e .
 
 RUN useradd --create-home app && mkdir -p /app/data && chown -R app /app
 USER app

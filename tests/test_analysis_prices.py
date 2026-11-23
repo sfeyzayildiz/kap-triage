@@ -1,4 +1,4 @@
-'''Tests moved from price_moves.py (v1 self-test).'''
+'''kap_triage/analysis/prices.py: the checks of the v1 self-test in price_moves.py, on made-up data (no network, no real data).'''
 from datetime import date, datetime, timedelta
 import duckdb
 from kap_triage.analysis.prices import INDEX, Z_ABNORMAL, abnormal, daily_returns, disclosures_before, event_reaction, reaction_day, scan

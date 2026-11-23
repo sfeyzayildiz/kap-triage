@@ -1,4 +1,4 @@
-'''Tests moved from names.py (v1 self-test).'''
+'''kap_triage/assistant/names.py: the checks of the v1 self-test in names.py, on made-up data (no network, no real data).'''
 from kap_triage.assistant.names import _DISPLAY, company_label, fold, mentions, parse_names
 
 

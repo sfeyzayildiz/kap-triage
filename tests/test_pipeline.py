@@ -1,4 +1,4 @@
-'''Tests moved from pipeline.py (v1 self-test).'''
+'''kap_triage/analysis/pipeline.py: the checks of the v1 self-test in pipeline.py, on made-up data (no network, no real data).'''
 from kap_triage.analysis.pipeline import RUN_ERROR, TWO_RUN, analyze, apply_checks, judge_pass, two_run_check
 
 

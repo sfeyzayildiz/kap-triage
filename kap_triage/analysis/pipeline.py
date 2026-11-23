@@ -17,12 +17,9 @@ import subprocess
 import time
 from datetime import datetime
 
-import duckdb
-
 from kap_triage.analysis.rules import amount_is_projection,cumulative_total,currency_unclear,norm_cur
 from kap_triage.analysis.llm import PROMPT_VERSION,MODEL,call_llm
-from kap_triage.analysis.defence import amount_vs_matriks
-from kap_triage.analysis.defence import source_reasons
+from kap_triage.analysis.defence import amount_vs_matriks,source_reasons
 from kap_triage.settings import settings
 
 DB_PATH=settings.path('kap.duckdb')
@@ -101,12 +98,12 @@ def two_run_check(results,texts,extract=call_llm):
 
 def defence_context(news_ids):
     '''Matriks records for these ids (one short read) and the cached judge.'''
-    from kap_triage.analysis.defence import load_matriks
-    from kap_triage.analysis.defence import CachedJudge
+    from kap_triage.analysis.defence import CachedJudge,load_matriks
     return load_matriks(news_ids),CachedJudge()
 
 
 def load_rows(date_value,ids):
+    import duckdb  # here, not at the top: kap-kart (web/kart.py) uses this module without a database
     con=duckdb.connect(DB_PATH,read_only=True)
     try:
         if ids:

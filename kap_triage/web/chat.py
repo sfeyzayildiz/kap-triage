@@ -104,7 +104,7 @@ def ask(question,runner=None,now=None,history=None):
 
 
 LINKS=(('/genel','Genel bakış'),('/','Sohbet'),('/form','Rehberli sorgu'),('/days','Sabah listeleri'),
-       ('/kontroller','Kontrol geçmişi'),('/themes','Haftalık temalar'),('/guvenilirlik','Güvenilirlik'))
+       ('/kontroller','Kontrol geçmişi'),('/themes','Haftalık temalar'),('/kart','KAP kartı'),('/guvenilirlik','Güvenilirlik'))
 HEADER=('<header class="top"><div class="topin"><div class="brand"><span>KAP</span>Bildirim Önceliklendirme Asistanı'
         '<small>yeni iş ilişkisi · yerel modeller</small></div><nav>'+''.join(f'<a href="{u}">{t}</a>' for u,t in LINKS)+
         '<a class="theme" href="/tema" title="Tema: sistem → koyu → açık" aria-label="Temayı değiştir">◐</a>'

@@ -1,4 +1,4 @@
-'''Tests moved from periods.py (v1 self-test).'''
+'''kap_triage/assistant/periods.py: the checks of the v1 self-test in periods.py, on made-up data (no network, no real data).'''
 from datetime import date
 from kap_triage.assistant.periods import months_back, period, question_period
 

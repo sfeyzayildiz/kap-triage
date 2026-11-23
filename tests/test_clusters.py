@@ -1,4 +1,4 @@
-'''Tests moved from clusters.py (v1 self-test).'''
+'''kap_triage/assistant/clusters.py: the checks of the v1 self-test in clusters.py, on made-up data (no network, no real data).'''
 import numpy as np
 from kap_triage.assistant.clusters import ari, company_clusters, nmi, purity, shuffled_aris, spherical_kmeans, theme_words
 

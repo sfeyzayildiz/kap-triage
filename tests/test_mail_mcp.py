@@ -1,4 +1,4 @@
-'''Tests moved from mail_mcp.py (v1 self-test).'''
+'''kap_triage/analysis/desks.py, kap_triage/web/mail_mcp.py: the checks of the v1 self-test in mail_mcp.py, on made-up data (no network, no real data).'''
 import re
 from kap_triage.web.mail_mcp import BAD_CASES, SERVER_ENV, decide, norm_text, server_env, synthetic_message
 

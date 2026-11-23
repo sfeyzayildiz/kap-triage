@@ -9,6 +9,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "beautifulsoup4==4.15.0",
     "duckdb==2.0.0",
+    "fastapi==0.160.0",
     "langgraph==1.0.2",
     "mcp==1.30.0",
     "numpy==2.5.4",
@@ -16,12 +17,13 @@ dependencies = [
     "pydantic==2.14.1",
     "python-dotenv==1.2.4",
     "requests==2.34.2",
+    "uvicorn==0.37.0",
 ]
 
 [project.optional-dependencies]
 # the embedding model and reranker for search (several GB with torch); tests do not need them
 search = ["sentence-transformers==6.2.0"]
-dev = ["pytest==8.4.2", "ruff==0.13.3"]
+dev = ["httpx==0.28.1", "pytest==8.4.2", "ruff==0.13.3"]   # httpx: the FastAPI test client
 
 [build-system]
 requires = ["setuptools>=69"]
@@ -38,7 +40,6 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 160
-extend-exclude = ["kap_kart/frozen"]   # byte copies of the measured v1 code, never edited
 
 [tool.ruff.lint]
 # default rules (pyflakes + the main pycodestyle errors); the project style has no spaces around '='

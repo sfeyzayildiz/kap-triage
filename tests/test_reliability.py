@@ -1,4 +1,4 @@
-'''Tests moved from reliability.py (v1 self-test).'''
+'''kap_triage/web/reliability.py: the checks of the v1 self-test in reliability.py, on made-up data (no network, no real data).'''
 from kap_triage.web.reliability import ATTACK, bars, paired, render_body, upper95
 
 

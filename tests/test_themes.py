@@ -1,4 +1,4 @@
-'''Tests moved from themes.py (v1 self-test).'''
+'''kap_triage/assistant/themes.py: the checks of the v1 self-test in themes.py, on made-up data (no network, no real data).'''
 from datetime import date
 from kap_triage.assistant.themes import last_clustered, n_weeks, profile, week_start, week_view, weeks
 

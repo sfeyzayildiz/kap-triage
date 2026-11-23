@@ -1,4 +1,4 @@
-'''Tests moved from sector_collect.py (v1 self-test).'''
+'''kap_triage/collect/sectors.py: the checks of the v1 self-test in sector_collect.py, on made-up data (no network, no real data).'''
 from kap_triage.collect.sectors import REQUESTS, SCHEMA, sector_rows
 
 

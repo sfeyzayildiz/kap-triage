@@ -1,4 +1,4 @@
-'''Tests moved from mcp_server.py (v1 self-test).'''
+'''kap_triage/web/mcp_server.py: the checks of the v1 self-test in mcp_server.py, on made-up data (no network, no real data).'''
 from datetime import date
 from kap_triage.web.mcp_server import build_state, run_tool
 

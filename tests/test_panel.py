@@ -1,12 +1,11 @@
 '''Panel pages (kap_triage/web/panel.py) on made-up items: escaping, review log, night window,
-watchlist forms, request hardening and the Host check. To be split when the panel moves to FastAPI.'''
+watchlist forms and request helpers. The HTTP routes are tested in test_app.py.'''
 import os
 from datetime import datetime
-from http.server import ThreadingHTTPServer
 import kap_triage.web.chat as chat
 import kap_triage.web.form as form
 import kap_triage.web.watchlist as watchlist
-from kap_triage.web.panel import CHART_DAYS, CSS, FILTER_PARAM, Handler, MAX_BODY, MSG_PARAM, UNASSIGNED, all_day_stats, body_length, by_desk, column_chart, day_counts, desk_of, flag_chart, host_ok, load_reviews, look_first_box, pretty_sector, reads_db, reason_stats, record_review, render_day, render_index, render_item, render_overview, render_reviews, render_themes_index, render_week, review_rows, safe_back, source_html, sources_for_items, stats, takip_message, theme_back, tr_time, window_block, with_message
+from kap_triage.web.panel import CHART_DAYS, CSS, FILTER_PARAM, MSG_PARAM, UNASSIGNED, all_day_stats, by_desk, column_chart, day_counts, desk_of, flag_chart, host_ok, load_reviews, look_first_box, pretty_sector, reads_db, reason_stats, record_review, render_day, render_index, render_item, render_overview, render_reviews, render_themes_index, render_week, review_rows, safe_back, source_html, sources_for_items, stats, takip_message, theme_back, tr_time, window_block, with_message
 
 
 def test_panel():
@@ -83,13 +82,13 @@ def test_panel():
     # C6: nightly window blocks every DB-reading GET route (503, no DB read); other pages and other times are untouched
     at=lambda h,m:datetime(2026,11,20,h,m)
     sym_kind=next(k for k in form.TYPES if 'symbol' in form.FIELDS[k])
-    db_routes=[('/day/2026-11-09',''),('/api/desks/latest',''),('/themes',''),('/themes/2026-11-09',''),('/form',f'type={sym_kind}')]
+    db_routes=[('/day/2026-11-09',''),('/api/v1/desks/latest',''),('/themes',''),('/themes/2026-11-09',''),('/form',f'type={sym_kind}')]
     free_routes=[('/',''),('/days',''),('/guvenilirlik',''),('/form',''),('/tema',''),('/nope','')]
     for t in (at(23,40),at(23,45),at(23,50)):
         assert all(window_block(p,q,t) and window_block(p,q,t)[0]==503 for p,q in db_routes)
         assert all(window_block(p,q,t) is None for p,q in free_routes)
     assert all(window_block(p,q,t) is None for p,q in db_routes for t in (at(23,39),at(23,51),at(7,30)))
-    assert '23:50' in window_block('/day/2026-11-09','',at(23,45))[1] and window_block('/api/desks/latest','',at(23,45))[2].startswith('application/json')
+    assert '23:50' in window_block('/day/2026-11-09','',at(23,45))[1] and window_block('/api/v1/desks/latest','',at(23,45))[2].startswith('application/json')
     # UI polish 19 Nov: Turkish review time, green "kontrol edildi"
     assert tr_time('2026-11-10T00:41:50')=='10 Kas 2026 00:41' and tr_time('x')=='x'
     assert '.badge.done{color:var(--green)' in CSS
@@ -125,8 +124,6 @@ def test_panel():
     assert 'Kayıtlı sabah listesi yok' in render_overview({},[],{},[],{}) and '<h2>6.' not in render_overview({},[],{},[],{})
     assert '.cols{' not in render_index([]) and not reads_db('/genel') and not reads_db('/kontroller')   # other pages: no chart CSS
     # outside review 22 Nov: request hardening
-    assert body_length('120')==120 and body_length(None)==0 and body_length('-1')==0 and body_length('99999')==MAX_BODY
-    assert body_length('abc') is None
     assert theme_back('http://127.0.0.1:8765/day/2026-11-09')=='/day/2026-11-09' and theme_back('http://localhost//evil.example')=='/'
     assert theme_back('http://evil.example/day/x')=='/' and theme_back('http://localhost:8765/form?type=brief')=='/form?type=brief'
     assert theme_back(None)=='/' and theme_back('http://localhost:8765/days?x=1')=='/days'
@@ -175,28 +172,6 @@ def test_panel():
     assert all(host_ok(h) for h in ('127.0.0.1:8765','localhost:8765','panel:8765','127.0.0.1','LOCALHOST:8765'))
     assert not any(host_ok(h) for h in ('evil.example:8765','localhost.evil.example','127.0.0.1.evil.example:80','','[bad',None))
     assert safe_back('/day/2026-11-04?x=ş')=='/genel' and safe_back('/genel')=='/genel'
-    import http.client
-    import threading
-    srv=ThreadingHTTPServer(('127.0.0.1',0),Handler)
-    threading.Thread(target=srv.serve_forever,daemon=True).start()
-    try:
-        def status(host,method='GET'):
-            c=http.client.HTTPConnection('127.0.0.1',srv.server_address[1],timeout=10)
-            c.putrequest(method,'/guvenilirlik' if method=='GET' else '/chat/clear',skip_host=True)
-            if host is not None:
-                c.putheader('Host',host)
-            c.putheader('Content-Length','0')
-            c.endheaders()
-            s=c.getresponse().status
-            c.close()
-            return s
-        port=srv.server_address[1]
-        assert status(f'127.0.0.1:{port}')==200 and status(f'localhost:{port}')==200 and status('panel:8765')==200
-        assert status('evil.example:8765')==403 and status(None)==403 and status('evil.example','POST')==403
-        assert status(f'127.0.0.1:{port}','POST')==303
-    finally:
-        srv.shutdown()
-        srv.server_close()
     night=datetime(2026,11,20,23,45)
     saved_guard=chat.WINDOW_GUARD
     try:
