@@ -11,3 +11,4 @@ node_modules/
 !mcp/smtp/package-lock.json
 !n8n/desk_routing.json
 !n8n/credentials_mailpit.json
+*.egg-info/

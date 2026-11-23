@@ -20,13 +20,14 @@ RUN pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY scripts/ scripts/
-COPY prompts/ prompts/
+COPY pyproject.toml main.py ./
+COPY kap_triage/ kap_triage/
 COPY docs/ docs/
-COPY README.md ./
+COPY README.md LICENSE ./
+RUN pip install --no-deps .
 
 RUN useradd --create-home app && mkdir -p /app/data && chown -R app /app
 USER app
 
 EXPOSE 8765
-CMD ["python", "scripts/panel.py", "--serve"]
+CMD ["python", "main.py", "panel"]

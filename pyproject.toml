@@ -1,0 +1,45 @@
+[project]
+name = "kap-triage"
+version = "2.0.0"
+description = "Morning triage of KAP 'Yeni İş İlişkisi' disclosures for equity analysts (local models only)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+# direct dependencies only; requirements.txt pins the full tested set
+dependencies = [
+    "beautifulsoup4==4.15.0",
+    "duckdb==2.0.0",
+    "langgraph==1.0.2",
+    "mcp==1.30.0",
+    "numpy==2.5.4",
+    "ollama==0.6.3",
+    "pydantic==2.14.1",
+    "python-dotenv==1.2.4",
+    "requests==2.34.2",
+]
+
+[project.optional-dependencies]
+# the embedding model and reranker for search (several GB with torch); tests do not need them
+search = ["sentence-transformers==6.2.0"]
+dev = ["pytest==8.4.2", "ruff==0.13.3"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["kap_triage*"]
+
+[tool.setuptools.package-data]
+kap_triage = ["analysis/prompt_v3.txt", "collect/schema.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 160
+extend-exclude = ["kap_kart/frozen"]   # byte copies of the measured v1 code, never edited
+
+[tool.ruff.lint]
+# default rules (pyflakes + the main pycodestyle errors); the project style has no spaces around '='
+ignore = ["E731", "E741"]   # short lambdas and one-letter names (l for a line) are the project style

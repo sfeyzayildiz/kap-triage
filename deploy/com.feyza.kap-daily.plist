@@ -17,10 +17,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/Users/<user>/projects/kap-deploy/.venv/bin/python</string>
-        <string>scripts/daily_collect.py</string>
+        <string>main.py</string>
+        <string>nightly</string>
     </array>
 
-    <!-- scripts use relative paths (data/, .env), so run from the deploy clone root -->
+    <!-- data/ and .env are relative to the repository root, so run from the deploy clone root -->
     <key>WorkingDirectory</key>
     <string>/Users/<user>/projects/kap-deploy</string>
 
