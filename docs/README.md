@@ -26,7 +26,7 @@ Every measured part of the project has a rule file (`*_rule.md`) that was commit
 | file | what it is |
 |---|---|
 | [extending.md](extending.md) | How the system would extend to other disclosure types. |
-| [public_release.md](public_release.md) | How the version 1 public copy was built from the private repository (history kept, internal parts removed) and checked. |
+| [public_release.md](public_release.md) | How the history in this repository was cleaned from the private development repository (history kept, internal parts removed) and checked. |
 
 ## Labeling guidelines and test-set plans
 | file | what it is |

@@ -1,7 +1,7 @@
 # Runbook: operating the system
 
 Who runs what: I run everything that touches Matriks data or takes long, on my own machine; code changes arrive as pull requests with CI (`ruff` + `pytest`).
-The nightly job runs from a separate clone that always stays on `main` (`deploy/com.feyza.kap-daily.plist`), so a branch in the development folder never affects it. Until the end of November 2026 that clone runs version 1 (the same logic, `scripts/`); the commands below are the version 2 ones.
+The nightly job runs from a separate clone that always stays on `main` (`deploy/com.feyza.kap-daily.plist`), so a branch in the development folder never affects it. That clone runs version 1 (the same logic, `scripts/`); the commands below are the version 2 ones.
 
 ## Nightly (automatic)
 - 23:43 launchd (`com.feyza.kap-daily`) runs `.venv/bin/python main.py nightly` in the deploy clone: collection (one pull), then the morning list for the day.
@@ -65,7 +65,7 @@ Stop the panel before 23:40.
 ## Measurements
 - Rule first (`docs/*_rule.md`, committed), then the run in my terminal, then the score. No scoring while a run is in progress; `INCOMPLETE` means wait.
 - Paste only score lines (counts, ids, metrics). Files with amounts go to `/tmp` and are not pasted.
-- Held-out sets unused so far: Set C questions + `data/rag_questions_neg.jsonl` for cited answers (kept for a stronger model).
+- Held-out sets that were not used: Set C questions + `data/rag_questions_neg.jsonl` (meant for cited answers with a stronger model).
 
 ## Backups
 `~/kap-backups/`: gold sets, RAG questions. Refresh after every label or question change:

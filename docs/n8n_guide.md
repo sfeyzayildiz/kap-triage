@@ -4,7 +4,7 @@ Rule: `docs/n8n_routing_rule.md`. Everything runs on this computer: panel (8765)
 
 ## Setup (once)
 ```
-cd ~/projects/kap-triage-v2
+cd kap-triage                          # the cloned repository
 docker compose up --build -d          # panel with /api/v1/desks; n8n and Mailpit pulled (~500 MB once)
 ```
 1. Open http://127.0.0.1:5678 and create the local owner account (stays in the `n8n-data` volume; nothing is sent out).

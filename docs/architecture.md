@@ -185,5 +185,5 @@ The vendor auditor (a measurement script, kept out of this repository) compares 
 - **One doc per disclosure, no chunking:** median 52 words; 8 of 1273 docs are cut at 512 tokens.
 - **numpy index instead of a vector database:** about 1.3k documents; a full rebuild takes about 33 s.
 - **Local models:** the licensed data stays on this machine. Our permission covers using it here for this project, not passing it to third-party AI services; brokerage compliance teams ask the same. (Matriks itself offers its data to cloud AI clients through its own MCP product, under its own terms; that is a different arrangement.) The local model was measured good enough: 1/100 silent errors on Set C.
-- **Collection on the Mac:** the server cannot reach Matriks (network block on their side, follow-up pending).
+- **Collection on the Mac:** the server cannot reach Matriks (network block on their side, not resolved by the end of the project).
 - **n8n + local mail instead of Telegram / Slack:** external chat servers would carry licensed data out, and brokerage compliance teams approve corporate e-mail or Teams, not Telegram. The channel is a setting.

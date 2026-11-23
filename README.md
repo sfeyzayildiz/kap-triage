@@ -12,7 +12,7 @@ A working prototype for "Yeni İş İlişkisi" (new business relationship) discl
 
 **Author:** Feyza Yıldız ([LinkedIn](https://www.linkedin.com/in/feyza-yildiz/)), BTK Akademi AI workshop, Entertech İstanbul Teknokent, Oct-Nov 2026. Review in 10 minutes: [`docs/for_reviewers.md`](docs/for_reviewers.md).
 
-This repository is version 2: the same system, reorganised as a Python package with a FastAPI panel and pytest. The version submitted to the workshop is [`kap-disclosure-triage`](https://github.com/sfeyzayildiz/kap-disclosure-triage).
+This is version 2 of the project: the same system as a Python package with a FastAPI panel and pytest. Version 1 kept the code in one `scripts/` folder; its history is the earlier part of this repository ([`docs/v1_to_v2_map.md`](docs/v1_to_v2_map.md)).
 
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
@@ -106,19 +106,14 @@ Each test has a rule file with the measurement and the pass bar, committed befor
 | n8n desk e-mails | 15 saved days, 33 e-mails: 0 lost, 0 wrong desk, 0 amount leaks | [rule](docs/n8n_routing_rule.md) |
 
 <details>
-<summary>All measured parts (10)</summary>
+<summary>5 more measured parts</summary>
 
 | part | job | measured | rule or result |
 |---|---|---|---|
-| Local LLM extraction | extracts the deal facts | 1 silent error in 100 unseen texts (one reading, Set C); ~15 s per reading, ~31 s per disclosure in the nightly list, which reads each text twice | [rule](docs/set_c_plan.md) |
-| Without an LLM | the strongest regex in the repo (written for the code checks) on the same texts | 25 silent errors in 100 | [rule](docs/regex_baseline_rule.md) |
 | Code checks + injection defence | flag what is unclear or planted in the text | hidden-instruction attacks: 9 silent → 0 (texts with a Matriks record; without one, only the source-sentence layer runs, not measured) | [rule](docs/layered_defence_rule.md) |
 | Importance and order | ranks the morning list, with reasons | top pick right on 11/12 days (sorting by amount alone: 12/12) | [rule](docs/importance_v2_rule.md) |
-| RAG search | finds the right and the similar earlier disclosures | right one in the top 5: 20/20; at rank 1: 17/20 (15 without the reranker) | [rule](docs/rerank_rule.md) |
-| LangGraph agent | the LLM picks a tool, code writes the answer | intended link in the top 5: 18/20 | [rule](docs/router_v2_rule.md) |
 | MCP server (ours) | the agent's 5 tools for local MCP clients | output identical 10/10, +0.011 s | [rule](docs/mcp_v2_rule.md) |
 | MCP client (third-party e-mail server) | one desk e-mail on demand, after a person approves | outside addresses refused 7/7; unapproved sent 0 | [rule](docs/smtp_mcp_rule.md) |
-| n8n desk e-mails | weekday e-mail to each sector desk | 15 saved days, 33 e-mails: 0 lost, 0 wrong desk, 0 amount leaks | [rule](docs/n8n_routing_rule.md) |
 | Panel review | the analyst confirms or rejects each flag | first day: 3 of 6 flags were real errors; by 22 Nov: 8 decisions, 5 real errors (anecdotal, no rule) | [result](docs/results.md#scoring-desks-themes) |
 
 </details>
@@ -164,7 +159,7 @@ Overview, the panel's start page (demo mode, real data, 22 Nov). The last list (
 |---|---|
 | ![n8n desk routing workflow](docs/img/n8n_workflow.png) | ![Desk e-mail in the local Mailpit inbox, masked](docs/img/desk_mail_masked.png) |
 
-Desk e-mails on all 15 saved days: 33 e-mails, 0 lost, 0 wrong desk, 0 amounts ([rule](docs/n8n_routing_rule.md)). The desk, the order and the text come from code; n8n only delivers. The desk name and the reasons are masked here because the desk comes from the Matriks sector label.
+The desk, the order and the text come from code; n8n only delivers ([rule](docs/n8n_routing_rule.md)). The desk name and the reasons are masked here because the desk comes from the Matriks sector label.
 
 </details>
 
@@ -241,4 +236,5 @@ KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) b
 ## Data, privacy, license
 - Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out: the only outgoing message is the nightly phone alert (through the ntfy push service): counts on success, a short error line on failure. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the sample data and the code stay.
+- This history was cleaned from the private development repository (internal notes and measurement scripts removed, addresses replaced; [`docs/public_release.md`](docs/public_release.md)), so commit IDs quoted in `docs/PROJECT_NOTES.md` refer to that repository.
 - The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few tests contain short fragments of public KAP disclosure texts.

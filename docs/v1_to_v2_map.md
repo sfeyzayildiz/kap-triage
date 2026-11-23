@@ -1,6 +1,6 @@
 # Version 1 → version 2: where each file went
 
-Version 1 (submitted to the workshop as `kap-disclosure-triage`) kept the running system in one folder, `scripts/`, and ran each file as a script. Version 2 is the same system as a package, `kap_triage/`, with one entry point (`main.py`), a FastAPI panel and pytest. The measured logic was moved, not rewritten: the panel pages and the morning lists of the sample data are byte-identical in both versions (pull requests #1 and #2).
+Version 1 (the project until 23 Nov; its commits are the earlier part of this repository's history) kept the running system in one folder, `scripts/`, and ran each file as a script. Version 2 is the same system as a package, `kap_triage/`, with one entry point (`main.py`), a FastAPI panel and pytest. The measured logic was moved, not rewritten: the panel pages and the morning lists of the sample data are byte-identical in both versions (pull requests #1 and #2).
 
 The rule files and `PROJECT_NOTES.md` are a record of what was measured, so they keep the version 1 file names. Use this table to find a file they mention.
 
