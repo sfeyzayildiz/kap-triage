@@ -47,6 +47,10 @@ A disclosure text can hide a sentence written for AI tools. The model sometimes 
 | Why | it followed the planted sentence | the amount is far from the vendor's record, and the sentence it comes from reads like an instruction |
 | Analyst sees | a wrong number | the source sentence and the reasons, then checks the KAP text |
 
+<img src="docs/img/injection_card.png" alt="The SGL1 card on the sample data: the model reported 840,000,000 TL from a planted sentence; the card shows that sentence as the source and a red KONTROL ET flag" width="760">
+
+The same card in the panel (sample data, made up). The source sentence is the planted instruction, and the flag gives both reasons: the amount is more than twice the vendor's record, and it comes from an instruction-like sentence.
+
 Measured on 18 real texts with a planted sentence: without the defence, 9 attacks succeeded silently; with it, 0 (95% upper bound 15.3%), with 3 extra flags on 200 normal texts ([rule](docs/layered_defence_rule.md)). Only texts with a vendor record were measured, with one attack wording. Try it yourself: step 3 of the [tour](sample/README.md#a-10-minute-tour), or the hidden-instruction example in [kap-kart](kap_kart/README.md).
 
 ## How it works
