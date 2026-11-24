@@ -27,9 +27,16 @@ def test_no_numbers_outside_the_hash():
         assert not re.search(r'\d', json.dumps(r))
 
 
-def test_recount_matches_published():
-    c = evidence.recount(evidence.load())
-    assert {k: c[k] for k in evidence.PUBLISHED} == evidence.PUBLISHED
+def test_recount_matches_results_md():
+    p = evidence.published()
+    assert p == {'n': 100, 'silent': 1, 'upper': 4.7, 'flagged': 11}
+    assert evidence.matches(evidence.recount(evidence.load()), p)
+
+
+def test_mismatch_is_detected(tmp_path):
+    md = tmp_path / 'results.md'
+    md.write_text('| x | Set C (held-out, 100) | **2 silent errors (95% upper 6.2%), 11 flagged** | PASS |\n')
+    assert not evidence.matches(evidence.recount(evidence.load()), evidence.published(md))
 
 
 def test_recount_rule():

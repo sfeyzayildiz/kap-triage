@@ -13,13 +13,26 @@ What it cannot show: that the error types are right. That needs the licensed tex
 """
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
 from kap_triage.web.reliability import upper95
 
-EVIDENCE = Path(__file__).resolve().parents[2] / 'evidence' / 'set_c.jsonl'
-PUBLISHED = {'n': 100, 'silent': 1, 'flagged': 11}  # docs/results.md, Set C
+ROOT = Path(__file__).resolve().parents[2]
+EVIDENCE = ROOT / 'evidence' / 'set_c.jsonl'
+RESULTS_MD = ROOT / 'docs' / 'results.md'
+# the Set C row of the extraction table in docs/results.md
+ROW = re.compile(r'Set C \(held-out, (\d+)\) \| \*\*(\d+) silent errors? \(95% upper ([\d.]+)%\), (\d+) flagged\*\*')
+
+
+def published(path=RESULTS_MD):
+    """The Set C numbers as docs/results.md states them."""
+    hits = ROW.findall(path.read_text(encoding='utf-8'))
+    if len(hits) != 1:
+        raise SystemExit(f'expected one Set C row in {path.name}, found {len(hits)}')
+    n, silent, upper, flagged = hits[0]
+    return {'n': int(n), 'silent': int(silent), 'upper': float(upper), 'flagged': int(flagged)}
 
 
 def load(path=EVIDENCE):
@@ -38,17 +51,24 @@ def recount(rows):
     }
 
 
+def matches(c, p):
+    """True when the recount equals the published row (counts, and the bound to one decimal)."""
+    upper = round(upper95(c['silent'], c['n']) * 100, 1)
+    return (c['n'], c['silent'], c['flagged'], upper) == (p['n'], p['silent'], p['flagged'], p['upper'])
+
+
 def main():
     c = recount(load())
-    same = all(c[k] == v for k, v in PUBLISHED.items())
+    p = published()
+    same = matches(c, p)
     print(f'Set C, level 2: {c["n"]} items')
     print(f'  silent errors: {c["silent"]}/{c["n"]}, 95% upper bound {upper95(c["silent"], c["n"]):.1%}')
     print(f'  flagged: {c["flagged"]}/{c["n"]} ({c["flagged"] / c["n"]:.0%}); wrong extractions flagged: {c["caught"]}')
     print('  error types: ' + (', '.join(f'{k} {v}' for k, v in sorted(c['errors'].items())) or '-'))
     print('  reason codes: ' + ', '.join(f'{k} {v}' for k, v in sorted(c['reasons'].items())))
     print(
-        f'  docs/results.md says {PUBLISHED["silent"]}/{PUBLISHED["n"]} silent, {PUBLISHED["flagged"]} flagged: '
-        + ('MATCH' if same else 'MISMATCH')
+        f'  docs/results.md (read now) says {p["silent"]}/{p["n"]} silent, upper {p["upper"]}%, '
+        f'{p["flagged"]} flagged: ' + ('MATCH' if same else 'MISMATCH')
     )
     if not same:
         raise SystemExit(1)
