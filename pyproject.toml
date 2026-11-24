@@ -39,8 +39,11 @@ kap_triage = ["analysis/prompt_v3.txt", "collect/schema.sql"]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 160
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "single"   # the code base uses single quotes; `ruff format` keeps them
 
 [tool.ruff.lint]
-# default rules (pyflakes + the main pycodestyle errors); the project style has no spaces around '='
-ignore = ["E731", "E741"]   # short lambdas and one-letter names (l for a line) are the project style
+# default rules (pyflakes + the main pycodestyle errors)
+ignore = ["E731", "E741"]   # short lambdas and one-letter names (l for a line) are used on purpose
