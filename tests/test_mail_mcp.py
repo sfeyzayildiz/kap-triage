@@ -23,3 +23,70 @@ def test_smtp_server_path_is_in_the_repository():
     import kap_triage.web.mail_mcp as mail_mcp
     assert (mail_mcp.ROOT/'main.py').exists() and (mail_mcp.ROOT/'mcp'/'smtp'/'package.json').exists()
     assert mail_mcp.SERVER_JS.is_relative_to(mail_mcp.ROOT/'mcp'/'smtp')
+
+
+def _clean_state():
+    m=synthetic_message('t')
+    return {'day':'2026-11-12','desk':'Savunma','to':m['to'][0],'subject':m['subject'],'body':m['body']}
+
+
+def test_mail_graph_no_send_before_interrupt():
+    # running up to interrupt() must pause with the preview and never call send_fn
+    from kap_triage.web.mail_mcp import build_mail_graph
+    calls=[]
+    g=build_mail_graph(send_fn=lambda args:calls.append(args) or 'sent=True')
+    s=_clean_state()
+    out=g.invoke(s,{'configurable':{'thread_id':'2026-11-12:Savunma'}})
+    assert out.get('__interrupt__') and out['__interrupt__'][0].value=={'to':s['to'],'subject':s['subject'],'body':s['body']}
+    assert calls==[]
+
+
+def test_mail_graph_decline_does_not_send():
+    # resuming with False must skip send_fn and record result='declined'
+    from langgraph.types import Command
+    from kap_triage.web.mail_mcp import build_mail_graph
+    calls=[]
+    g=build_mail_graph(send_fn=lambda args:calls.append(args) or 'sent=True')
+    cfg={'configurable':{'thread_id':'2026-11-12:Savunma'}}
+    g.invoke(_clean_state(),cfg)
+    final=g.invoke(Command(resume=False),cfg)
+    assert calls==[] and final['result']=='declined'
+
+
+def test_mail_graph_approve_sends_once_with_exact_payload():
+    # resuming with True must call send_fn exactly once with the prepared to/subject/body
+    from langgraph.types import Command
+    from kap_triage.web.mail_mcp import build_mail_graph
+    calls=[]
+    g=build_mail_graph(send_fn=lambda args:calls.append(args) or 'sent=True')
+    s=_clean_state()
+    cfg={'configurable':{'thread_id':'2026-11-12:Savunma'}}
+    g.invoke(s,cfg)
+    final=g.invoke(Command(resume=True),cfg)
+    assert calls==[{'to':[s['to']],'subject':s['subject'],'body':s['body']}]
+    assert final['result']=='sent=True'
+
+
+def test_mail_graph_stops_before_interrupt_on_amount_leak():
+    # a message body containing an amount (leaks) must stop in prepare without interrupting or sending
+    from kap_triage.web.mail_mcp import build_mail_graph
+    calls=[]
+    g=build_mail_graph(send_fn=lambda args:calls.append(args) or 'sent=True')
+    s={**_clean_state(),'body':'Sözleşme bedeli 500.000 TL olarak açıklanmıştır.'}
+    out=g.invoke(s,{'configurable':{'thread_id':'2026-11-12:Savunma'}})
+    assert not out.get('__interrupt__') and 'amount' in (out.get('result') or '')
+    assert calls==[]
+
+
+def test_mail_graph_second_resume_does_not_send_twice():
+    # resuming the same thread_id a second time must not trigger a second send
+    from langgraph.types import Command
+    from kap_triage.web.mail_mcp import build_mail_graph
+    calls=[]
+    g=build_mail_graph(send_fn=lambda args:calls.append(args) or 'sent=True')
+    cfg={'configurable':{'thread_id':'2026-11-12:Savunma'}}
+    g.invoke(_clean_state(),cfg)
+    g.invoke(Command(resume=True),cfg)
+    g.invoke(Command(resume=True),cfg)
+    assert len(calls)==1
+

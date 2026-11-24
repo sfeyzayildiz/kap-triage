@@ -89,7 +89,7 @@ flowchart LR
 | **Every night, 23:43** | pulls the day's disclosures (one pull, enforced in code), reads each text twice with a local LLM, checks the facts in code, builds the morning list, sends a phone alert | launchd, Ollama, DuckDB |
 | **Weekdays, 07:30** (when Docker is running) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
 | **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures; a card from any pasted KAP text (`/kart`) | LangGraph, RAG (`turkish-e5-large` + reranker) |
-| **From local AI tools** | the agent's tools as an MCP server (local clients only); a desk e-mail through a third-party MCP server, sent only after a person approves | MCP, both directions |
+| **From local AI tools** | the agent's tools as an MCP server (local clients only); a desk e-mail through a third-party MCP server, sent only after a person approves; the e-mail approval is a LangGraph interrupt() (prepare → approve → send) | MCP, both directions |
 | **On every change** | ruff + pytest; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
 Real data since October 2024: about 1,300 disclosures, 1-2 new ones a day. More: [`docs/architecture.md`](docs/architecture.md).

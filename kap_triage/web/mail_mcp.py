@@ -179,25 +179,95 @@ def terminal_answer(message):
             return a=='e'
 
 
-def cmd_send(day,desk):
+def build_mail_graph(send_fn=None):
+    '''LangGraph approval flow: prepare -> approve (interrupt) -> send. No side effects before approval.'''
+    from typing import Optional, TypedDict
+    os.environ.setdefault('LANGSMITH_TRACING','false')
+    os.environ.setdefault('LANGCHAIN_TRACING_V2','false')
+    from langgraph.checkpoint.memory import MemorySaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.types import interrupt
     from kap_triage.analysis.desks import leaks, payload
     from kap_triage.web.panel import DESKS, load_day, load_sectors
-    items=load_day(day)
-    if items is None:
-        raise SystemExit(f'no morning list for {day}')
-    desks=payload(day,items,load_sectors(),DESKS)['desks']
+
+    class MailState(TypedDict,total=False):
+        day:str
+        desk:str
+        to:str
+        subject:str
+        body:str
+        approved:Optional[bool]
+        result:Optional[str]
+
+    def prepare(s):
+        to,subject,body=s.get('to'),s.get('subject'),s.get('body')
+        if not (to and subject and body):
+            day,desk=s.get('day',''),s.get('desk','')
+            items=load_day(day)
+            if items is None:
+                return {'result':f'no morning list for {day}'}
+            desks=payload(day,items,load_sectors(),DESKS)['desks']
+            d=next((x for x in desks if x['desk'].lower()==desk.lower()),None)
+            if d is None:
+                return {'result':f'no desk "{desk}" on {day}; run without --desk to list them'}
+            to,subject,body=d['to'],d['subject'],d['text']
+        if leaks(subject+body):
+            return {'to':to,'subject':subject,'body':body,'result':'message text contains an amount; not sent'}
+        return {'to':to,'subject':subject,'body':body,'result':None}
+
+    def after_prepare(s):
+        return END if s.get('result') else 'approve'
+
+    def approve(s):
+        decision=interrupt({'to':s['to'],'subject':s['subject'],'body':s['body']})
+        return {'approved':bool(decision)}
+
+    def send(s):
+        if s.get('result'):
+            return {}
+        if not s.get('approved'):
+            return {'result':'declined'}
+        args={'to':[s['to']],'subject':s['subject'],'body':s['body']}
+        if send_fn is not None:
+            res=send_fn(args)
+            return {'result':res if isinstance(res,str) else ('sent=True' if sent_ok(res) else f'sent=False ({result_text(res)[:160]})')}
+        res=asyncio.run(call(args,answer=lambda m:True))
+        return {'result':'sent=True' if sent_ok(res) else f'sent=False ({result_text(res)[:160]})'}
+
+    g=StateGraph(MailState)
+    g.add_node('prepare',prepare)
+    g.add_node('approve',approve)
+    g.add_node('send',send)
+    g.add_edge(START,'prepare')
+    g.add_conditional_edges('prepare',after_prepare,{'approve':'approve',END:END})
+    g.add_edge('approve','send')
+    g.add_edge('send',END)
+    return g.compile(checkpointer=MemorySaver())
+
+
+def cmd_send(day,desk):
+    from langgraph.types import Command
+    from kap_triage.analysis.desks import payload
+    from kap_triage.web.panel import DESKS, load_day, load_sectors
     if not desk:
+        items=load_day(day)
+        if items is None:
+            raise SystemExit(f'no morning list for {day}')
+        desks=payload(day,items,load_sectors(),DESKS)['desks']
         print('masalar: '+', '.join(f'{d["desk"]} ({d["to"]})' for d in desks))
         return
-    d=next((x for x in desks if x['desk'].lower()==desk.lower()),None)
-    if d is None:
-        raise SystemExit(f'no desk "{desk}" on {day}; run without --desk to list them')
-    if leaks(d['subject']+d['text']):
-        raise SystemExit('message text contains an amount; not sent')
-    res=asyncio.run(call({'to':[d['to']],'subject':d['subject'],'body':d['text']},answer=terminal_answer))
-    print(f'sent={sent_ok(res)}'+('' if sent_ok(res) else f' ({result_text(res)[:160]})'))
-
-
+    graph=build_mail_graph()
+    cfg={'configurable':{'thread_id':f'{day}:{desk}'}}
+    out=graph.invoke({'day':day,'desk':desk},cfg)
+    paused=out.get('__interrupt__')
+    if not paused:
+        raise SystemExit(out.get('result') or 'not sent')
+    info=paused[0].value
+    preview=f'To: {info["to"]}\nSubject: {info["subject"]}\n\n{info["body"]}'
+    decision=terminal_answer(preview)
+    final=graph.invoke(Command(resume=decision),cfg)
+    res=final.get('result') or ''
+    print('sent=False (declined)' if res=='declined' else res)
 
 
 def main():

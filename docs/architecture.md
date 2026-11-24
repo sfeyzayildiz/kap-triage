@@ -110,7 +110,7 @@ flowchart LR
     end
 ```
 - **Our server** (`kap_triage/web/mcp_server.py`, official Python SDK, `python main.py mcp`): `morning_list`, `company_history`, `search_disclosures`, `why_moved`, `company_brief`. Each tool enters the graph like the guided form, so the output is the measured tool's own text: identical 10/10, overhead 0.011 s (`docs/mcp_v2_rule.md`). A free tool-calling agent picked the right tool 12/16, our constrained router 14/16, so production keeps the router.
-- **A third-party server as a client** (`kap_triage/web/mail_mcp.py`, `python main.py mail`, `docs/smtp_mcp_rule.md`): sends one desk e-mail on demand, only after a person types "e". Addresses outside `@masa.local` refused 7/7; unapproved e-mails sent 0.
+- **A third-party server as a client** (`kap_triage/web/mail_mcp.py`, `python main.py mail`, `docs/smtp_mcp_rule.md`): sends one desk e-mail on demand, only after a person types "e". Addresses outside `@masa.local` refused 7/7; unapproved e-mails sent 0. Since 24 Nov the approval is a LangGraph interrupt() (prepare → approve → send, MemorySaver): tests show nothing is sent before or without approval; the measured checks above used the earlier terminal prompt and were not re-run.
 - **Local only:** tool results contain licensed data, so never connect a cloud client. Try it: `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python main.py mcp`. The two test clients used for the measurement (a fixed-call client and a free tool-calling agent) stay in the development repository.
 
 ## 5. n8n: desk e-mails
