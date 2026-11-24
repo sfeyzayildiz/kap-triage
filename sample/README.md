@@ -54,7 +54,7 @@ Open each link with the panel running. The screen labels are in Turkish; they ar
 | Güvenilirlik (measured results) | yes |
 | Rehberli sorgu: day list, company history, "why did it move?" | yes |
 | Rehberli sorgu: Şirket özeti (company brief) | needs Ollama with `gemma4:e4b` (it reads the latest disclosure); its "similar earlier disclosures" part says the search index is missing |
-| Sohbet (chat), topic search, and the detail card (the answer to a question in the chat or the guided form) | needs Ollama with `gemma4:e4b` and the embedding model |
+| Sohbet (chat), topic search, and the detail card (the answer to a question in the chat or the guided form) | the chat needs Ollama with `gemma4:e4b`; topic search and the detail card need the search index, which the sample does not build, so they answer that the index is missing |
 | KAP kartı (`/kart`: paste a disclosure text, get the card; the four trap examples are in `sample/kart/`) | needs Ollama with `gemma4:e4b` |
 
 ## How it is built

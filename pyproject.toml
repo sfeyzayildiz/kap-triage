@@ -5,7 +5,8 @@ description = "Morning triage of KAP 'Yeni İş İlişkisi' disclosures for equi
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
-# direct dependencies only; requirements.txt pins the full tested set
+# direct dependencies only; requirements.txt pins the set the clean-clone and Docker installs used (not every
+# indirect package; docs/known_issues.md D11)
 dependencies = [
     "beautifulsoup4==4.15.0",
     "duckdb==2.0.0",

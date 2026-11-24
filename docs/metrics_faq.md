@@ -1,6 +1,6 @@
 # Metrics cheat sheet (for questions from the instructor or a company)
 
-Every number here was measured with a rule written before the run, unless marked. "dev" = the set used to build or choose; "held-out" = never seen before the run. Updated 2026-11-22. All results on one page: `docs/results.md`.
+Every number here was measured with a rule written before the run, unless marked. "dev" = the set used to build or choose; "held-out" = never seen before the run. Updated 2026-11-24. All results on one page: `docs/results.md`.
 
 ## Search (RAG retrieval)
 Hit@k = recall@k = share of answerable questions whose correct disclosure is in the top k.
@@ -24,6 +24,12 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 
 ## Extraction (the core)
 - Held-out Set C (100): **1 silent error** (wrong amount/currency, not flagged), 95% upper bound **4.7%**; 11/100 sent to a human. PASS.
+- **How a silent error is counted** (the scoring script is not in this repository, see known_issues E4; this is its definition):
+  - Reference: the blind human label (gold) of each text. Gold rows marked "needs review" stay in the set.
+  - Flagged = the system sent the item to a human (any review reason, or a run error). A flagged item is never a silent error.
+  - Silent error = not flagged, and one of: the amount differs from the gold amount by **more than 1% (relative)**; the currency differs; the model gave an amount where gold has none (fabricated); the model gave none where gold has one (missed).
+  - Levels, all from the same run: level 0 = the frozen extraction's review reasons; level 1 = + `currency_unclear`; level 2 = + `amount_is_projection` and `cumulative_total`. The Set C number is level 2 (`docs/set_c_plan.md`).
+  - Upper bound: one-sided 95% Clopper-Pearson (1 of 100 → 4.7%).
 - History: dev 0/100 → held-out Set B 4/100 (FAIL) → error analysis → code checks → Set C 1/100.
 - **Without an LLM (same Set C, same gold):** the strongest regex in the repo (written for the code checks, not as an extractor) 25/100 silent errors (63/100 found an amount at all); regex + all code checks still 23/100 silent. The LLM system: 1/100. Earlier small number: regex 12/15 vs LLM 15/15 (dev).
 - Ops terms: escape rate 1%. Straight-through rate: 89% for extraction + code checks alone (Set C, level 2); about **78-80% for the live pipeline** with the Matriks cross-check and the source judge (Set D flagged 20-22%; 21-24% on its random 38). The live figure is the one that applies to the panel.
