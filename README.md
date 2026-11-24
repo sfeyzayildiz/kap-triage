@@ -17,7 +17,7 @@ This is version 2 of the project: the same system as a Python package with a Fas
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
 - **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk can get its part by e-mail.
-- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test.
+- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test. Recount it yourself: `python main.py verify-results` reads [`evidence/set_c.jsonl`](evidence/set_c.jsonl) (one line per item: flagged or not, reason codes, error type; no licensed content).
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
 ## Try it in 2 minutes (no licensed data needed)

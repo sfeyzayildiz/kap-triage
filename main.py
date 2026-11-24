@@ -9,6 +9,7 @@
   python main.py mail --send --day D    desk e-mails for one day through the SMTP MCP server
   python main.py index --build          update the search index
   python main.py kart metin.txt         a KAP card from a disclosure text (also /kart in the panel)
+  python main.py verify-results         recount the Set C result from evidence/set_c.jsonl
 
 Every command takes the options of its module; add --help to see them.
 --sample (and the sample command) points the data folder to sample/data/ before anything
@@ -29,6 +30,7 @@ COMMANDS = {
     'mail': 'kap_triage.web.mail_mcp',
     'index': 'kap_triage.assistant.search',
     'kart': 'kap_triage.web.kart',
+    'verify-results': 'kap_triage.analysis.evidence',
 }
 SAMPLE_DATA = Path(__file__).resolve().parent / 'sample' / 'data'
 
