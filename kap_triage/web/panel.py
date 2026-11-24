@@ -166,17 +166,19 @@ def kap_link(url):
 
 # dark tokens: used by the system setting (unless the analyst chose light) and by the theme switch (/tema, a cookie)
 DARK=('--bg:#0c121c;--surface:#141d2b;--ink:#e6ebf2;--muted:#9aa5b5;--line:#26324a;--brand:#08111f;--accent:#2dd4bf;'
-      '--amber:#f59e0b;--red:#f87171;--green:#4ade80;--tint-red:#2a1719;--tint-green:#13261b;--q:#1a2a42;color-scheme:dark')
+      '--amber:#f59e0b;--red:#f87171;--green:#4ade80;--tint-red:#2a1719;--tint-green:#13261b;--q:#1a2a42;'
+      '--shadow:0 2px 10px rgba(0,0,0,.35);color-scheme:dark')
 THEMES=('auto','dark','light')  # the switch cycles in this order
 CSS=''':root{--bg:#f3f5f8;--surface:#fff;--ink:#14213d;--muted:#5b6474;--line:#dde2ea;--brand:#0b1f3a;
---accent:#0f766e;--amber:#b45309;--red:#b91c1c;--green:#15803d;--tint-red:#fdf1f1;--tint-green:#eef8f1;--q:#e8f0fb}
+--accent:#0f766e;--amber:#b45309;--red:#b91c1c;--green:#15803d;--tint-red:#fdf1f1;--tint-green:#eef8f1;--q:#e8f0fb;
+--shadow:0 2px 8px rgba(11,31,58,.08)}
 @media (prefers-color-scheme: dark){:root:not([data-theme=light]){'''+DARK+'''}}
 :root[data-theme=dark]{'''+DARK+'''}
 :root[data-theme=light]{color-scheme:light}
 nav a.theme{font-size:1.1rem;margin-left:4px}
 *{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--bg);
 color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.45}
-header.top{background:var(--brand);border-bottom:3px solid var(--accent);padding:10px 16px}
+header.top{position:sticky;top:0;z-index:20;background:var(--brand);border-bottom:3px solid var(--accent);padding:10px 16px}
 .topin{max-width:980px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 22px}
 .brand{color:#fff;font-weight:700;letter-spacing:.02em}.brand span{color:var(--accent);margin-right:6px}
 .brand small{color:#9fb0c6;font-weight:400;margin-left:8px}
@@ -187,12 +189,22 @@ h2{font-size:.95rem;letter-spacing:.01em;color:var(--muted);margin:28px 0 8px;
 padding-left:8px;border-left:3px solid var(--accent)}
 a{color:var(--accent)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0}
+.card,.review{scroll-margin-top:64px}
+main>.card.high:first-child{padding:6px 12px;margin:0 0 10px;font-size:.84rem;line-height:1.38}
+.card[id^=c]>div:not([class]):has(+.src),.card[id^=c]>div:not([class]):has(+div:not([class])){font-weight:600;margin-top:4px}
 .flag{border-left:4px solid var(--red)}.high{border-left:4px solid var(--amber)}
 .badge{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:10px;border:1px solid var(--line);
 color:var(--muted);margin-left:6px}.badge.high{color:var(--amber);border-color:var(--amber)}
 .badge.flag{color:var(--red);border-color:var(--red)}.badge.done{color:var(--green);border-color:var(--green)}a.badge{text-decoration:none}
 .muted{color:var(--muted);font-size:.9rem}
 .review{background:var(--tint-red);padding:8px;border-radius:6px;margin-top:6px}.done{background:var(--tint-green)}
+.review form{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;margin-top:6px}
+.review form input[type=text]{flex:1 1 180px;width:auto;min-width:140px}
+.review form button{background:var(--surface);color:var(--ink);border:1.5px solid var(--line);margin-right:0;white-space:nowrap}
+.review button[value=confirm]{color:var(--green);border-color:var(--green)}
+.review button[value=confirm]:hover{background:var(--tint-green)}
+.review button[value=reject]{color:var(--red);border-color:var(--red)}
+.review button[value=reject]:hover{background:var(--tint-red)}
 button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;margin-right:6px;cursor:pointer}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
 input[type=text]{width:60%}
@@ -206,7 +218,10 @@ form.guided{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:
 border-radius:8px;padding:14px}
 form.guided label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px}
 form.guided .wide{grid-column:1/-1}form.guided input[type=text]{width:100%}form.guided button{justify-self:start}
-@media (max-width:640px){form.guided{grid-template-columns:1fr}input[type=text]{width:100%}}'''+chat.CSS+reliability.CSS
+@media (max-width:760px){.review form{flex-wrap:wrap}.review form input[type=text]{flex:1 1 100%}}
+@media (max-width:640px){form.guided{grid-template-columns:1fr}input[type=text]{width:100%}}'''+chat.CSS+reliability.CSS+'''
+.tile{border-top:3px solid var(--accent);box-shadow:var(--shadow)}
+.tile b{font-size:1.85rem;font-variant-numeric:tabular-nums;line-height:1.15}'''
 
 
 def page(title,body,extra_css=''):
