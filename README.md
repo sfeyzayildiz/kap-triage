@@ -6,7 +6,7 @@
 
 ![Demo on made-up sample data: overview, morning lists, review, watchlist, why it moved, themes, reliability](docs/img/demo.gif)
 
-Demo, sped up, on made-up sample data (the real data is licensed and stays on my computer). Full video (about 80 seconds): [watch](https://github.com/user-attachments/assets/f9859f7d-1f3a-469b-b69f-25a9f9cfffe5).
+Demo, sped up, on made-up sample data (the real data is licensed and stays on my computer). Full video (about 80 seconds): [watch](https://github.com/user-attachments/assets/06c40ba0-9cd0-4d44-bc71-1a108f6ec1ca).
 
 A working prototype for "Yeni İş İlişkisi" (new business relationship) disclosures on KAP, the public disclosure platform of Borsa İstanbul. It runs nightly on real data, on one laptop, with local models only. The screens are in Turkish because the users are Turkish analysts. Not investment advice: it does not predict prices or recommend trades.
 
