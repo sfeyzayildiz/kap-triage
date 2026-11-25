@@ -28,3 +28,5 @@ jobs:
         run: ruff check .
       - name: Tests
         run: pytest -q
+      - name: Check reported results
+        run: python main.py verify-results

@@ -20,6 +20,22 @@ This is version 2 of the project: the same system as a Python package with a Fas
 - **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test. Recount all five results yourself with `python main.py verify-results`: Set C, the regex comparison, Set D, prompt injection and Set D search; the files are in `evidence/` and contain no licensed content.
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
+## Check the claims in 2 minutes
+
+Use Python 3.12. Allow extra time for the first install.
+
+```sh
+git clone https://github.com/sfeyzayildiz/kap-triage.git
+cd kap-triage
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+python main.py verify-results
+python -m pytest -q
+```
+
+Five lines end in `MATCH`, one per result. The test summary shows `108 passed`.
+
 ## Try it in 2 minutes (no licensed data needed)
 ```
 python3 -m venv .venv
@@ -30,7 +46,7 @@ The panel runs on 12 invented companies and 57 invented disclosures; their morni
 
 Queue a desk e-mail with `python main.py mail --send --day YYYY-MM-DD --desk DESK` (add `--sample` for the sample panel), then approve it or enter a rejection reason at `http://127.0.0.1:8765/onay`.
 
-Also without a model: `.venv/bin/pytest` and `.venv/bin/ruff check .` (both run by CI on every pull request; `tests/test_sample_data.py` runs the nightly chain with a fake model). On Windows, use `python -m venv .venv` and `.venv\Scripts\` instead of `.venv/bin/`.
+To run the same tests and lint checks as CI, install the test tools with `.venv/bin/pip install -r requirements-dev.txt`, then run `.venv/bin/python -m pytest -q` and `.venv/bin/ruff check .`. The tests use a fake model. On Windows, use `python -m venv .venv` and `.venv\Scripts\` instead of `.venv/bin/`.
 
 ## The story: it failed first
 | step | data | silent errors | result | why it counts or not |
