@@ -28,6 +28,8 @@ python3 -m venv .venv
 ```
 The panel runs on 12 invented companies and 57 invented disclosures; their morning lists were made by the real nightly chain, and only the model's answers were written in advance. After the install, no model and no network are needed. Tested with Python 3.12. A 10-minute guided tour: [`sample/README.md`](sample/README.md).
 
+Queue a desk e-mail with `python main.py mail --send --day YYYY-MM-DD --desk DESK` (add `--sample` for the sample panel), then approve it or enter a rejection reason at `http://127.0.0.1:8765/onay`.
+
 Also without a model: `.venv/bin/pytest` and `.venv/bin/ruff check .` (both run by CI on every pull request; `tests/test_sample_data.py` runs the nightly chain with a fake model). On Windows, use `python -m venv .venv` and `.venv\Scripts\` instead of `.venv/bin/`.
 
 ## The story: it failed first

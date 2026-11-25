@@ -21,6 +21,7 @@ from starlette.exceptions import HTTPException
 
 import kap_triage.analysis.desks as desks
 import kap_triage.assistant.themes as themes
+import kap_triage.web.approvals as approvals
 import kap_triage.web.chat as chat
 import kap_triage.web.form as form
 import kap_triage.web.kart as kart
@@ -104,6 +105,8 @@ def origin_ok(origin):
 async def local_only(request, call_next):
     if not panel.host_ok(request.headers.get('host')):
         return page(request, 403, 'Hayır', '<p>Yalnızca yerel istek.</p>')
+    if request.url.path == '/onay' and request.url.hostname != '127.0.0.1':
+        return page(request, 403, 'Hayır', '<p>Yalnızca 127.0.0.1.</p>')
     if request.method == 'POST' and not origin_ok(request.headers.get('origin')):
         return page(request, 403, 'Hayır', '<p>Yalnızca yerel istek.</p>')
     if request.method == 'GET':
@@ -258,7 +261,29 @@ def kart_form(request: Request):
     return kart_page(request, 200, kart.render_body(text))
 
 
+@app.get('/onay')
+def mail_approvals(request: Request):
+    return page(request, 200, 'E-posta onayı', approvals.render())
+
+
 # --- forms (POST, answered with a redirect) -----------------------------------
+
+
+@app.post('/onay')
+async def mail_decision(request: Request):
+    data = await read_form(request, MAX_FORM)
+    status = await run_in_threadpool(
+        approvals.decide, data.get('day', ''), data.get('desk', ''), data.get('decision', ''), data.get('reason', '')
+    )
+    if status == 303:
+        return send(request, 303, '', location='/onay')
+    messages = {
+        400: 'Kararı ve ret gerekçesini kontrol edin.',
+        409: 'Bu e-posta karar beklemiyor.',
+        502: 'Gönderim doğrulanamadı. E-posta onay bekliyor. Yeniden onaylamadan önce yerel posta kutusunu kontrol edin.',
+        503: 'İşlem tamamlanamadı. Yerel posta kutusunu ve onay listesini kontrol edin.',
+    }
+    return page(request, status, 'E-posta onayı', f'<p>{messages[status]}</p>')
 
 
 @app.post('/review')

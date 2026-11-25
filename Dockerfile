@@ -5,7 +5,14 @@
 #   - Ollama runs on the host (on a Mac, Docker cannot use the GPU); OLLAMA_HOST points to it,
 #   - embedding / reranker weights are cached in a named volume after the first run.
 # See docs/docker.md.
-FROM python:3.12-slim
+FROM node:22-bookworm-slim AS smtp
+WORKDIR /smtp
+COPY mcp/smtp/package*.json ./
+RUN npm ci --ignore-scripts
+
+FROM python:3.12-slim-bookworm
+COPY --from=smtp /usr/local/bin/node /usr/local/bin/node
+COPY --from=smtp /smtp /app/mcp/smtp
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

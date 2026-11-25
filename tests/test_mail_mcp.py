@@ -1,6 +1,9 @@
 """kap_triage/analysis/desks.py, kap_triage/web/mail_mcp.py: the checks of the v1 self-test in mail_mcp.py, on made-up data (no network, no real data)."""
 
 import re
+
+import pytest
+from langgraph.checkpoint.sqlite import SqliteSaver
 from kap_triage.web.mail_mcp import BAD_CASES, SERVER_ENV, decide, norm_text, server_env, synthetic_message
 
 
@@ -45,12 +48,18 @@ def _clean_state():
     return {'day': '2026-11-12', 'desk': 'Savunma', 'to': m['to'][0], 'subject': m['subject'], 'body': m['body']}
 
 
-def test_mail_graph_no_send_before_interrupt():
+@pytest.fixture
+def saver():
+    with SqliteSaver.from_conn_string(':memory:') as checkpoint:
+        yield checkpoint
+
+
+def test_mail_graph_no_send_before_interrupt(saver):
     # running up to interrupt() must pause with the preview and never call send_fn
     from kap_triage.web.mail_mcp import build_mail_graph
 
     calls = []
-    g = build_mail_graph(send_fn=lambda args: calls.append(args) or 'sent=True')
+    g = build_mail_graph(saver, send_fn=lambda args: calls.append(args) or 'sent=True')
     s = _clean_state()
     out = g.invoke(s, {'configurable': {'thread_id': '2026-11-12:Savunma'}})
     assert out.get('__interrupt__') and out['__interrupt__'][0].value == {
@@ -61,26 +70,26 @@ def test_mail_graph_no_send_before_interrupt():
     assert calls == []
 
 
-def test_mail_graph_decline_does_not_send():
+def test_mail_graph_decline_does_not_send(saver):
     # resuming with False must skip send_fn and record result='declined'
     from langgraph.types import Command
     from kap_triage.web.mail_mcp import build_mail_graph
 
     calls = []
-    g = build_mail_graph(send_fn=lambda args: calls.append(args) or 'sent=True')
+    g = build_mail_graph(saver, send_fn=lambda args: calls.append(args) or 'sent=True')
     cfg = {'configurable': {'thread_id': '2026-11-12:Savunma'}}
     g.invoke(_clean_state(), cfg)
     final = g.invoke(Command(resume=False), cfg)
     assert calls == [] and final['result'] == 'declined'
 
 
-def test_mail_graph_approve_sends_once_with_exact_payload():
+def test_mail_graph_approve_sends_once_with_exact_payload(saver):
     # resuming with True must call send_fn exactly once with the prepared to/subject/body
     from langgraph.types import Command
     from kap_triage.web.mail_mcp import build_mail_graph
 
     calls = []
-    g = build_mail_graph(send_fn=lambda args: calls.append(args) or 'sent=True')
+    g = build_mail_graph(saver, send_fn=lambda args: calls.append(args) or 'sent=True')
     s = _clean_state()
     cfg = {'configurable': {'thread_id': '2026-11-12:Savunma'}}
     g.invoke(s, cfg)
@@ -89,25 +98,25 @@ def test_mail_graph_approve_sends_once_with_exact_payload():
     assert final['result'] == 'sent=True'
 
 
-def test_mail_graph_stops_before_interrupt_on_amount_leak():
+def test_mail_graph_stops_before_interrupt_on_amount_leak(saver):
     # a message body containing an amount (leaks) must stop in prepare without interrupting or sending
     from kap_triage.web.mail_mcp import build_mail_graph
 
     calls = []
-    g = build_mail_graph(send_fn=lambda args: calls.append(args) or 'sent=True')
+    g = build_mail_graph(saver, send_fn=lambda args: calls.append(args) or 'sent=True')
     s = {**_clean_state(), 'body': 'Sözleşme bedeli 500.000 TL olarak açıklanmıştır.'}
     out = g.invoke(s, {'configurable': {'thread_id': '2026-11-12:Savunma'}})
     assert not out.get('__interrupt__') and 'amount' in (out.get('result') or '')
     assert calls == []
 
 
-def test_mail_graph_second_resume_does_not_send_twice():
+def test_mail_graph_second_resume_does_not_send_twice(saver):
     # resuming the same thread_id a second time must not trigger a second send
     from langgraph.types import Command
     from kap_triage.web.mail_mcp import build_mail_graph
 
     calls = []
-    g = build_mail_graph(send_fn=lambda args: calls.append(args) or 'sent=True')
+    g = build_mail_graph(saver, send_fn=lambda args: calls.append(args) or 'sent=True')
     cfg = {'configurable': {'thread_id': '2026-11-12:Savunma'}}
     g.invoke(_clean_state(), cfg)
     g.invoke(Command(resume=True), cfg)

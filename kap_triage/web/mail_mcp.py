@@ -5,7 +5,7 @@ Message: desk_mail.payload (no amounts, no disclosure text). Recipients limited 
 
 Usage:
   python -m kap_triage.web.mail_mcp --send --day 2026-11-12                  # lists the desks of that day
-  python -m kap_triage.web.mail_mcp --send --day 2026-11-12 --desk Savunma  # shows the approval text, asks e/h
+  python -m kap_triage.web.mail_mcp --send --day 2026-11-12 --desk Savunma  # queues the preview for /onay
   python -m kap_triage.web.mail_mcp --check                                 # measurement A-G (synthetic message, Mailpit API)
 """
 
@@ -23,7 +23,7 @@ SERVER_JS = ROOT / 'mcp/smtp/node_modules/@ni-c/smtp-mcp/dist/index.js'
 MAILPIT = 'http://127.0.0.1:8025'
 SENDER = 'asistan@masa.local'
 SERVER_ENV = {
-    'SMTP_HOST': '127.0.0.1',
+    'SMTP_HOST': 'mailpit' if os.environ.get('KAP_MAILPIT_SERVICE') == 'mailpit' else '127.0.0.1',
     'SMTP_PORT': '1025',
     'SMTP_TLS': 'none',
     'SMTP_USER': 'kap',
@@ -54,10 +54,6 @@ def server_env():
 
 def norm_text(s):
     return '\n'.join(line.rstrip() for line in (s or '').replace('\r\n', '\n').split('\n')).strip()
-
-
-def result_text(res):
-    return ' '.join(getattr(c, 'text', '') for c in (res.content or []))
 
 
 def sent_ok(res):
@@ -213,23 +209,12 @@ def cmd_check():
     print(f'decision: {decide(checks, secs)}')
 
 
-def terminal_answer(message):
-    print('\n' + '=' * 80 + '\nsmtp-mcp onay isteği (sunucunun metni):\n' + '-' * 80)
-    print(message)
-    print('=' * 80)
-    while True:
-        a = input('Bu e-postayı gönder? [e/h]: ').strip().lower()
-        if a in ('e', 'h'):
-            return a == 'e'
-
-
-def build_mail_graph(send_fn=None):
+def build_mail_graph(checkpointer, send_fn=None):
     """LangGraph approval flow: prepare -> approve (interrupt) -> send. No side effects before approval."""
     from typing import Optional, TypedDict
 
     os.environ.setdefault('LANGSMITH_TRACING', 'false')
     os.environ.setdefault('LANGCHAIN_TRACING_V2', 'false')
-    from langgraph.checkpoint.memory import MemorySaver
     from langgraph.graph import END, START, StateGraph
     from langgraph.types import interrupt
     from kap_triage.analysis.desks import leaks, payload
@@ -241,13 +226,15 @@ def build_mail_graph(send_fn=None):
         to: str
         subject: str
         body: str
+        error_type: str
         approved: Optional[bool]
         result: Optional[str]
 
     def prepare(s):
+        desk = s.get('desk', '')
         to, subject, body = s.get('to'), s.get('subject'), s.get('body')
         if not (to and subject and body):
-            day, desk = s.get('day', ''), s.get('desk', '')
+            day = s.get('day', '')
             items = load_day(day)
             if items is None:
                 return {'result': f'no morning list for {day}'}
@@ -255,10 +242,11 @@ def build_mail_graph(send_fn=None):
             d = next((x for x in desks if x['desk'].lower() == desk.lower()), None)
             if d is None:
                 return {'result': f'no desk "{desk}" on {day}; run without --desk to list them'}
+            desk = d['desk']
             to, subject, body = d['to'], d['subject'], d['text']
         if leaks(subject + body):
-            return {'to': to, 'subject': subject, 'body': body, 'result': 'message text contains an amount; not sent'}
-        return {'to': to, 'subject': subject, 'body': body, 'result': None}
+            return {'result': 'message text contains an amount; not sent'}
+        return {'desk': desk, 'to': to, 'subject': subject, 'body': body, 'result': None}
 
     def after_prepare(s):
         return END if s.get('result') else 'approve'
@@ -268,20 +256,17 @@ def build_mail_graph(send_fn=None):
         return {'approved': bool(decision)}
 
     def send(s):
-        if s.get('result'):
-            return {}
         if not s.get('approved'):
             return {'result': 'declined'}
         args = {'to': [s['to']], 'subject': s['subject'], 'body': s['body']}
-        if send_fn is not None:
-            res = send_fn(args)
-            return {
-                'result': res
-                if isinstance(res, str)
-                else ('sent=True' if sent_ok(res) else f'sent=False ({result_text(res)[:160]})')
-            }
-        res = asyncio.run(call(args, answer=lambda m: True))
-        return {'result': 'sent=True' if sent_ok(res) else f'sent=False ({result_text(res)[:160]})'}
+        try:
+            res = send_fn(args) if send_fn is not None else asyncio.run(call(args, answer=lambda m: True))
+            success = res == 'sent=True' if isinstance(res, str) else sent_ok(res)
+        except (Exception, SystemExit) as exc:
+            return {'result': 'send_failed', 'error_type': type(exc).__name__}
+        if not success:
+            return {'result': 'send_failed', 'error_type': 'MailSendError'}
+        return {'result': 'sent=True'}
 
     g = StateGraph(MailState)
     g.add_node('prepare', prepare)
@@ -290,12 +275,12 @@ def build_mail_graph(send_fn=None):
     g.add_edge(START, 'prepare')
     g.add_conditional_edges('prepare', after_prepare, {'approve': 'approve', END: END})
     g.add_edge('approve', 'send')
-    g.add_edge('send', END)
-    return g.compile(checkpointer=MemorySaver())
+    g.add_conditional_edges('send', lambda s: 'approve' if s['result'] == 'send_failed' else END)
+    return g.compile(checkpointer=checkpointer)
 
 
 def cmd_send(day, desk):
-    from langgraph.types import Command
+    from kap_triage.web.approvals import enqueue
     from kap_triage.analysis.desks import payload
     from kap_triage.web.panel import DESKS, load_day, load_sectors
 
@@ -306,18 +291,7 @@ def cmd_send(day, desk):
         desks = payload(day, items, load_sectors(), DESKS)['desks']
         print('masalar: ' + ', '.join(f'{d["desk"]} ({d["to"]})' for d in desks))
         return
-    graph = build_mail_graph()
-    cfg = {'configurable': {'thread_id': f'{day}:{desk}'}}
-    out = graph.invoke({'day': day, 'desk': desk}, cfg)
-    paused = out.get('__interrupt__')
-    if not paused:
-        raise SystemExit(out.get('result') or 'not sent')
-    info = paused[0].value
-    preview = f'To: {info["to"]}\nSubject: {info["subject"]}\n\n{info["body"]}'
-    decision = terminal_answer(preview)
-    final = graph.invoke(Command(resume=decision), cfg)
-    res = final.get('result') or ''
-    print('sent=False (declined)' if res == 'declined' else res)
+    print(enqueue(day, desk))
 
 
 def main():
@@ -325,9 +299,12 @@ def main():
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--send', action='store_true')
     g.add_argument('--check', action='store_true')
+    ap.add_argument('--sample', action='store_true', help='use sample data via main.py')
     ap.add_argument('--day')
     ap.add_argument('--desk')
     args = ap.parse_args()
+    if args.sample:
+        os.environ['KAP_DATA_DIR'] = str(ROOT / 'sample' / 'data')
     if args.check:
         cmd_check()
     else:

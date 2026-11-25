@@ -10,6 +10,8 @@ services:
     volumes:
       - ./data:/app/data
       - model-cache:/home/app/.cache/huggingface
+    environment:
+      KAP_MAILPIT_SERVICE: mailpit
     env_file:
       - path: .env
         required: false          # only collection needs the Matriks token; the panel does not

@@ -133,6 +133,7 @@ LINKS = (
     ('/form', 'Rehberli sorgu'),
     ('/days', 'Sabah listeleri'),
     ('/kontroller', 'Kontrol geçmişi'),
+    ('/onay', 'E-posta onayı'),
     ('/themes', 'Haftalık temalar'),
     ('/kart', 'KAP kartı'),
     ('/guvenilirlik', 'Güvenilirlik'),
