@@ -30,7 +30,8 @@ Reading: the vendor record is good where it exists (~92% agreement), but it is m
 | Prompt v1 / v2, adjudicated amount | Set A (dev, 100) | 96/99 both | v1 = v2; error analysis led to rules R1-R5 |
 | Frozen prompt v3 | Set B (held-out, 100) | 4 silent errors, 8 flagged | **FAIL** |
 | v3 + code checks from the Set B error analysis | Set C (held-out, 100) | **1 silent error (95% upper 4.7%), 11 flagged** | **PASS** |
-| Without an LLM: the strongest regex in the repo (written for the code checks) / regex + all code checks | Set C | 25 / 23 silent errors out of 100 | an LLM is needed |
+| Without an LLM: the strongest regex in the repo, the October baseline (A) / A + all code checks | Set C | 25 / 23 silent errors out of 100 | an LLM is needed |
+| Without an LLM: the money regex written for the code checks (B) / B + all code checks | Set C | 29 / 26 silent errors out of 100 | report only |
 | Other model families (qwen3:14b, Turkish-Gemma-9b), plus e4b / 26b without thinking | Set A | 0/15, 5/27, 5/8, 9/4 (silent / flagged) vs. e4b with thinking 0/10 | e4b stays; report only |
 
 ## Search (RAG retrieval)

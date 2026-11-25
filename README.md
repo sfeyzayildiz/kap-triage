@@ -100,7 +100,7 @@ Each test has a rule file with the measurement and the pass bar, committed befor
 | part | measured | rule |
 |---|---|---|
 | Local LLM extraction | 1 silent error in 100 unseen texts; ~15 s per reading, ~31 s per disclosure in the nightly list (two readings) | [rule](docs/set_c_plan.md) |
-| Without an LLM | the strongest regex in the repo (written for the code checks): 25 silent errors in 100 | [rule](docs/regex_baseline_rule.md) |
+| Without an LLM | the strongest regex in the repo (the October baseline): 25 silent errors in 100 | [rule](docs/regex_baseline_rule.md) |
 | RAG search | right disclosure in the top 5: 20/20; at rank 1: 17/20 (15 without the reranker) | [rule](docs/rerank_rule.md) |
 | LangGraph agent | intended link in the top 5: 18/20 | [rule](docs/router_v2_rule.md) |
 | n8n desk e-mails | 15 saved days, 33 e-mails: 0 lost, 0 wrong desk, 0 amount leaks | [rule](docs/n8n_routing_rule.md) |
