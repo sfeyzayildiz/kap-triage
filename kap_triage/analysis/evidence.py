@@ -53,6 +53,12 @@ LAYERS = (
     ('run error', {'run_error'}),
 )
 MODEL_LAYER = "model's own flag"
+INJECTION_EVIDENCE = ROOT / 'evidence' / 'injection_set_c.jsonl'
+# the layered-defence row of the "Security" table and the "Injection batches" note in docs/results.md
+INJECTION_ROW = re.compile(
+    r'Layered: [^|]*\| texts (\d+)-(\d+) \| silent \*\*(\d+) → (\d+)\*\* \(95% upper ([\d.]+)%\)'
+)
+INJECTION_ALONE = re.compile(r'On \d+-\d+ each layer alone also reached (\d+)/(\d+)')
 
 
 def published(path=RESULTS_MD):
@@ -202,6 +208,71 @@ def main_set_d():
     return same
 
 
+def published_injection(path=RESULTS_MD):
+    """The layered-defence numbers as docs/results.md states them."""
+    text = path.read_text(encoding='utf-8')
+    rows, alone = INJECTION_ROW.findall(text), INJECTION_ALONE.findall(text)
+    if len(rows) != 1 or len(alone) != 1:
+        raise SystemExit(
+            f'expected one layered-defence row and one note in {path.name}, found {len(rows)}, {len(alone)}'
+        )
+    first, last, silent, both, upper = rows[0]
+    k, n = map(int, alone[0])
+    if int(last) - int(first) + 1 != n:
+        raise SystemExit(f'layered-defence row and note in {path.name} disagree on n')
+    return {'n': n, 'silent': int(silent), 'both': int(both), 'upper': float(upper), 'layer_alone': k}
+
+
+def recount_injection(rows):
+    """Per attack: items that count, successes, silent successes, and those left by layer 1, 2 and both."""
+    out = {}
+    for attack in sorted({r['attack'] for r in rows}):
+        mine = [r for r in rows if r['attack'] == attack and r['counts']]
+        silent = [r for r in mine if r['success'] and not r['flagged']]
+        out[attack] = {
+            'n': len(mine),
+            'success': sum(r['success'] for r in mine),
+            'silent': len(silent),
+            'layer1': sum(1 for r in silent if not r['caught_layer1']),
+            'layer2': sum(1 for r in silent if not r['caught_layer2']),
+            'both': sum(1 for r in silent if not (r['caught_layer1'] or r['caught_layer2'])),
+        }
+    return out
+
+
+def injection_matches(c, p):
+    """The published row is the amount attack; it must also be the total over all four attacks."""
+    a = c['amount']
+    total = {k: sum(x[k] for x in c.values()) for k in ('silent', 'both')}
+    upper = round(upper95(a['both'], a['n']) * 100, 1)
+    return (
+        (a['n'], a['silent'], a['both'], upper) == (p['n'], p['silent'], p['both'], p['upper'])
+        and a['layer1'] == a['layer2'] == p['layer_alone']
+        and total == {'silent': a['silent'], 'both': a['both']}
+    )
+
+
+def main_injection():
+    rows = load(INJECTION_EVIDENCE)
+    c, p = recount_injection(rows), published_injection()
+    same = injection_matches(c, p)
+    texts = len({r['id_hash'] for r in rows})
+    with_record = len({r['id_hash'] for r in rows if r['matriks_record']})
+    print(f'Prompt injection, layered defence: {texts} texts ({with_record} with a Matriks record), sealed attacks')
+    for k, x in c.items():
+        print(
+            f'  {k}: {x["success"]}/{x["n"]} succeeded, {x["silent"]} silent; left silent by layer 1 alone '
+            f'{x["layer1"]}, layer 2 alone {x["layer2"]}, both {x["both"]}'
+        )
+    a = c['amount']
+    print(f'  amount, both layers: {a["both"]}/{a["n"]}, 95% upper bound {upper95(a["both"], a["n"]):.1%}')
+    print(
+        f'  docs/results.md (read now) says {p["silent"]} → {p["both"]} of {p["n"]} (upper {p["upper"]}%), '
+        f'each layer alone {p["layer_alone"]}: ' + ('MATCH' if same else 'MISMATCH')
+    )
+    return same
+
+
 def main_regex():
     c = recount_regex(load(REGEX_EVIDENCE))
     p = published_regex()
@@ -238,6 +309,7 @@ def main():
     ok = main_set_c()
     ok = main_regex() and ok  # run all, so a mismatch in one does not hide the others
     ok = main_set_d() and ok
+    ok = main_injection() and ok
     if not ok:
         raise SystemExit(1)
 
