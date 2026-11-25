@@ -207,3 +207,27 @@ def test_injection_recount_rule():
     c = evidence.recount_injection(rows)
     assert c['amount'] == {'n': 3, 'success': 2, 'silent': 1, 'layer1': 1, 'layer2': 0, 'both': 0}
     assert c['review']['n'] == 0
+
+
+def test_rag_file_has_only_safe_fields():
+    # 20 questions; ranks are 1-10 or null (not in the top 10); no question or text
+    rows = evidence.load(evidence.RAG_EVIDENCE)
+    assert len(rows) == 20 and len({r['id_hash'] for r in rows}) == 20
+    for r in rows:
+        assert set(r) == {'id_hash', 'rank_embed', 'rank_rerank', 'same_company_top1'}
+        assert re.fullmatch(r'[0-9a-f]{16}', r['id_hash'])
+        for k in ('rank_embed', 'rank_rerank'):
+            assert r[k] is None or (isinstance(r[k], int) and 1 <= r[k] <= 10)
+        assert isinstance(r['same_company_top1'], bool)
+
+
+def test_rag_recount_matches_results_md():
+    p = evidence.published_rag()
+    assert p == {'n': 20, 'embed_at1': 15, 'rerank_at1': 17, 'rerank_at5': 20}
+    assert evidence.recount_rag(evidence.load(evidence.RAG_EVIDENCE)) == p
+
+
+def test_rag_mismatch_is_detected(tmp_path):
+    md = tmp_path / 'results.md'
+    md.write_text('| + cross-encoder rerank (x) | Set D (20) | top 1 15 → **18**, top 5 **20/20**, y | z |\n')
+    assert evidence.recount_rag(evidence.load(evidence.RAG_EVIDENCE)) != evidence.published_rag(md)

@@ -59,6 +59,11 @@ INJECTION_ROW = re.compile(
     r'Layered: [^|]*\| texts (\d+)-(\d+) \| silent \*\*(\d+) → (\d+)\*\* \(95% upper ([\d.]+)%\)'
 )
 INJECTION_ALONE = re.compile(r'On \d+-\d+ each layer alone also reached (\d+)/(\d+)')
+RAG_EVIDENCE = ROOT / 'evidence' / 'rag_set_d.jsonl'
+# the rerank row of the "Search" table in docs/results.md
+RAG_ROW = re.compile(
+    r'\+ cross-encoder rerank [^|]*\| Set D \((\d+)\) \| top 1 (\d+) → \*\*(\d+)\*\*, top 5 \*\*(\d+)/(\d+)\*\*'
+)
 
 
 def published(path=RESULTS_MD):
@@ -273,6 +278,46 @@ def main_injection():
     return same
 
 
+def published_rag(path=RESULTS_MD):
+    """The Set D search numbers as docs/results.md states them."""
+    hits = RAG_ROW.findall(path.read_text(encoding='utf-8'))
+    if len(hits) != 1:
+        raise SystemExit(f'expected one rerank row in {path.name}, found {len(hits)}')
+    n, embed1, rerank1, rerank5, n5 = map(int, hits[0])
+    if n != n5:
+        raise SystemExit(f'rerank row in {path.name} disagrees on n')
+    return {'n': n, 'embed_at1': embed1, 'rerank_at1': rerank1, 'rerank_at5': rerank5}
+
+
+def recount_rag(rows):
+    def at(k, key):
+        return sum(1 for r in rows if r[key] is not None and r[key] <= k)
+
+    return {
+        'n': len(rows),
+        'embed_at1': at(1, 'rank_embed'),
+        'rerank_at1': at(1, 'rank_rerank'),
+        'rerank_at5': at(5, 'rank_rerank'),
+    }
+
+
+def main_rag():
+    rows = load(RAG_EVIDENCE)
+    c, p = recount_rag(rows), published_rag()
+    same = c == p
+    embed5 = sum(1 for r in rows if r['rank_embed'] is not None and r['rank_embed'] <= 5)
+    wrong_same = sum(1 for r in rows if r['rank_rerank'] != 1 and r['same_company_top1'])
+    print(f'Search, Set D ({c["n"]} questions; rerun equal to the saved run, top 10 of every question)')
+    print(f'  embedding only: rank 1 {c["embed_at1"]}/{c["n"]}, top 5 {embed5}/{c["n"]}')
+    print(f'  + rerank: rank 1 {c["rerank_at1"]}/{c["n"]}, top 5 {c["rerank_at5"]}/{c["n"]}')
+    print(f'  rank-1 misses with the right company first: {wrong_same} of {c["n"] - c["rerank_at1"]}')
+    print(
+        f'  docs/results.md (read now) says rank 1 {p["embed_at1"]} → {p["rerank_at1"]}, '
+        f'top 5 {p["rerank_at5"]}/{p["n"]}: ' + ('MATCH' if same else 'MISMATCH')
+    )
+    return same
+
+
 def main_regex():
     c = recount_regex(load(REGEX_EVIDENCE))
     p = published_regex()
@@ -310,6 +355,7 @@ def main():
     ok = main_regex() and ok  # run all, so a mismatch in one does not hide the others
     ok = main_set_d() and ok
     ok = main_injection() and ok
+    ok = main_rag() and ok
     if not ok:
         raise SystemExit(1)
 
