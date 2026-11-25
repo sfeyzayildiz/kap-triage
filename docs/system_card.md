@@ -47,7 +47,7 @@ A local LLM (`gemma4:e4b`, Ollama) extracts the facts (amount, currency, counter
 - Disclosure texts come from the Matriks test environment (same counts as prod); new-business data from prod.
 
 ## Human oversight
-Flagged items show the reason and a confirm / reject step; decisions are logged with the reasons at review time (first real use: 3 of 6 flags were real errors; the panel page "Kontrol geçmişi" counts decisions per flag type). Every answer that shows a disclosure links to its KAP source.
+Flagged items show the reason and a confirm / reject step; decisions are logged with the reasons at review time (first real use: 3 of 6 flags were real errors; the panel page "Kontrol geçmişi" counts decisions per flag type). On-demand desk e-mails are queued by the CLI and approved or rejected at the panel’s `/onay` page; SqliteSaver preserves pending checkpoints across restarts. Every answer that shows a disclosure links to its KAP source.
 
 ## Security and privacy
 Disclosure text is treated as untrusted input (injection tested and defended); the panel binds to the local machine, sends no scripts (strict CSP) and escapes all text. Desk e-mails go to a local mail server, carry no amounts, and n8n / Mailpit run with telemetry off. No personal data is processed.

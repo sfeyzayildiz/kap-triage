@@ -17,7 +17,7 @@ This is version 2 of the project: the same system as a Python package with a Fas
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
 - **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk can get its part by e-mail.
-- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test. Recount it yourself: `python main.py verify-results` reads [`evidence/set_c.jsonl`](evidence/set_c.jsonl) (one line per item: flagged or not, reason codes, error type; no licensed content).
+- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test. Recount all five results yourself with `python main.py verify-results`: Set C, the regex comparison, Set D, prompt injection and Set D search; the files are in `evidence/` and contain no licensed content.
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
 ## Try it in 2 minutes (no licensed data needed)
@@ -78,8 +78,9 @@ flowchart LR
     subgraph MORNING["Every morning"]
         P["Panel<br/>analyst confirms or<br/>rejects each flag"]:::out
         API["Desk lists (code)<br/>desk, order, text"]:::code --> N["n8n<br/>weekdays 07:30"]:::code --> IN["Desk inboxes<br/>(local Mailpit)"]:::out
-        OD["Desk e-mail on demand<br/>third-party MCP server"]:::code --> H{"Person<br/>approves?"}:::out
-        H -- yes --> IN
+        OD["Desk e-mail queued by CLI"]:::code --> H{"Panel /onay<br/>approval?"}:::out
+        H -- yes --> SMTP["SMTP MCP server"]:::code --> IN
+        H -- no --> X["nothing is sent"]:::out
     end
     L --> P
     L --> API
@@ -91,7 +92,7 @@ flowchart LR
 | **Every night, 23:43** | pulls the day's disclosures (one pull, enforced in code), reads each text twice with a local LLM, checks the facts in code, builds the morning list, sends a phone alert | launchd, Ollama, DuckDB |
 | **Weekdays, 07:30** (when Docker is running) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
 | **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures; a card from any pasted KAP text (`/kart`) | LangGraph, RAG (`turkish-e5-large` + reranker) |
-| **From local AI tools** | the agent's tools as an MCP server (local clients only); a desk e-mail through a third-party MCP server, sent only after a person approves; the e-mail approval is a LangGraph interrupt() (prepare → approve → send) | MCP, both directions |
+| **From local AI tools** | the agent's tools as an MCP server (local clients only); on-demand desk e-mail prepared by the CLI and approved or rejected at the panel’s `/onay` page; the LangGraph interrupt is saved with SqliteSaver | MCP, both directions |
 | **On every change** | ruff + pytest; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
 Real data since October 2024: about 1,300 disclosures, 1-2 new ones a day. More: [`docs/architecture.md`](docs/architecture.md).

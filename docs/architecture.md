@@ -104,13 +104,13 @@ flowchart LR
         S --> G["Same LangGraph tools<br/>(intent preset, no router)"]:::code
     end
     subgraph IN["A third-party MCP server: desk e-mail, in"]
-        M["web/mail_mcp.py<br/>desk text from code, no amounts"]:::code --> H{"Person approves?<br/>(e / h)"}:::out
+        M["CLI queues prepared desk e-mail"]:::code --> H{"Panel /onay<br/>approval?"}:::out
         H -- yes --> SM["@ni-c/smtp-mcp 0.2.0<br/>pinned, stdio, only @masa.local"]:::code --> MP["Mailpit (local inbox)"]:::out
         H -- no --> X["nothing is sent"]:::out
     end
 ```
 - **Our server** (`kap_triage/web/mcp_server.py`, official Python SDK, `python main.py mcp`): `morning_list`, `company_history`, `search_disclosures`, `why_moved`, `company_brief`. Each tool enters the graph like the guided form, so the output is the measured tool's own text: identical 10/10, overhead 0.011 s (`docs/mcp_v2_rule.md`). A free tool-calling agent picked the right tool 12/16, our constrained router 14/16, so production keeps the router.
-- **On-demand desk mail** (`kap_triage/web/mail_mcp.py`): the CLI prepares a LangGraph interrupt in SQLite, and the panel resumes it on an analyst’s decision, recording approval after confirmed sending or keeping a failed attempt pending for fresh approval. The recipient and unapproved-send measurements in `docs/smtp_mcp_rule.md` used the earlier terminal flow.
+- **On-demand desk mail** (`kap_triage/web/mail_mcp.py`): the CLI queues a prepared message and the analyst resumes its SqliteSaver checkpoint at the panel’s `/onay` page. Confirmed sends are recorded as approved, while failed attempts stay pending for a fresh approval.
 - **Local only:** tool results contain licensed data, so never connect a cloud client. Try it: `npx -y @modelcontextprotocol/inspector@2.13.0 .venv/bin/python main.py mcp`. The two test clients used for the measurement (a fixed-call client and a free tool-calling agent) stay in the development repository.
 
 ## 5. n8n: desk e-mails
