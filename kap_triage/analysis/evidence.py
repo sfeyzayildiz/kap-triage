@@ -5,10 +5,11 @@
 evidence/set_c.jsonl has one line per Set C item (100): an id hash, whether the item was flagged,
 the reason codes and the error type against the blind gold label (null = correct).
 evidence/regex_set_c.jsonl has the same items twice, once per regex baseline (a, b): whether an
-amount was found, the code-check reason codes and the error type. Neither file holds licensed
-content. They were written by evidence/export_set_c.py and evidence/export_regex.py from the saved
-runs, with the same functions as the frozen scoring and the same totals (checked when written; the
-regexes were also run again and gave the saved outputs).
+amount was found, the code-check reason codes and the error type. evidence/set_d.jsonl has the
+50 Set D items with both live runs (flagged, reason codes, error type per run) and whether the two
+runs disagree. No file holds licensed content. They were written by the evidence/export_*.py
+scripts from the saved runs, with the same functions as the frozen scoring and the same totals
+(checked when written; the regexes were also run again and gave the saved outputs).
 
 A silent error is an item that was not flagged and has an error (docs/metrics_faq.md). A regex has
 no flag of its own, so every regex error is silent; "with code checks" adds the frozen checks.
@@ -30,6 +31,28 @@ ROW = re.compile(r'Set C \(held-out, (\d+)\) \| \*\*(\d+) silent errors? \(95% u
 REGEX_EVIDENCE = ROOT / 'evidence' / 'regex_set_c.jsonl'
 # the two regex rows of the same table: "... (A) / A + all code checks | Set C | 25 / 23 silent errors out of 100"
 REGEX_ROW = re.compile(r'\((A|B)\) / \1 \+ all code checks \| Set C \| (\d+) / (\d+) silent errors out of (\d+) \|')
+SET_D_EVIDENCE = ROOT / 'evidence' / 'set_d.jsonl'
+# the two-run row of the "Decisions" table and the "Test vs live flag rate" note in docs/results.md
+SET_D_ROW = re.compile(
+    r'disagree (\d+)/(\d+); new flags over run a \*\*(\d+)/\d+\*\* \(bar \d+\); run a silent (\d+)/\d+, '
+    r'run b silent \*\*(\d+)/\d+\*\*, caught by the flag \((\d+)/(\d+)\); on the random (\d+) alone '
+    r'(\d+)/\d+ \(95% upper ([\d.]+)%\) and (\d+)/\d+ \(([\d.]+)%\)'
+)
+SET_D_FLAGS = re.compile(r'on Set D: (\d+)-(\d+)% of (\d+) new texts, (\d+)-(\d+)% on the random (\d+)')
+# Which layer of the live pipeline raises each reason code (kap_triage/analysis/llm.py postprocess,
+# pipeline.apply_checks, pipeline.apply_defence). Any other code is the model's own flag (prompt v3).
+# Fixed 25 Nov before the Set D breakdown was first counted; descriptive only, no decision.
+LAYERS = (
+    (
+        'extraction code',
+        {'unknown_currency_code', 'revision_without_previous', 'total_lt_amount', 'try_stated_but_currency_try'},
+    ),
+    ('code checks', {'currency_unclear', 'amount_is_projection', 'cumulative_total'}),
+    ('Matriks cross-check', {'amount_vs_matriks'}),
+    ('source check (judge)', {'amount_not_in_text', 'amount_from_instruction', 'judge_error'}),
+    ('run error', {'run_error'}),
+)
+MODEL_LAYER = "model's own flag"
 
 
 def published(path=RESULTS_MD):
@@ -95,6 +118,90 @@ def regex_matches(c, p):
     )
 
 
+def published_set_d(path=RESULTS_MD):
+    """The Set D numbers as docs/results.md states them."""
+    text = path.read_text(encoding='utf-8')
+    rows, flags = SET_D_ROW.findall(text), SET_D_FLAGS.findall(text)
+    if len(rows) != 1 or len(flags) != 1:
+        raise SystemExit(
+            f'expected one Set D row and one flag-rate note in {path.name}, found {len(rows)}, {len(flags)}'
+        )
+    d, n, t1, sa, sb, caught, silent_b, nr, sar, uar, sbr, ubr = rows[0]
+    lo, hi, n2, rlo, rhi, nr2 = flags[0]
+    if (n, nr) != (n2, nr2) or int(sb) != int(silent_b):
+        raise SystemExit(f'Set D row and flag-rate note in {path.name} disagree on n')
+    keys = ('n', 'disagree', 't1', 'silent_a', 'silent_b', 'caught_b', 'n_r', 'silent_a_r', 'silent_b_r')
+    out = dict(zip(keys, map(int, (n, d, t1, sa, sb, caught, nr, sar, sbr))))
+    out.update(upper_a_r=float(uar), upper_b_r=float(ubr))
+    out.update(flag_lo=int(lo), flag_hi=int(hi), flag_r_lo=int(rlo), flag_r_hi=int(rhi))
+    return out
+
+
+def recount_set_d(rows):
+    """The same numbers, counted from the evidence rows."""
+    rand = [r for r in rows if r['stratum'] == 'R']
+
+    def silent(rs, run):
+        return [r for r in rs if r[f'error_{run}'] and not r[f'flagged_{run}']]
+
+    def pct(rs, run):
+        return round(100 * sum(r[f'flagged_{run}'] for r in rs) / len(rs))
+
+    return {
+        'n': len(rows),
+        'disagree': sum(r['disagree'] for r in rows),
+        't1': sum(1 for r in rows if r['disagree'] and not r['flagged_a']),
+        'silent_a': len(silent(rows, 'a')),
+        'silent_b': len(silent(rows, 'b')),
+        'caught_b': sum(1 for r in silent(rows, 'b') if r['disagree']),
+        'n_r': len(rand),
+        'silent_a_r': len(silent(rand, 'a')),
+        'silent_b_r': len(silent(rand, 'b')),
+        'upper_a_r': round(upper95(len(silent(rand, 'a')), len(rand)) * 100, 1),
+        'upper_b_r': round(upper95(len(silent(rand, 'b')), len(rand)) * 100, 1),
+        'flag_lo': min(pct(rows, 'a'), pct(rows, 'b')),
+        'flag_hi': max(pct(rows, 'a'), pct(rows, 'b')),
+        'flag_r_lo': min(pct(rand, 'a'), pct(rand, 'b')),
+        'flag_r_hi': max(pct(rand, 'a'), pct(rand, 'b')),
+    }
+
+
+def layer_of(code):
+    return next((name for name, codes in LAYERS if code in codes), MODEL_LAYER)
+
+
+def layer_counts(rows, run):
+    """Per layer: items it flags (any of its codes), and items only it flags."""
+    out = {}
+    for r in rows:
+        layers = {layer_of(c) for c in r[f'reasons_{run}']}
+        for name in layers:
+            x = out.setdefault(name, {'items': 0, 'only': 0})
+            x['items'] += 1
+            x['only'] += len(layers) == 1
+    return out
+
+
+def main_set_d():
+    rows = load(SET_D_EVIDENCE)
+    c, p = recount_set_d(rows), published_set_d()
+    same = c == p
+    print(f'Set D, live pipeline, two separate runs: {c["n"]} items ({c["n_r"]} random)')
+    print(
+        f'  silent errors: run a {c["silent_a"]}/{c["n"]}, run b {c["silent_b"]}/{c["n"]} '
+        f'(caught by the two-run flag: {c["caught_b"]}); random {c["n_r"]}: {c["silent_a_r"]} '
+        f'(upper {c["upper_a_r"]}%) and {c["silent_b_r"]} (upper {c["upper_b_r"]}%)'
+    )
+    print(f'  disagree {c["disagree"]}/{c["n"]}, new flags over run a {c["t1"]}')
+    print(f'  flagged {c["flag_lo"]}-{c["flag_hi"]}%, random {c["flag_r_lo"]}-{c["flag_r_hi"]}%')
+    for run in 'ab':
+        flagged = sum(r[f'flagged_{run}'] for r in rows)
+        parts = ', '.join(f'{k} {v["items"]} (only {v["only"]})' for k, v in sorted(layer_counts(rows, run).items()))
+        print(f'  run {run}, {flagged} flagged, by layer (an item can have several): {parts}')
+    print('  docs/results.md (read now): ' + ('MATCH' if same else f'MISMATCH, it says {p}'))
+    return same
+
+
 def main_regex():
     c = recount_regex(load(REGEX_EVIDENCE))
     p = published_regex()
@@ -129,7 +236,8 @@ def main_set_c():
 
 def main():
     ok = main_set_c()
-    ok = main_regex() and ok  # run both, so a mismatch in one does not hide the other
+    ok = main_regex() and ok  # run all, so a mismatch in one does not hide the others
+    ok = main_set_d() and ok
     if not ok:
         raise SystemExit(1)
 

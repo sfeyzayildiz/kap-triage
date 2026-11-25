@@ -122,7 +122,7 @@ Each test has a rule file with the measurement and the pass bar, committed befor
 
 ## Limits
 - Small test sets (100 / 48 / 20 / 18), so the bounds are wide. One person labeled all data.
-- Live, about 1 in 5 disclosures goes to a person (Set D, 20-22%), above the 15% flag bar set for the test set; which check flags most was not analysed.
+- Live, about 1 in 5 disclosures goes to a person (Set D, 20-22%), above the 15% flag bar set for the test set. No single check causes it: of run a's 11 flagged items, the model's own flag is on 5, the code checks on 4, the extraction code on 4, the source check on 2, the Matriks cross-check on 1 (an item can have several; counted 25 Nov from `evidence/set_d.jsonl`, descriptive only).
 - Ordering: sorting by amount alone did as well (12/12 top picks). The value is in reading the amount right and flagging what is unclear, not in the ranking formula.
 - One disclosure type; two more were piloted and did not pass their bars. The chat has no scope check (the guided form avoids this).
 - Analyst time saved was not measured. Runs nightly on one laptop, with one local model and no fallback model.

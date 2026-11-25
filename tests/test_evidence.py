@@ -93,3 +93,51 @@ def test_recount_rule():
     ]
     c = evidence.recount(rows)
     assert (c['n'], c['silent'], c['flagged'], c['caught']) == (3, 1, 1, 1)
+
+
+SET_D_KEYS = {'id_hash', 'stratum', 'disagree'} | {f'{k}_{r}' for k in ('flagged', 'reasons', 'error') for r in 'ab'}
+
+
+def test_set_d_file_has_only_safe_fields():
+    # 50 items, 12 census (U) + 38 random (R), none of them in Set C, no numbers outside the hash
+    rows = evidence.load(evidence.SET_D_EVIDENCE)
+    assert len(rows) == 50 and len({r['id_hash'] for r in rows}) == 50
+    assert sum(r['stratum'] == 'R' for r in rows) == 38
+    assert not {r['id_hash'] for r in rows} & {r['id_hash'] for r in evidence.load()}
+    for r in rows:
+        assert set(r) == SET_D_KEYS and r['stratum'] in ('U', 'R')
+        for run in 'ab':
+            assert isinstance(r[f'flagged_{run}'], bool) and r[f'error_{run}'] in ERRORS
+            assert all(re.fullmatch(r'[a-z_]{1,40}', x) for x in r[f'reasons_{run}'])
+        rest = {k: v for k, v in r.items() if k != 'id_hash'}
+        assert not re.search(r'\d', json.dumps(rest))
+
+
+def test_set_d_recount_matches_results_md():
+    p = evidence.published_set_d()
+    assert (p['silent_a'], p['silent_b'], p['disagree'], p['t1'], p['flag_lo'], p['flag_hi']) == (0, 1, 3, 0, 20, 22)
+    assert evidence.recount_set_d(evidence.load(evidence.SET_D_EVIDENCE)) == p
+
+
+def test_set_d_mismatch_is_detected(tmp_path):
+    md = tmp_path / 'results.md'
+    md.write_text(
+        'on Set D: 20-22% of 50 new texts, 21-24% on the random 38\n'
+        'disagree 3/50; new flags over run a **0/50** (bar 3); run a silent 0/50, run b silent **0/50**, '
+        'caught by the flag (0/0); on the random 38 alone 0/38 (95% upper 7.6%) and 0/38 (7.6%)\n'
+    )
+    assert evidence.recount_set_d(evidence.load(evidence.SET_D_EVIDENCE)) != evidence.published_set_d(md)
+
+
+def test_layer_counts_rule():
+    # an item counts once per layer it has; "only" when no other layer flagged it
+    rows = [
+        {'reasons_a': ['currency_unclear', 'cumulative_total']},
+        {'reasons_a': ['currency_unclear', 'amount_vs_matriks']},
+        {'reasons_a': ['share_unclear']},
+        {'reasons_a': []},
+    ]
+    c = evidence.layer_counts(rows, 'a')
+    assert c['code checks'] == {'items': 2, 'only': 1}
+    assert c['Matriks cross-check'] == {'items': 1, 'only': 0}
+    assert c[evidence.MODEL_LAYER] == {'items': 1, 'only': 1}

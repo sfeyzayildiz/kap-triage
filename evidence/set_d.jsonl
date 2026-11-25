@@ -1,0 +1,50 @@
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "512cbefd2ad4c649", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "1f0d489640acded3", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "2efde265b682229b", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": true, "error_a": null, "error_b": "wrong_amount", "flagged_a": true, "flagged_b": false, "id_hash": "cb967db4d73ce47b", "reasons_a": ["try_stated_but_currency_try"], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "3d0d2928d1113dff", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": "fabricated", "error_b": "fabricated", "flagged_a": true, "flagged_b": true, "id_hash": "5e52e7554c0c092b", "reasons_a": ["amount_not_in_text"], "reasons_b": ["amount_not_in_text"], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "a9f27a23ee5d6510", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "bbd9a45c5f47e6d3", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": true, "id_hash": "87c1ff53ba94f793", "reasons_a": [], "reasons_b": ["share_unclear"], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "4ec6bed440a7d03d", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "8694766959049f8e", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "414dd360b861b162", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "73470b9599788bc1", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": true, "flagged_b": true, "id_hash": "96735421f7538e25", "reasons_a": ["currency_unclear", "try_stated_but_currency_try"], "reasons_b": ["currency_unclear", "try_stated_but_currency_try"], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "357b5c823fb0a1ab", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "c776fb1f6922aded", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "4e81c40dc4201ad7", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "06dfe764caee73d8", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "cef83e030ea21e48", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "71af0d3e40b37cd9", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "d2861d89a143453c", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "328836e1a658e5a4", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "db6f0eeb67b720a6", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "01b12534f4b7259e", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "984be5bc883b2853", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "c51439fa205ba2cb", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "647814e8e87fbaa8", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "d8031fe19f464657", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "2e621960ff9d50bc", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "d4d58b690de31f6e", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "d17f554d5b7e1951", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": true, "flagged_b": true, "id_hash": "e7237a58ea22320b", "reasons_a": ["amount_vs_matriks", "currency_unclear", "try_stated_but_currency_try"], "reasons_b": ["amount_vs_matriks", "currency_unclear", "try_stated_but_currency_try"], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": true, "flagged_b": true, "id_hash": "755eaf3c911d54b6", "reasons_a": ["amount_unclear"], "reasons_b": ["amount_unclear"], "stratum": "R"}
+{"disagree": false, "error_a": "wrong_amount", "error_b": "wrong_amount", "flagged_a": true, "flagged_b": true, "id_hash": "29d2c05183d3e5fd", "reasons_a": ["cumulative_total"], "reasons_b": ["cumulative_total"], "stratum": "R"}
+{"disagree": false, "error_a": "wrong_amount", "error_b": "wrong_amount", "flagged_a": true, "flagged_b": true, "id_hash": "764f6019d0e5fa60", "reasons_a": ["amount_not_in_text", "share_unclear"], "reasons_b": ["amount_not_in_text"], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": true, "id_hash": "7105269d4eb4e942", "reasons_a": [], "reasons_b": ["share_unclear"], "stratum": "R"}
+{"disagree": true, "error_a": "missed", "error_b": null, "flagged_a": true, "flagged_b": false, "id_hash": "5b5bfe50b2066771", "reasons_a": ["share_unclear"], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "3ac9ef8b4bff6228", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "1b7c6ab22877c4ee", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "bd381ee2e26815b0", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "6b72225589166a6a", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": "wrong_amount", "error_b": "wrong_amount", "flagged_a": true, "flagged_b": true, "id_hash": "c34562d07f3fcb5b", "reasons_a": ["mixed_currency"], "reasons_b": ["mixed_currency"], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "7d5e2b2521c36ab0", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "72d9bc74a7643c19", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "626fb59ae78bcafa", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": true, "flagged_b": true, "id_hash": "dfd8481f2e33523a", "reasons_a": ["currency_unclear", "try_stated_but_currency_try"], "reasons_b": ["currency_unclear", "try_stated_but_currency_try"], "stratum": "R"}
+{"disagree": true, "error_a": "fabricated", "error_b": null, "flagged_a": true, "flagged_b": false, "id_hash": "5b25f2c112b72fc8", "reasons_a": ["share_unclear"], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "2d714770825b0502", "reasons_a": [], "reasons_b": [], "stratum": "R"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "ca955f98719c7222", "reasons_a": [], "reasons_b": [], "stratum": "U"}
+{"disagree": false, "error_a": null, "error_b": null, "flagged_a": false, "flagged_b": false, "id_hash": "84393d4f7968d595", "reasons_a": [], "reasons_b": [], "stratum": "R"}

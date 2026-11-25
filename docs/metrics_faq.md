@@ -48,7 +48,7 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - **Repeatability:** a second run of Set C changed amount/currency on 3/100 (temperature 0 is not fully deterministic), but again 1/100 silent (a different item), flagged 12%; that is, 1/100 in each of two runs.
 - **Two readings (Set D, 50 new, 15 Nov):**
   - A "two readings disagree → review" flag added **0** new flags over run a and caught run b's only silent error (1/1); with Set C that is 3 of 3 silent errors among disagreeing items (Set C post-hoc) → adopted for the nightly list (twice the extraction time, ~31 s per disclosure).
-  - Live flag rate on Set D 20-22% (all layers).
+  - Live flag rate on Set D 20-22% (all layers). Run a by layer (an item can have several): model's own flag 5, code checks 4, extraction code 4, source check 2, Matriks cross-check 1 of 11 flagged (counted 25 Nov, `python main.py verify-results`).
   - Bounds: 12 of the 50 are a census of the "ABD Doları" zone, so the bounds use the random 38, not 0/50: run a 0/38 (95% upper 7.6%), run b 1/38 (11.9%).
   - Set C (level 2) and Set D (live, with the Matriks record) are two systems; do not pool them.
 - **MCP:** the agent's tools are an MCP server (stdio, read-only, local clients only); transport exact 10/10, overhead 0.011 s; a free tool-calling agent picked the right tool 12/16, our constrained router 14/16 (16 dev questions the router was built on, so the result reads "not better", not "worse").
