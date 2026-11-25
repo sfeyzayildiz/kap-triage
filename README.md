@@ -4,6 +4,11 @@
 
 ![silent errors](https://img.shields.io/badge/silent_errors-1%2F100_on_unseen_texts-2ea44f) ![without an LLM](https://img.shields.io/badge/regex%2C_no_LLM-25%2F100-lightgrey) ![injection attacks](https://img.shields.io/badge/hidden--instruction_attacks-9_%E2%86%92_0_of_18-2ea44f)
 
+**At a glance**
+- **1 in 100** unseen disclosures had an amount or currency error that went unflagged.
+- **25 in 100** had silent errors with the regex baseline, which uses no LLM.
+- **9 to 0** silent successes in 18 prompt-injection tests after adding the defence.
+
 ![Demo on made-up sample data: overview, morning lists, review, watchlist, why it moved, themes, reliability](docs/img/demo.gif)
 
 Demo, sped up, on made-up sample data (the real data is licensed and stays on my computer). Full video (about 80 seconds): [watch](https://github.com/user-attachments/assets/06c40ba0-9cd0-4d44-bc71-1a108f6ec1ca).
