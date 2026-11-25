@@ -63,7 +63,8 @@ def test_theme_cookie():
     )  # a client without the cookie
 
 
-def test_json_api_on_empty_data():
+def test_json_api_on_empty_data(monkeypatch):
+    monkeypatch.setattr(chat, 'in_collection_window', lambda now: False)
     assert client.get('/api/v1/days').json() == {'days': []}
     assert client.get('/api/v1/day/2026-11-09').status_code == 404
     r = client.get('/api/v1/desks/latest')
