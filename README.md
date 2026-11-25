@@ -1,6 +1,6 @@
 # KAP Disclosure Triage Assistant
 
-**Every morning it tells an equity analyst which new-business disclosures to read first, why, and which numbers to double-check. It also says how often it is wrong.**
+**Each morning, the assistant helps equity analysts decide which KAP disclosures to read first. It explains why each item matters and highlights figures that need a closer look. In a test of 100 previously unseen disclosures, one error in the amount or currency went unflagged.**
 
 ![silent errors](https://img.shields.io/badge/silent_errors-1%2F100_on_unseen_texts-2ea44f) ![without an LLM](https://img.shields.io/badge/regex%2C_no_LLM-25%2F100-lightgrey) ![injection attacks](https://img.shields.io/badge/hidden--instruction_attacks-9_%E2%86%92_0_of_18-2ea44f)
 
@@ -17,7 +17,7 @@ This is version 2 of the project: the same system as a Python package with a Fas
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
 - **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk can get its part by e-mail.
-- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Every pass bar was committed to git before its test. Recount all five results yourself with `python main.py verify-results`: Set C, the regex comparison, Set D, prompt injection and Set D search; the files are in `evidence/` and contain no licensed content.
+- **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Before each test, I recorded the criteria for passing it in Git. Recount all five results yourself with `python main.py verify-results`: Set C, the regex comparison, Set D, prompt injection and Set D search; the files are in `evidence/` and contain no licensed content.
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
 ## Check the claims in 2 minutes
