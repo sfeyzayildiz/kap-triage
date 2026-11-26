@@ -114,7 +114,7 @@ flowchart LR
 | **Weekdays, 07:30** (when Docker is running) | e-mails each sector desk its part of the list (no amounts) | n8n, local mail inbox |
 | **Any time** | panel with an overview, a watchlist and a confirm / reject step for flagged items (with a review history); guided form; chat agent that searches all past disclosures; a card from any pasted KAP text (`/kart`) | LangGraph, RAG (`turkish-e5-large` + reranker) |
 | **From local AI tools** | the agent's tools as an MCP server (local clients only); on-demand desk e-mail prepared by the CLI and approved or rejected at the panel’s `/onay` page; the LangGraph interrupt is saved with SqliteSaver | MCP, both directions |
-| **On every change** | ruff + pytest; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
+| **On every change** | ruff, pytest and the five-result check; panel, n8n and mail inbox start with one command | GitHub Actions, Docker |
 
 Real data since October 2024: about 1,300 disclosures, 1-2 new ones a day. More: [`docs/architecture.md`](docs/architecture.md).
 
@@ -240,7 +240,7 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 | `kap_triage/analysis/` | extraction (`llm.py` + `prompt_v3.txt`, frozen), code rules, defences, importance, morning list, desks |
 | `kap_triage/assistant/` | search index, clustering and weekly themes, the LangGraph agent and its question parsing |
 | `kap_triage/web/` | FastAPI app (`app.py`), page rendering, chat, guided form, watchlist, kap-kart, MCP |
-| `tests/` | pytest, made-up data only (CI: ruff + pytest) |
+| `tests/` | pytest, made-up data only (CI: ruff, pytest and `verify-results`) |
 | `sample/` | made-up sample data for the panel (built on your computer by `main.py sample`), kap-kart examples |
 | `docs/` | rules, results, architecture details, development log: [index](docs/README.md) |
 | `n8n/`, `mcp/smtp/`, `deploy/` | desk e-mail workflow, the pinned e-mail MCP server, the nightly launchd job |

@@ -1,6 +1,6 @@
 # System card: KAP Disclosure Triage Assistant (KAP Bildirim Önceliklendirme Asistanı)
 
-One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-22. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
+One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-26. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
 
 ## Purpose
 Morning triage of KAP "Yeni İş İlişkisi" (new business relationship) disclosures for a brokerage equity analyst: which ones to read first, why, and how reliable the extracted facts are. Every item carries its KAP link.

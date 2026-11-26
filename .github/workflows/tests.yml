@@ -1,7 +1,7 @@
 name: tests
 
-# ruff + pytest on each PR and push to main.
-# No data, no .env, no network calls to Matriks or Ollama: tests use made-up data only
+# ruff, pytest and reported-result checks on each PR and push to main.
+# No licensed data, no .env, no network calls to Matriks or Ollama: tests use made-up data only
 # (tests/conftest.py points the data folder to an empty temporary folder).
 on:
   pull_request:

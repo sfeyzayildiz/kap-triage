@@ -1,6 +1,6 @@
 # Runbook: operating the system
 
-Who runs what: I run everything that touches Matriks data or takes long, on my own machine; code changes arrive as pull requests with CI (`ruff` + `pytest`).
+Who runs what: I run everything that touches Matriks data or takes long, on my own machine; code changes arrive as pull requests with CI (`ruff check .`, `pytest -q` and `python main.py verify-results`).
 The nightly job runs from a separate clone that always stays on `main` (`deploy/com.feyza.kap-daily.plist`), so a branch in the development folder never affects it. That clone runs version 1 (the same logic, `scripts/`); the commands below are the version 2 ones.
 
 ## Nightly (automatic)
@@ -31,6 +31,7 @@ Rebuild one day's morning list by hand (after 23:50; no alert is sent):
 ```
 git pull -q && .venv/bin/pip install -q -r requirements.txt && .venv/bin/pip install -q --no-deps -e .
 .venv/bin/pytest -q
+.venv/bin/python main.py verify-results
 ```
 All tests must pass before the next night. Dry runs of the nightly path always use the deploy clone's Python.
 
