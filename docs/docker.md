@@ -17,6 +17,8 @@ docker compose up --build        # first build takes several minutes (torch CPU,
 
 With `docker-compose.yml` the port is published on `127.0.0.1` only, like the Mac setup, so the panel is not reachable from the network (a hand-written `docker run -p 8765:8765` would publish it more widely). Inside the container it binds `0.0.0.0` (`PANEL_HOST`), which is required for the port mapping. Requests must carry a `Host` of `127.0.0.1`, `localhost` or `panel` (the compose name n8n uses); POST forms also check `Origin` against `127.0.0.1` and `localhost`.
 
+On Linux hosts, the container runs as the non-root `app` user (UID `1000` in this image). Ensure the bind-mounted `./data` directory is writable by UID `1000` (or match ownership / container user) so the panel can read `data/` and append to `data/review_log.jsonl`.
+
 ## n8n and Mailpit (desk e-mails)
 The same compose file starts `n8n` (`127.0.0.1:5678`, telemetry, version checks, templates and personalization off) and `mailpit` (local SMTP + web inbox, `127.0.0.1:8025`, version check off). n8n reaches the panel as `http://panel:8765` and Mailpit as `mailpit:1025` inside the Docker network; only the two UIs are published, on `127.0.0.1`. One-time import and the measured check: `docs/n8n_guide.md`; rule and result: `docs/n8n_routing_rule.md`.
 
@@ -26,7 +28,7 @@ docker compose run --rm panel python main.py agent "Bugün neye bakmalıyım?"
 docker compose run --rm panel python -m kap_triage.analysis.morning --date 2026-09-17 --from-pipeline data/pipeline_2026-09-17.jsonl
 docker compose run --rm panel python main.py panel --stats
 ```
-The image holds the package, `main.py` and `sample/` (the kap-kart examples); the tests run outside it (`pytest`, also in CI).
+The image holds the package, `main.py`, `docs/`, the five public frozen JSONL files in `evidence/` (`set_c.jsonl`, `regex_set_c.jsonl`, `set_d.jsonl`, `injection_set_c.jsonl`, `rag_set_d.jsonl` — used by `verify-results` and `layer-attribution`), and `sample/` (the kap-kart examples); private data and the test suite stay outside (`pytest` runs locally and in CI).
 
 ## Not in Docker (on purpose)
 - **Nightly collection** stays on the Mac (launchd, `~/projects/kap-deploy`): Matriks allows one pull per day, and `pull_guard` counts pulls per machine. Running collection from a container as well would risk a second pull.

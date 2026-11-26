@@ -30,3 +30,22 @@ jobs:
         run: pytest -q
       - name: Check reported results
         run: python main.py verify-results
+      - name: Check layer attribution
+        run: |
+          set -euo pipefail
+          python main.py layer-attribution | python -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          assert set(data.keys()) == {"notes", "set_c", "set_d"}, sorted(data.keys())
+          assert isinstance(data["notes"], list) and len(data["notes"]) > 0
+          assert data["set_c"]["baseline"]["n"] == 100, data["set_c"]["baseline"]["n"]
+          expected = {"all": 50, "R": 38, "U": 12}
+          views = ("a", "b", "two_read_a", "two_read_b")
+          assert set(data["set_d"].keys()) == set(expected), sorted(data["set_d"].keys())
+          for group, n in expected.items():
+              assert set(data["set_d"][group].keys()) == set(views), sorted(data["set_d"][group].keys())
+              for view in views:
+                  actual = data["set_d"][group][view]["baseline"]["n"]
+                  assert actual == n, (group, view, actual)
+          print("layer-attribution schema and counts OK: set_c=100, set_d all=50 (R=38, U=12)")
+          '

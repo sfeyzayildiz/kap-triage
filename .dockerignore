@@ -9,3 +9,4 @@ data/
 .DS_Store
 sample/data/
 *.egg-info/
+mcp/smtp/node_modules/
