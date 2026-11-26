@@ -1,6 +1,6 @@
 # System card: KAP Disclosure Triage Assistant (KAP Bildirim Önceliklendirme Asistanı)
 
-One page, in the spirit of model cards and model-risk documentation. Version: main as of 2026-11-26. Details: `docs/results.md` (numbers), `docs/known_issues.md` (what we got wrong), `docs/architecture.md` (how it works).
+The reported measurements describe the frozen November 2026 runs. The operating notes describe the current code. See `docs/results.md` for measurements, `docs/known_issues.md` for findings and `docs/architecture.md` for implementation.
 
 ## Purpose
 Morning triage of KAP "Yeni İş İlişkisi" (new business relationship) disclosures for a brokerage equity analyst: which ones to read first, why, and how reliable the extracted facts are. Every item carries its KAP link.
@@ -53,4 +53,4 @@ Flagged items show the reason and a confirm / reject step; decisions are logged 
 Disclosure text is treated as untrusted input (injection tested and defended); the panel binds to the local machine, sends no scripts (strict CSP) and escapes all text. Desk e-mails go to a local mail server, carry no amounts, and n8n / Mailpit run with telemetry off. No personal data is processed.
 
 ## Maintenance
-Self-tests on every change (CI); nightly alerts (OK / FAILED / SKIPPED) and postmortems in [`PROJECT_NOTES.md`](PROJECT_NOTES.md); a pull guard enforces the provider's rate rule. Any change to a measured part needs a new rule and a new measurement.
+CI runs Ruff, pytest and the five frozen result checks. The current nightly code distinguishes collector `OK`, `PARTIAL`, `FAILED` and `SKIPPED`. Only `OK` starts a new list. A pull guard enforces the provider's rate rule. See the [runbook](runbook.md#nightly-automatic) and [provenance limits](architecture.md#model-provenance-in-saved-runs). Any change to a measured part needs a new rule and a new measurement.

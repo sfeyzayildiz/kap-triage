@@ -9,7 +9,8 @@
   python main.py mail --send --day D    desk e-mails for one day through the SMTP MCP server
   python main.py index --build          update the search index
   python main.py kart metin.txt         a KAP card from a disclosure text (also /kart in the panel)
-  python main.py verify-results         recount the Set C result from evidence/set_c.jsonl
+  python main.py verify-results         check all five frozen results against public evidence
+  python main.py layer-attribution      report aggregate attribution from frozen Set C and D evidence
 
 Every command takes the options of its module; add --help to see them.
 --sample (and the sample command) points the data folder to sample/data/ before anything
@@ -31,6 +32,7 @@ COMMANDS = {
     'index': 'kap_triage.assistant.search',
     'kart': 'kap_triage.web.kart',
     'verify-results': 'kap_triage.analysis.evidence',
+    'layer-attribution': 'kap_triage.analysis.evidence',
 }
 SAMPLE_DATA = Path(__file__).resolve().parent / 'sample' / 'data'
 
@@ -46,7 +48,10 @@ def main():
         args = ['--serve'] + args  # "main.py panel" starts the server
     module = importlib.import_module(COMMANDS[command])
     sys.argv = [f'main.py {command}'] + args
-    module.main()
+    if command == 'layer-attribution':
+        module.main_attribution()
+    else:
+        module.main()
 
 
 if __name__ == '__main__':

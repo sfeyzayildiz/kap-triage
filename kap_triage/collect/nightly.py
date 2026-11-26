@@ -4,8 +4,7 @@ Order in main():
   1. pull_guard: if a vendor pull already happened today, send a SKIPPED alert and stop (one pull per day).
   2. wait until the API hosts resolve (after sleep the network can be late), so a retry is never a second pull.
   3. collector.py for the last LOOKBACK_DAYS days (INSERT OR REPLACE, so re-fetching is safe); DB lock -> wait, retry.
-  4. alert with counts only (OK), then run_morning() builds and seals the morning list (it never raises).
-Any failure sends a FAILED alert and exits non-zero, with the traceback in daily.log.
+  4. Only OK builds and seals a morning list. PARTIAL and FAILED alert and exit non-zero.
 
 Usage:
   python -m kap_triage.collect.nightly              # the nightly run (calls the vendor API)"""
@@ -22,6 +21,7 @@ import duckdb
 import requests
 from dotenv import load_dotenv
 
+from kap_triage.collect.collector import CollectionStatus, PRE_PULL_LOCK
 from kap_triage.collect.pull_guard import pulled_today
 from kap_triage.settings import settings
 
@@ -100,24 +100,22 @@ def lock_holder(message):
     return f'PID {m.group(1)}: ' + (r.stdout.strip() or 'already gone')
 
 
+class PrePullLock(RuntimeError):
+    """The collector reported a lock failure before any request."""
+
+
 def retry_on_lock(fn):
     """Call fn(); if it fails because another process holds the DB lock, wait and try again."""
     for attempt in range(1, LOCK_RETRIES + 1):
         try:
             return fn()
         except Exception as e:
-            if 'could not set lock' not in str(e).lower():
+            if not isinstance(e, PrePullLock) and 'could not set lock' not in str(e).lower():
                 raise
             print(f'[{ts()}] DB locked (attempt {attempt}/{LOCK_RETRIES}), held by {lock_holder(str(e))}', flush=True)
             if attempt == LOCK_RETRIES:
                 raise
             time.sleep(LOCK_WAIT)
-
-
-def last_error_line(stderr):
-    """Last meaningful line of a subprocess's stderr (the cause), skipping ^^^ marker lines."""
-    lines = [l.strip() for l in (stderr or '').splitlines() if set(l.strip()) - set('^~ ')]
-    return lines[-1][:300] if lines else 'no stderr'
 
 
 def run_collector(start, end):
@@ -126,11 +124,16 @@ def run_collector(start, end):
         capture_output=True,
         text=True,
     )
-    # the collector prints counts only; keep its output and traceback in daily.log
+    # Keep collector diagnostics local. Only a reserved pre-pull lock failure can retry.
     print(r.stdout, end='', flush=True)
-    if r.returncode != 0:
-        print(r.stderr, end='', file=sys.stderr, flush=True)
-        raise RuntimeError(last_error_line(r.stderr))
+    print(r.stderr, end='', file=sys.stderr, flush=True)
+    if r.returncode == PRE_PULL_LOCK:
+        raise PrePullLock(r.stderr.strip() or 'Collector database is locked')
+    if r.returncode == CollectionStatus.OK:
+        return CollectionStatus.OK
+    if r.returncode == CollectionStatus.PARTIAL:
+        return CollectionStatus.PARTIAL
+    return CollectionStatus.FAILED
 
 
 def skip_message(kind, day):
@@ -147,7 +150,12 @@ def collect_and_list():
         return
     wait_for_network()
     before = retry_on_lock(counts)
-    retry_on_lock(lambda: run_collector(start, end))
+    status = retry_on_lock(lambda: run_collector(start, end))
+    if status == CollectionStatus.PARTIAL:
+        notify('KAP collector PARTIAL', FAILURE_HINT, 'high')
+        return status
+    if status != CollectionStatus.OK:
+        raise RuntimeError('Collector subprocess failed')
     after = retry_on_lock(counts)
     msg = f'{start}..{end}: +{after[0] - before[0]} new_business, +{after[1] - before[1]} disclosures'
     notify('KAP collector OK', msg)
@@ -157,10 +165,12 @@ def collect_and_list():
 
 def main():
     try:
-        collect_and_list()
+        status = collect_and_list()
     except Exception:
         notify('KAP collector FAILED', FAILURE_HINT, 'high')
         raise  # keep the traceback in daily.log and a non-zero exit code
+    if status == CollectionStatus.PARTIAL:
+        raise SystemExit(status)
 
 
 # --- Morning list after the collection (never raises) ---------------------------

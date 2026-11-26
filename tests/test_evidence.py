@@ -1,6 +1,10 @@
 import json
 import re
+import sys
 
+import pytest
+
+import main
 from kap_triage.analysis import evidence
 
 KEYS = {'id_hash', 'flagged', 'reasons', 'error'}
@@ -141,6 +145,109 @@ def test_layer_counts_rule():
     assert c['code checks'] == {'items': 2, 'only': 1}
     assert c['Matriks cross-check'] == {'items': 1, 'only': 0}
     assert c[evidence.MODEL_LAYER] == {'items': 1, 'only': 1}
+
+
+def test_attribution_removes_only_recorded_layer_reasons():
+    def row(*reasons, error=None):
+        return {'reasons_a': reasons, 'flagged_a': bool(reasons), 'error_a': error}
+
+    rows = [
+        row('currency_unclear', 'cumulative_total', error='wrong_amount'),
+        row('currency_unclear', 'amount_vs_matriks'),
+        row('currency_unclear', 'run_error', error='missed'),
+        row('amount_not_in_text', 'judge_error', error='wrong_amount'),
+        row(error='wrong_currency'),
+        row(),
+    ]
+    result = evidence.attribution_view(rows, 'a')
+    baseline = result['baseline']
+    assert (baseline['reviewed'], baseline['flagged_errors'], baseline['silent_errors']) == (4, 3, 1)
+    assert (baseline['review_rate'], baseline['automatic_coverage']) == (4 / 6, 2 / 6)
+    assert (baseline['silent_error_rate'], baseline['selective_risk']) == (1 / 6, 1 / 2)
+    assert (baseline['reviewed_no_recorded_error'], baseline['automatic_no_recorded_error']) == (1, 1)
+    layers = result['layers']
+    code = layers['code checks']
+    assert (code['flagged'], code['unique_flags'], code['unique_catches']) == (3, 1, 1)
+    assert (code['marginal_reviewed'], code['marginal_catches']) == (1, 1)
+    assert code['leave_one_out']['selective_risk'] == 2 / 3
+    assert layers['source check (judge)']['leave_one_out'] == baseline
+    for layer in ('run error', 'judge error'):
+        assert layers[layer]['protected'] and 'leave_one_out' not in layers[layer]
+        with pytest.raises(ValueError, match='Mandatory review sources'):
+            evidence.policy_metrics([({layer}, True)], removed=layer)
+    pair = next(p for p in result['pairwise_overlap'] if (p['a'], p['b']) == ('Matriks cross-check', 'code checks'))
+    assert (pair['intersection'], pair['p_b_given_a'], pair['p_a_given_b']) == (1, 1, 1 / 3)
+    assert any(p['p_b_given_a'] is None for p in result['pairwise_overlap'])
+    assert result['coverage_multiplicity'] == [
+        {'review_sources': 0, 'cases': 2, 'recorded_errors': 1},
+        {'review_sources': 1, 'cases': 1, 'recorded_errors': 1},
+        {'review_sources': 2, 'cases': 3, 'recorded_errors': 2},
+    ]
+
+
+def test_attribution_undefined_denominators_and_unattributed_flag():
+    assert evidence.attribution_view([])['baseline']['automatic_coverage'] is None
+    row = {'flagged': True, 'reasons': ['other'], 'error': None}
+    report = evidence.attribution_view([row])
+    assert report['baseline']['selective_risk'] is None
+    layer = report['layers'][evidence.UNAVAILABLE_LAYER]
+    assert layer['status'] == 'UNAVAILABLE' and layer['protected'] and 'leave_one_out' not in layer
+
+
+def test_shared_codes_keep_frozen_group_with_unknown_producer():
+    row = {'flagged': True, 'reasons': ['currency_unclear', 'total_lt_amount'], 'error': 'missed'}
+    report = evidence.attribution_view([row])
+    assert report['attribution_unit'] == 'recorded_reason_code_group'
+    for code, group in (('currency_unclear', 'code checks'), ('total_lt_amount', 'extraction code')):
+        assert report['shared_reason_code_producers'][code] == 'UNAVAILABLE'
+        assert evidence.layer_of(code) == group
+        assert report['layers'][group]['flagged'] == 1
+        assert report['layers'][group]['marginal_catches'] == 0
+
+
+def test_attribution_cli_matches_frozen_evidence(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['main.py', 'layer-attribution'])
+    main.main()
+    stdout = capsys.readouterr().out
+    report = json.loads(stdout)
+    c_rows = evidence.load()
+    d_rows = evidence.load(evidence.SET_D_EVIDENCE)
+    assert all(row['id_hash'] not in stdout for row in c_rows + d_rows)
+
+    def check_metrics(metrics, rows):
+        frozen = evidence.recount(rows)
+        assert (metrics['n'], metrics['reviewed'], metrics['flagged_errors'], metrics['silent_errors']) == (
+            frozen['n'], frozen['flagged'], frozen['caught'], frozen['silent']
+        )
+
+    check_metrics(report['set_c']['baseline'], c_rows)
+    for layer in ('Matriks cross-check', 'source check (judge)'):
+        assert report['set_c']['layers'][layer] == {'status': 'NOT_RUN_IN_EXPERIMENT'}
+    for group, n in (('all', 50), ('R', 38), ('U', 12)):
+        rows = [row for row in d_rows if group == 'all' or row['stratum'] == group]
+        for run in 'ab':
+            views = report['set_d'][group]
+            assert views[run]['baseline']['n'] == n
+            for key, two_read in ((run, False), (f'two_read_{run}', True)):
+                scoring_rows = [
+                    {
+                        'flagged': row[f'flagged_{run}'] or (two_read and row['disagree']),
+                        'error': row[f'error_{run}'],
+                        'reasons': row[f'reasons_{run}'],
+                    }
+                    for row in rows
+                ]
+                check_metrics(views[key]['baseline'], scoring_rows)
+            without_disagreement = views[f'two_read_{run}']['layers'][evidence.DISAGREE_LAYER]['leave_one_out']
+            assert without_disagreement == views[run]['baseline']
+
+
+def test_verify_results_cli_still_has_five_matches(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['main.py', 'verify-results'])
+    main.main()
+    stdout = capsys.readouterr().out
+    assert len(re.findall(r'\bMATCH\b', stdout)) == 5
+    assert 'MISMATCH' not in stdout
 
 
 INJECTION_KEYS = {

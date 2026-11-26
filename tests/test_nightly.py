@@ -10,7 +10,8 @@ from unittest.mock import Mock
 import pytest
 
 from kap_triage.collect import nightly
-from kap_triage.collect.nightly import API_HOSTS, last_error_line, skip_message, wait_for_network
+from kap_triage.collect.collector import CollectionStatus, PRE_PULL_LOCK
+from kap_triage.collect.nightly import API_HOSTS, skip_message, wait_for_network
 from kap_triage.collect.nightly import list_day, message, run_morning as run, summary
 
 
@@ -47,6 +48,55 @@ def test_collector_failure_keeps_exception_local(monkeypatch):
     )
 
 
+@pytest.mark.parametrize('code', [CollectionStatus.OK, CollectionStatus.PARTIAL, CollectionStatus.FAILED, -9])
+def test_nightly_only_lists_after_ok(monkeypatch, code):
+    monkeypatch.setattr(nightly, 'pulled_today', Mock(return_value=None))
+    monkeypatch.setattr(nightly, 'wait_for_network', Mock())
+    counts = Mock(return_value=(5, 10))
+    monkeypatch.setattr(nightly, 'counts', counts)
+    # A misleading diagnostic must never trigger another collector invocation.
+    runner = Mock(return_value=subprocess.CompletedProcess([], code, '', 'could not set lock: synthetic'))
+    monkeypatch.setattr(nightly.subprocess, 'run', runner)
+    notify, morning = Mock(), Mock()
+    monkeypatch.setattr(nightly, 'notify', notify)
+    monkeypatch.setattr(nightly, 'run_morning', morning)
+
+    if code == CollectionStatus.OK:
+        nightly.main()
+        assert notify.call_args.args[0] == 'KAP collector OK'
+        assert '+0 new_business, +0 disclosures' in notify.call_args.args[1]
+        morning.assert_called_once()
+        assert counts.call_count == 2
+    else:
+        if code == CollectionStatus.PARTIAL:
+            with pytest.raises(SystemExit) as caught:
+                nightly.main()
+            assert caught.value.code == CollectionStatus.PARTIAL
+            title = 'KAP collector PARTIAL'
+        else:
+            with pytest.raises(RuntimeError, match='Collector subprocess failed'):
+                nightly.main()
+            title = 'KAP collector FAILED'
+        notify.assert_called_once_with(title, nightly.FAILURE_HINT, 'high')
+        morning.assert_not_called()
+        counts.assert_called_once()
+    runner.assert_called_once()
+
+
+def test_reserved_pre_pull_lock_still_retries(monkeypatch):
+    runner = Mock(side_effect=[
+        subprocess.CompletedProcess([], PRE_PULL_LOCK, '', 'Could not set lock\nAdditional DuckDB diagnostics'),
+        subprocess.CompletedProcess([], CollectionStatus.PARTIAL, '', 'Could not set lock'),
+    ])
+    monkeypatch.setattr(nightly.subprocess, 'run', runner)
+    sleep = Mock()
+    monkeypatch.setattr(nightly.time, 'sleep', sleep)
+    day = date(2026, 11, 9)
+    assert nightly.retry_on_lock(lambda: nightly.run_collector(day, day)) == CollectionStatus.PARTIAL
+    assert runner.call_count == 2
+    sleep.assert_called_once_with(nightly.LOCK_WAIT)
+
+
 def test_daily_collect():
     calls = []
 
@@ -65,10 +115,6 @@ def test_daily_collect():
         raise AssertionError('must raise')
     except RuntimeError:
         pass
-    tb = 'Traceback (most recent call last):\n  File "x.py", line 1\n    f()\n    ^^^\nrequests.exceptions.ReadTimeout: read timed out\n          ^^^^^^^^\n'
-    assert last_error_line(tb) == 'requests.exceptions.ReadTimeout: read timed out'
-    assert last_error_line('HTTP 401 on v2/news/search: bad token\n') == 'HTTP 401 on v2/news/search: bad token'
-    assert last_error_line('') == 'no stderr' and last_error_line('  ^^^^\n') == 'no stderr'
     assert skip_message('prices', date(2026, 11, 11)).startswith('2026-11-11: already pulled today (prices)')
 
 

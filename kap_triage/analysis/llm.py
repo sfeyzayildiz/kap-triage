@@ -4,8 +4,12 @@ The model fills the fields; postprocess() only normalises the currency and adds 
 It never changes an amount. Prompt, schema and settings are the ones measured on Sets A-D (frozen).
 """
 
+import hashlib
 import os
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -22,10 +26,109 @@ if THINK_ENV not in ('', 'true', 'false'):
     raise ValueError(f'OLLAMA_THINK must be true, false or unset, got {THINK_ENV!r}')
 THINK = {'true': True, 'false': False}.get(THINK_ENV)
 NUM_PREDICT = int(os.environ.get('NUM_PREDICT', '-1'))  # max generated tokens, thinking included; -1 = no limit
-CLIENT = ollama.Client(timeout=LLM_TIMEOUT)
+_OLLAMA_CLIENT = ollama.Client(timeout=LLM_TIMEOUT)
+CLIENT = _OLLAMA_CLIENT
 
 PROMPT_VERSION = 'v3'
 PROMPT = Path(__file__).with_name('prompt_v3.txt').read_text(encoding='utf-8')
+CORRECTION_PROMPT = 'Your output was invalid: {error}\nReturn the corrected JSON only.'
+UNVERIFIED = 'UNVERIFIED'
+_inference_trace = ContextVar('inference_trace', default=None)
+
+
+@contextmanager
+def trace_inference(identities, events):
+    """Record only the calls in the current stage of a saved extraction run."""
+    token = _inference_trace.set((identities, events) if identities is not None and events is not None else None)
+    try:
+        yield
+    finally:
+        _inference_trace.reset(token)
+
+
+def record_judge_cache_hit():
+    trace = _inference_trace.get()
+    if trace is not None:
+        trace[1].append({'source': 'cache', 'origin': UNVERIFIED})
+
+
+def _ollama_metadata(client, path):
+    # The SDK has no version method. Use the same HTTP client and bound metadata lookup time.
+    response = client._client.get(path, timeout=1.0)
+    response.raise_for_status()
+    return response.json()
+
+
+def _model_tag(name):
+    if not isinstance(name, str) or not name:
+        return None
+    return name if ':' in name.rsplit('/', 1)[-1] else f'{name}:latest'
+
+
+def _ollama_identity(client, model):
+    identity = {'model_digest': UNVERIFIED, 'ollama_version': UNVERIFIED}
+    try:
+        version = _ollama_metadata(client, '/api/version')['version']
+        if isinstance(version, str) and re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.+-]*', version):
+            identity['ollama_version'] = version
+    except Exception:
+        pass
+    try:
+        running = _ollama_metadata(client, '/api/ps')['models']
+        digests = {entry.get('digest') for entry in running if _model_tag(entry.get('name')) == _model_tag(model)}
+        if len(digests) == 1:
+            digest = digests.pop()
+            if isinstance(digest, str) and re.fullmatch(r'(?:sha256:)?[0-9a-fA-F]{64}', digest):
+                identity['model_digest'] = f'sha256:{digest.removeprefix("sha256:").lower()}'
+    except Exception:
+        pass
+    return identity
+
+
+def inference_chat(client, prompt_template, *, messages, correction_template=None, **parameters):
+    trace = _inference_trace.get()
+    if trace is None:
+        return client.chat(messages=messages, **parameters)
+    identities, events = trace
+    source = 'ollama' if client is _OLLAMA_CLIENT else UNVERIFIED
+    try:
+        if getattr(client, 'is_mock_inference_client', False) is True:
+            source = 'mock'
+    except Exception:
+        source = UNVERIFIED
+    event = {
+        'source': source,
+        'request_parameters': parameters,
+        'prompt_sha256': UNVERIFIED,
+        'model_digest': UNVERIFIED,
+        'ollama_version': UNVERIFIED,
+        'status': 'attempted',
+    }
+    try:
+        event['prompt_sha256'] = hashlib.sha256(prompt_template.encode('utf-8')).hexdigest()
+        if correction_template is not None:
+            event['correction_prompt_sha256'] = hashlib.sha256(correction_template.encode('utf-8')).hexdigest()
+    except Exception:
+        pass
+    events.append(event)
+    response = client.chat(messages=messages, **parameters)
+    event['status'] = 'response_received'
+    if source == 'ollama':
+        try:
+            tag = _model_tag(parameters['model'])
+            if tag is not None and tag == _model_tag(response.model):
+                if tag not in identities:
+                    identity = _ollama_identity(client, tag)
+                    if identity['model_digest'] != UNVERIFIED:
+                        identity.update(
+                            identity_observed_at=datetime.now(timezone.utc).isoformat(),
+                            identity_source='first_matching_running_model_in_batch',
+                        )
+                    identities[tag] = identity
+                event.update(identities[tag])
+        except Exception:
+            pass
+    return response
 
 # reasons the model may give; postprocess() adds more
 ReviewReason = Literal[
@@ -189,9 +292,13 @@ def call_llm(text, retries=1):
     messages = [{'role': 'user', 'content': PROMPT + text}]
     for attempt in range(retries + 1):
         extra = {} if THINK is None else {'think': THINK}
-        resp = CLIENT.chat(
+        resp = inference_chat(
+            CLIENT,
+            PROMPT,
+            correction_template=CORRECTION_PROMPT if attempt else None,
             model=MODEL,
             messages=messages,
+            stream=False,
             format=DisclosureV3.model_json_schema(),
             options={'temperature': 0, 'num_ctx': 8192, 'num_predict': NUM_PREDICT},
             **extra,
@@ -205,7 +312,7 @@ def call_llm(text, retries=1):
                 {'role': 'assistant', 'content': content},
                 {
                     'role': 'user',
-                    'content': f'Your output was invalid: {str(e)[:500]}\nReturn the corrected JSON only.',
+                    'content': CORRECTION_PROMPT.format(error=str(e)[:500]),
                 },
             ]
     return None

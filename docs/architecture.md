@@ -14,7 +14,7 @@ For each day's disclosures:
 4. **Importance score (code).** Size against the company's own earlier deals and its annual revenue, plus foreign currency and contract length (points for foreign counterparty and related party were measured and switched off: the model misses those facts too often). The morning list is ordered by ordering v2 (long contract first, then amount). Every point comes with its reason.
 5. **Price reaction.** Return against XU100 on the first trading day the market could react.
 6. **History.** The company's last 12 months, and its most similar earlier disclosures found by embedding search.
-7. **Morning list.** A ranked Turkish report with a KAP link on every item; flagged items always show what to check. It runs by itself after the nightly collection and sends a counts-only phone alert.
+7. **Morning list.** A ranked Turkish report with a KAP link on every item. Flagged items show what to check. Nightly runs it only after collector `OK`. See the [collection states and recovery](runbook.md#nightly-automatic).
 8. **Desk panel.** A local web page that starts on an overview (`/genel`: last list in numbers, a 30-day chart, look-first items, review decisions, measured results), with a chat box for the agent, the list per sector desk (Matriks sector label), a watchlist (follow companies, filter the list to them), a confirm / reject step for flagged items (decisions are logged and counted per flag type on the review history page, `/kontroller`), a weekly themes page built from embedding clusters, a price chart (stock vs XU100 around the disclosure) on every card, a reliability page with the measured results as charts, and a card page (`/kart`) for any pasted KAP text. Built with FastAPI; light / dark theme switch; no JavaScript.
 9. **Desk e-mails (n8n).** Every weekday at 07:30 (when Docker is running) a self-hosted n8n workflow sends each sector desk one e-mail with its part of the morning list (company, look-first / check flags, reasons, KAP link; no amounts). The desk, the order and the text are decided in code; n8n only delivers. Delivery goes to a local mail server (Mailpit), so nothing leaves the machine; in a firm only the SMTP setting changes.
 
@@ -52,6 +52,14 @@ flowchart TD
 ```
 
 Purple = LLM, blue = data, grey = code, green = output. n8n carries the code's decision; it chooses no desk, order or text (`docs/n8n_routing_rule.md`).
+
+### Model provenance in saved runs
+
+New standalone pipeline and nightly morning JSONL rows include the full Git `HEAD` commit and separate traces for extraction, second extraction when used, and the source judge. Each recorded call includes the requested model, options and output schema. The `think` key appears only when supplied. SHA-256 covers the fixed prompt templates, including the correction template on retries. Disclosure text, inference messages and model responses are excluded from the trace.
+
+For the configured Ollama client, the trace can include a full SHA-256 model digest observed on the running server after the first matching response for that model in the batch, along with the Ollama version and observation time. This batch observation cannot establish whether the model changed between calls. Cache hits record an unverified origin, and explicitly marked mock clients carry their own source label. Unavailable metadata is `UNVERIFIED`. Metadata lookup failures leave inference usable.
+
+The Git commit identifies `HEAD`. It omits uncommitted source changes in a dirty worktree. A container without Git metadata records an unverified commit. The mock regressions cover these metadata paths. Live deployment and historical model identities remain unverified.
 
 ## 2. Agent: answering an analyst's question (`assistant/agent.py`, LangGraph)
 

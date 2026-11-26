@@ -14,12 +14,14 @@ Usage:
 
 import argparse
 import json
+import re
 import subprocess
 import time
 from datetime import datetime
+from pathlib import Path
 
 from kap_triage.analysis.rules import amount_is_projection, cumulative_total, currency_unclear, norm_cur
-from kap_triage.analysis.llm import PROMPT_VERSION, MODEL, call_llm
+from kap_triage.analysis.llm import PROMPT_VERSION, MODEL, UNVERIFIED, call_llm, trace_inference
 from kap_triage.analysis.defence import amount_vs_matriks, source_reasons
 from kap_triage.settings import settings
 
@@ -69,11 +71,13 @@ def analyze(text, extract=call_llm, matriks=None, judge=None):
     return apply_defence(apply_checks(data, text), text, matriks, judge)
 
 
-def judge_pass(results, texts, judge):
+def judge_pass(results, texts, judge, identities=None):
     """Layer 2 after all extractions, so Ollama does not switch num_ctx (8192 <-> 2048) per row."""
     for r, t in zip(results, texts):
         if RUN_ERROR not in r['needs_review_reasons']:
-            apply_defence(r, t, None, judge)
+            events = r['provenance']['judge'] if identities is not None else None
+            with trace_inference(identities, events):
+                apply_defence(r, t, None, judge)
     return results
 
 
@@ -81,14 +85,16 @@ def _key(amount, currency):
     return (None, None) if amount is None else (round(float(amount), 2), norm_cur(currency))
 
 
-def two_run_check(results, texts, extract=call_llm):
+def two_run_check(results, texts, extract=call_llm, identities=None):
     """ADOPT_TWO_RUN (docs/set_d_rule.md): a second extraction per text; a different (amount, currency)
     or a failed second call adds two_run_disagree. Values stay those of the first run. Run before judge_pass."""
     for r, t in zip(results, texts):
         if RUN_ERROR in r['needs_review_reasons']:
             continue
         try:
-            second = extract(t)
+            events = r['provenance']['second_extraction'] if identities is not None else None
+            with trace_inference(identities, events):
+                second = extract(t)
         except Exception:
             second = None
         if second is None or _key(second.get('amount'), second.get('currency')) != _key(
@@ -104,6 +110,48 @@ def defence_context(news_ids):
     from kap_triage.analysis.defence import CachedJudge, load_matriks
 
     return load_matriks(news_ids), CachedJudge()
+
+
+def full_git_commit(root=None):
+    try:
+        root = root if root is not None else Path(__file__).resolve().parents[2]
+        if (root / '.git').exists():
+            result = subprocess.run(
+                ['git', 'rev-parse', '--verify', 'HEAD'],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=2,
+                check=True,
+            )
+            commit = result.stdout.strip()
+            if re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', commit):
+                return commit
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return UNVERIFIED
+
+
+def analyze_rows(rows, matriks, judge, *, two_run=False, provenance=False):
+    texts = [r[4] for r in rows]
+    identities = {} if provenance else None
+    commit = full_git_commit() if provenance and rows else UNVERIFIED
+    results = []
+    for row, text in zip(rows, texts):
+        extraction = []
+        with trace_inference(identities, extraction):
+            result = analyze(text, matriks=matriks.get(str(row[0])))
+        if provenance:
+            result['provenance'] = {
+                'git_commit': commit,
+                'extraction': extraction,
+                'second_extraction': [],
+                'judge': [],
+            }
+        results.append(result)
+    if two_run:
+        two_run_check(results, texts, identities=identities)
+    return judge_pass(results, texts, judge, identities=identities)
 
 
 def load_rows(date_value, ids):
@@ -137,11 +185,9 @@ def main():
     ids = args.ids.split(',') if args.ids else None
     rows = load_rows(args.date, ids)[: args.limit]
     matriks, judge = defence_context([r[0] for r in rows])
-    commit = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
     out_path = settings.path(f'pipeline_{args.date or "ids"}.jsonl')
     start = time.time()
-    results = [analyze(r[4], matriks=matriks.get(str(r[0]))) for r in rows]
-    judge_pass(results, [r[4] for r in rows], judge)
+    results = analyze_rows(rows, matriks, judge, provenance=True)
     flagged = errors = 0
     with open(out_path, 'w', encoding='utf-8') as f:
         for (news_id, url, symbol, published_at, text), result in zip(rows, results):
@@ -155,7 +201,7 @@ def main():
                     'published_at': str(published_at),
                     'prompt_version': PROMPT_VERSION,
                     'model': MODEL,
-                    'git_commit': commit,
+                    'git_commit': result['provenance']['git_commit'],
                 }
             )
             f.write(json.dumps(result, ensure_ascii=False) + '\n')

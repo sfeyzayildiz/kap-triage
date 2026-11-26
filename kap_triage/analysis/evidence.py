@@ -3,7 +3,7 @@
     python main.py verify-results
 
 evidence/set_c.jsonl has one line per Set C item (100): an id hash, whether the item was flagged,
-the reason codes and the error type against the blind gold label (null = correct).
+the reason codes and the error type against the blind gold label (null = no recorded scoring error).
 evidence/regex_set_c.jsonl has the same items twice, once per regex baseline (a, b): whether an
 amount was found, the code-check reason codes and the error type. evidence/set_d.jsonl has the
 50 Set D items with both live runs (flagged, reason codes, error type per run) and whether the two
@@ -16,9 +16,11 @@ no flag of its own, so every regex error is silent; "with code checks" adds the 
 What it cannot show: that the error types are right. That needs the licensed texts and labels.
 """
 
+import argparse
 import json
 import re
 from collections import Counter
+from itertools import combinations
 from pathlib import Path
 
 from kap_triage.web.reliability import upper95
@@ -53,6 +55,13 @@ LAYERS = (
     ('run error', {'run_error'}),
 )
 MODEL_LAYER = "model's own flag"
+# These codes can come from the model or code, and the frozen export deduplicates reasons.
+SHARED_REASON_CODES = {'currency_unclear'} | LAYERS[0][1]
+TECHNICAL_REASONS = {'run_error': 'run error', 'judge_error': 'judge error'}
+UNAVAILABLE_LAYER = 'unattributed review'
+PROTECTED_SOURCES = {*TECHNICAL_REASONS.values(), UNAVAILABLE_LAYER}
+DISAGREE_LAYER = 'two-read disagreement'
+SET_C_NOT_RUN = {'Matriks cross-check', 'source check (judge)', 'judge error'}
 INJECTION_EVIDENCE = ROOT / 'evidence' / 'injection_set_c.jsonl'
 # the layered-defence row of the "Security" table and the "Injection batches" note in docs/results.md
 INJECTION_ROW = re.compile(
@@ -191,6 +200,149 @@ def layer_counts(rows, run):
             x['items'] += 1
             x['only'] += len(layers) == 1
     return out
+
+
+def review_sources(row, suffix, two_read):
+    reasons = row[f'reasons{suffix}']
+    if bool(reasons) != row[f'flagged{suffix}']:
+        raise ValueError('Frozen flag and reasons disagree')
+    sources = set()
+    for code in reasons:
+        if code in TECHNICAL_REASONS:
+            sources.add(TECHNICAL_REASONS[code])
+        elif code == 'other':  # export replaced the original code
+            sources.add(UNAVAILABLE_LAYER)
+        else:
+            sources.add(layer_of(code))
+    if two_read and row['disagree']:
+        sources.add(DISAGREE_LAYER)
+    return sources
+
+
+def ratio(count, denominator):
+    return count / denominator if denominator else None
+
+
+def policy_metrics(cases, removed=None):
+    if removed in PROTECTED_SOURCES:
+        raise ValueError('Mandatory review sources cannot be removed')
+    counts = Counter((bool(sources - {removed}), has_error) for sources, has_error in cases)
+    n = len(cases)
+    caught, silent = counts[True, True], counts[False, True]
+    reviewed_without_error, automatic_without_error = counts[True, False], counts[False, False]
+    reviewed = caught + reviewed_without_error
+    automatic = n - reviewed
+    return {
+        'n': n,
+        'reviewed': reviewed,
+        'automatic': automatic,
+        'flagged_errors': caught,
+        'silent_errors': silent,
+        'reviewed_no_recorded_error': reviewed_without_error,
+        'automatic_no_recorded_error': automatic_without_error,
+        'review_rate': ratio(reviewed, n),
+        'automatic_coverage': ratio(automatic, n),
+        'silent_error_rate': ratio(silent, n),
+        'selective_risk': ratio(silent, automatic),
+    }
+
+
+def attribution_view(rows, run=None, two_read=False):
+    suffix = f'_{run}' if run else ''
+    cases = [(review_sources(row, suffix, two_read), row[f'error{suffix}'] is not None) for row in rows]
+    not_run = SET_C_NOT_RUN if run is None else set()
+    layers = {name for name, _ in LAYERS} | {MODEL_LAYER} | PROTECTED_SOURCES
+    if two_read:
+        layers.add(DISAGREE_LAYER)
+    observed = Counter(layer for sources, _ in cases for layer in sources)
+    if observed.keys() & not_run:
+        raise ValueError('Frozen evidence contains a reason from a layer outside the experiment')
+
+    baseline = policy_metrics(cases)
+    by_layer = {}
+    for layer in sorted(layers):
+        if layer in not_run:
+            by_layer[layer] = {'status': 'NOT_RUN_IN_EXPERIMENT'}
+            continue
+        unique = [has_error for sources, has_error in cases if sources == {layer}]
+        stats = {
+            'status': 'UNAVAILABLE' if layer == UNAVAILABLE_LAYER else 'IN_SCOPE',
+            'flagged': observed[layer],
+            'unique_flags': len(unique),
+            'unique_catches': sum(unique),
+            'protected': layer in PROTECTED_SOURCES,
+        }
+        if layer not in PROTECTED_SOURCES:
+            without = policy_metrics(cases, removed=layer)
+            stats['leave_one_out'] = without
+            stats['marginal_reviewed'] = baseline['reviewed'] - without['reviewed']
+            stats['marginal_catches'] = without['silent_errors'] - baseline['silent_errors']
+        by_layer[layer] = stats
+
+    overlap = []
+    for a, b in combinations(sorted(layers - not_run), 2):
+        both = sum(a in sources and b in sources for sources, _ in cases)
+        overlap.append(
+            {
+                'a': a,
+                'b': b,
+                'intersection': both,
+                'p_b_given_a': ratio(both, observed[a]),
+                'p_a_given_b': ratio(both, observed[b]),
+            }
+        )
+
+    multiplicity = Counter(len(sources) for sources, _ in cases)
+    error_multiplicity = Counter(len(sources) for sources, has_error in cases if has_error)
+    return {
+        'baseline': baseline,
+        'attribution_unit': 'recorded_reason_code_group',
+        'shared_reason_code_producers': dict.fromkeys(sorted(SHARED_REASON_CODES), 'UNAVAILABLE'),
+        'layers': by_layer,
+        'pairwise_overlap': overlap,
+        'coverage_multiplicity': [
+            {'review_sources': k, 'cases': multiplicity[k], 'recorded_errors': error_multiplicity[k]}
+            for k in sorted(multiplicity)
+        ],
+    }
+
+
+def attribution_report():
+    d_rows = load(SET_D_EVIDENCE)
+    groups = {'all': d_rows, **{s: [row for row in d_rows if row['stratum'] == s] for s in ('R', 'U')}}
+    return {
+        'notes': [
+            'Layer labels name frozen groups of recorded reason codes. Unique and marginal contributions '
+            'measure those groups. The actual producer of a shared code is UNAVAILABLE.',
+            'Baseline and leave-one-out metrics give empirical risk-coverage points for each view.',
+            'Leave-one-out removes recorded reasons and holds outputs and frozen error labels fixed. '
+            'It cannot recreate inference, short-circuits, downstream checks, or causal layer ablation.',
+            'Run and judge errors remain mandatory review sources. Multiplicity counts recorded sources, '
+            'including mandatory ones, rather than independent checks.',
+            'Set D A and B are paired readings of the same cases. Two-read views add frozen disagreement '
+            'to the selected reading and keep that reading’s frozen error label.',
+            'Null error means no recorded frozen scoring error. Gold uncertainty, company identity, '
+            'and case-level Matriks availability and source-check execution are UNAVAILABLE.',
+            'In-scope checks can be skipped after extraction failure or lack required inputs. '
+            'Source-check reasons can be produced without a judge call.',
+            'Rates are empirical for these samples. Selecting a policy here does not establish generalization.',
+        ],
+        'set_c': attribution_view(load()),
+        'set_d': {
+            group: {
+                'a': attribution_view(rows, 'a'),
+                'b': attribution_view(rows, 'b'),
+                'two_read_a': attribution_view(rows, 'a', two_read=True),
+                'two_read_b': attribution_view(rows, 'b', two_read=True),
+            }
+            for group, rows in groups.items()
+        },
+    }
+
+
+def main_attribution():
+    argparse.ArgumentParser(description='Report aggregate attribution from frozen Set C and D evidence.').parse_args()
+    print(json.dumps(attribution_report(), indent=2))
 
 
 def main_set_d():
@@ -351,6 +503,7 @@ def main_set_c():
 
 
 def main():
+    argparse.ArgumentParser(description='Check all five frozen results against public evidence.').parse_args()
     ok = main_set_c()
     ok = main_regex() and ok  # run all, so a mismatch in one does not hide the others
     ok = main_set_d() and ok

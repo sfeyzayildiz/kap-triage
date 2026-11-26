@@ -1,21 +1,24 @@
 # Runbook: operating the system
 
 Who runs what: I run everything that touches Matriks data or takes long, on my own machine; code changes arrive as pull requests with CI (`ruff check .`, `pytest -q` and `python main.py verify-results`).
-The nightly job runs from a separate clone that always stays on `main` (`deploy/com.feyza.kap-daily.plist`), so a branch in the development folder never affects it. That clone runs version 1 (the same logic, `scripts/`); the commands below are the version 2 ones.
+The launchd template targets a separate deploy clone on `main` (`deploy/com.feyza.kap-daily.plist`). The original deployment used version 1 under `scripts/`. The instructions below describe the current package. The installed deploy version and live behavior of Collection Health have not been verified.
 
 ## Nightly (automatic)
 
 Before loading the version 2 job, copy `deploy/com.feyza.kap-daily.plist` to `~/Library/LaunchAgents/`. In that copy, replace every `/Users/YOUR_USERNAME` with your absolute home directory. Check the deploy clone and log paths, then run `plutil -lint ~/Library/LaunchAgents/com.feyza.kap-daily.plist`.
 
-- 23:43 launchd (`com.feyza.kap-daily`) runs `.venv/bin/python main.py nightly` in the deploy clone: collection (one pull), then the morning list for the day.
-- A successful collection sends `KAP collector OK` with counts, followed by `KAP morning list` with the list summary and the seal prefix when available. A failure alert identifies the failed stage. Read `data/daily.log` in the deploy clone for the error details.
+- At 23:43, launchd (`com.feyza.kap-daily`) runs `.venv/bin/python main.py nightly` in the deploy clone. For a deployment with Collection Health, only collector `OK` starts a new morning list.
+- `OK` sends counts and permits the morning stage to report its result. `PARTIAL` signals confirmed progress in an incomplete run. `FAILED` signals a failure or the absence of a recognized collector result. Both stop the morning stage and use fixed phone text. Read the local `data/daily.log` for details. `SKIPPED` means the daily pull guard already recorded a pull.
+- A successful zero-result news search requires an error-free response with a valid query ID and an explicit `messageCount=0`. Pagination checks page sizes and distinct IDs before date filtering. A short final page is valid when its size matches the remaining count. Missing, malformed or duplicate results and the search cap prevent `OK`. Valid records already written are kept. These checks measure the advertised response, whose coverage of the vendor's full data universe is unverified.
+- Structured rows must supply the fields the collector writes. The live Matriks response schema and the meaning of null in an FX-to-TRY correction are UNVERIFIED. For example, if a TRY replacement supplies a null exchange rate where a rate was stored, the collector keeps the prior row and reports incomplete collection. Only a later complete replacement can update that row automatically. A disclosure needs a usable parsed form. The collector rejects a replacement that drops populated fields and keeps the prior row.
 - Needs: Mac awake or waking (launchd runs a missed job at wake), network, **Ollama running**.
 - Nothing else may touch the DB between 23:40 and 23:50; the panel answers 503 on the pages that read it.
 
-### If an alert says FAILED
+### If an alert says PARTIAL or FAILED
 
 | Finding in `data/daily.log` | First check |
 |---|---|
+| collector PARTIAL or FAILED, incomplete vendor response | Check the local diagnostics. The guard stays claimed after a request. Wait for the next scheduled pull. |
 | collector FAILED, DB lock | The lock retry entry identifies the holder when available. Close the panel or notebook holding `data/kap.duckdb`. The next night fills the gap. |
 | collector FAILED, network | the Mac woke without network; the next night fills the gap. |
 | collector FAILED, `KAP_TOKEN is missing` | `.env` is missing in the deploy clone. |
@@ -27,9 +30,9 @@ Rebuild one day's morning list by hand (after 23:50; no alert is sent):
 .venv/bin/python -m kap_triage.analysis.morning --date YYYY-MM-DD
 ```
 
-**Desk e-mails (07:30, weekdays):** the n8n workflow "KAP masa yönlendirme" sends the latest morning list to each sector desk (Mailpit inbox `http://127.0.0.1:8025`). Needs Docker running with the three services (`docker compose up -d`). If no e-mails came: n8n → Executions shows the failed node; to send one day again, call the workflow's webhook: `curl 'http://127.0.0.1:5678/webhook/desk-routing?day=YYYY-MM-DD'`. Setup: `docs/n8n_guide.md`.
+**Desk e-mails (07:30, weekdays):** the n8n workflow "KAP masa yönlendirme" sends the most recent saved list to each sector desk (Mailpit inbox `http://127.0.0.1:8025`). After an incomplete or skipped night that can be an earlier list. The API payload and subject carry the saved list's date. Needs Docker running with the three services (`docker compose up -d`). If no e-mails came, n8n → Executions shows the failed node. To send one day again, call the workflow's webhook with `curl 'http://127.0.0.1:5678/webhook/desk-routing?day=YYYY-MM-DD'`. Setup: `docs/n8n_guide.md`.
 
-**On-demand desk e-mail with approval (smtp-mcp, `docs/smtp_mcp_rule.md`):** once `cd mcp/smtp && npm ci --ignore-scripts` (Node ≥ 24; pinned `@ni-c/smtp-mcp` 0.2.0), Docker up (Mailpit SMTP on 127.0.0.1:1025). `python main.py mail --send --day YYYY-MM-DD` lists the desks; add `--desk NAME` to send: the server's approval text appears, only `e` sends; recipients outside `@masa.local` are refused by the server. Health check without data: `python main.py mail --check`. Upgrading the package needs a new review (`npm audit` notes in the rule, Amendment 1).
+**On-demand desk e-mail with approval** — Install the pinned SMTP MCP package with `cd mcp/smtp && npm ci --ignore-scripts` (Node ≥ 24), then return to the repository root. With Mailpit running, use `python main.py mail --send --day YYYY-MM-DD` to list the desks. Add `--desk NAME` to queue a preview. Open `http://127.0.0.1:8765/onay` to approve or reject it. Approval starts delivery to the configured local mailbox. Use `python main.py mail --check` to check the SMTP setup without reading disclosure data.
 
 ## After every merge to main (update the deploy clone)
 ```
@@ -40,7 +43,7 @@ git pull -q && .venv/bin/pip install -q -r requirements.txt && .venv/bin/pip ins
 All tests must pass before the next night. Dry runs of the nightly path always use the deploy clone's Python.
 
 ## One-off pulls (each is that day's only pull; job paused; 18:00-23:30)
-**Code guard (`kap_triage/collect/pull_guard.py`):** every pull writes `data/last_pull.txt` before its first request and refuses when a pull already happened that day (the price pull may resume itself; sectors may follow prices). The nightly job sends `KAP collector SKIPPED` instead of pulling. Pausing the job is still the clean way; the guard is the net under it. Override only knowingly: delete the marker. `python -m kap_triage.collect.pull_guard` shows the last pull.
+**Code guard (`kap_triage/collect/pull_guard.py`):** every pull writes `data/last_pull.txt` before its first request and refuses when a pull already happened that day. The price pull may resume itself, and sectors may follow prices. Pause the nightly job for a planned one-off pull. Retain the marker after a partial or failed request and wait for the next scheduled pull. `python -m kap_triage.collect.pull_guard` shows the last pull.
 
 Pause / resume the nightly job:
 ```

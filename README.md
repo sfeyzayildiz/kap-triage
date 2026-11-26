@@ -21,7 +21,7 @@ This is version 2 of the project: the same system as a Python package with a Fas
 
 ## In 30 seconds
 - **Problem:** An analyst gets these disclosures every day (1-2 on a normal day, more on busy ones) and must pick the ones that matter. The texts have traps: TL and USD get mixed up, a revision looks like a new order, a one-year estimate looks like the contract value.
-- **Solution:** Every night the system pulls the new disclosures, a local LLM reads each one twice, and code checks the facts. What is unclear gets a "KONTROL ET" (verify) flag instead of a guess. In the morning the analyst gets a ranked list with reasons and a KAP link on every item; each sector desk can get its part by e-mail.
+- **Solution:** After a successful nightly collection, a local LLM reads each disclosure twice and code checks the facts. Unclear items receive a "KONTROL ET" (verify) flag. The analyst gets a ranked morning list with reasons and a KAP link on each item. Each sector desk can receive its part by e-mail.
 - **Result:** On 100 disclosures it had never seen, 1 wrong amount or currency passed without a warning (95% upper bound 4.7%). Before each test, I recorded the criteria for passing it in Git. Recount all five results yourself with `python main.py verify-results`: Set C, the regex comparison, Set D, prompt injection and Set D search; the files are in `evidence/` and contain no licensed content.
 - **Why not the data vendor's record?** Matriks has no record for 1 in 6 disclosures, and its record never says when it is unsure. Here it is a second opinion.
 
@@ -36,10 +36,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
 python main.py verify-results
+python main.py layer-attribution
 python -m pytest -q
+ruff check .
 ```
 
-Five lines end in `MATCH`, one per result. The test summary shows `111 passed`.
+`verify-results` prints five `MATCH` lines. The current suite reports `166 passed`. `layer-attribution` reads the public Set C and D evidence and emits aggregate JSON for recorded reason-code groups, including leave-one-out and empirical risk–coverage. See the [method and limits](docs/metrics_faq.md#retrospective-layer-attribution).
+
+The [runbook](docs/runbook.md#nightly-automatic) describes how incomplete collection affects the morning list and desk e-mails. The [architecture notes](docs/architecture.md#model-provenance-in-saved-runs) explain what the new JSONL metadata records and what it can verify.
 
 ## Try it in 2 minutes (no licensed data needed)
 ```
@@ -235,7 +239,7 @@ With Docker: `docker compose up --build` ([`docs/docker.md`](docs/docker.md)). O
 
 | path | what is there |
 |---|---|
-| `main.py` | one entry point: `panel`, `sample`, `nightly`, `agent`, `mcp`, `mail`, `index`, `kart` |
+| `main.py` | entry points include `panel`, `sample`, `nightly`, `agent`, `mcp`, `mail`, `index`, `kart`, `verify-results` and `layer-attribution` |
 | `kap_triage/collect/` | Matriks collection, the nightly job, price and sector pulls, the forward-test seal |
 | `kap_triage/analysis/` | extraction (`llm.py` + `prompt_v3.txt`, frozen), code rules, defences, importance, morning list, desks |
 | `kap_triage/assistant/` | search index, clustering and weekly themes, the LangGraph agent and its question parsing |

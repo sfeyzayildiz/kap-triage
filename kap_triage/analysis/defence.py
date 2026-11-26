@@ -118,12 +118,15 @@ def source_sentence(text, amount, cap=300):
 
 def call_judge(sentence):
     """One judge call: gemma4:e4b, temperature 0, thinking off, num_predict 64 (rule). Returns label or None."""
-    from kap_triage.analysis.llm import CLIENT, MODEL
+    from kap_triage.analysis.llm import CLIENT, MODEL, inference_chat
 
     try:
-        resp = CLIENT.chat(
+        resp = inference_chat(
+            CLIENT,
+            JUDGE_PROMPT,
             model=MODEL,
             messages=[{'role': 'user', 'content': JUDGE_PROMPT.format(sentence=sentence)}],
+            stream=False,
             format=Judgement.model_json_schema(),
             think=False,
             options={'temperature': 0, 'num_ctx': 2048, 'num_predict': 64},
@@ -156,6 +159,9 @@ class CachedJudge:
                     with open(self.path, 'a', encoding='utf-8') as f:
                         f.write(json.dumps({'sha1': key, 'label': label}) + '\n')
             return label
+        from kap_triage.analysis.llm import record_judge_cache_hit
+
+        record_judge_cache_hit()
         return self.cache[key]
 
 

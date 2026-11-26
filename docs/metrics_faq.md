@@ -1,6 +1,6 @@
 # Metrics cheat sheet (for questions from the instructor or a company)
 
-Every number here was measured with a rule written before the run, unless marked. "dev" = the set used to build or choose; "held-out" = never seen before the run. Updated 2026-11-24. All results on one page: `docs/results.md`.
+Every number here was measured with a rule written before the run, unless marked. "dev" = the set used to build or choose; "held-out" = never seen before the run. Updated 2026-11-26. All results on one page: `docs/results.md`.
 
 ## Search (RAG retrieval)
 Hit@k = recall@k = share of answerable questions whose correct disclosure is in the top k.
@@ -35,6 +35,14 @@ Hit@k = recall@k = share of answerable questions whose correct disclosure is in 
 - Ops terms: escape rate 1%. Straight-through rate: 89% for extraction + code checks alone (Set C, level 2); about **78-80% for the live pipeline** with the Matriks cross-check and the source judge (Set D flagged 20-22%; 21-24% on its random 38). The live figure is the one that applies to the panel.
 
 - Model families on Set A, same frozen prompt and scoring (12 Nov, report only): e4b thinking on **0 silent / 10 flagged**; qwen3:14b thinking off 0 / 15 (same raw 89/100, slower to flag-free parity: it flags more); Turkish-Gemma-9b-T1 5 / 27; e4b thinking off 5 / 8; 26b thinking off 9 / 4; qwen3:14b thinking on did not finish (thinking exhausts the token budget). Three families, no one beats e4b thinking on; remaining errors are definition questions, not capacity.
+
+## Retrospective layer attribution
+
+`python main.py layer-attribution` emits aggregate JSON from the frozen public Set C and D evidence. It reports each recorded reason-code group's unique flags and catches, marginal contribution, pairwise overlap, and the number of recorded review sources per case. Leave-one-out removes one group's recorded reasons while holding extraction outputs and frozen error labels fixed. It estimates the effect of deleting those reasons from recorded decisions. Live layer ablation would require rerunning inference and downstream checks.
+
+- A shared reason code keeps its frozen group and its actual producer is `UNAVAILABLE`. Set C marks the unused Matriks and source-check stages `NOT_RUN_IN_EXPERIMENT`. Case-level execution, Matriks availability, company identity and gold uncertainty are unavailable. Technical reasons `run_error` and `judge_error` still require review. A null error means the frozen scorer recorded no error.
+- Set D A and B are paired readings of the same 50 cases, with 38 random cases (R) and a 12-case census (U). The A two-read view uses `flagged_a OR disagree` with `error_a`. The B view uses its own flag and error with the same recorded disagreement. The CLI reports A and B separately for each tabulation.
+- Review rate, automatic coverage and silent error rate divide by the case count. Selective risk divides silent errors by the automatically passed count. A zero denominator is undefined. The rates describe these samples. The CLI produces no new confidence bounds, and `verify-results` retains the published frozen bounds.
 
 ## Agent routing
 - 20 questions written by me: LLM router **17/20** vs. keyword router 9/20 → LLM kept. Ticker right 4/8 (2 wrong tickers from company names: known risk).

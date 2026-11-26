@@ -170,19 +170,15 @@ def render(day, items):
     return '\n'.join(lines) + '\n'
 
 
-def extract_day(day, two_run=False):
+def extract_day(day, two_run=False, provenance=False):
     """Run extraction v3 + code checks on every disclosure of day.
     two_run: second extraction per disclosure (ADOPT_TWO_RUN, docs/set_d_rule.md); only the batch
     command line turns it on, interactive callers (agent) stay single-run for latency."""
-    from kap_triage.analysis.pipeline import analyze, defence_context, judge_pass, load_rows, two_run_check
+    from kap_triage.analysis.pipeline import analyze_rows, defence_context, load_rows
 
     rows = load_rows(str(day), None)
     matriks, judge = defence_context([r[0] for r in rows])
-    texts = [r[4] for r in rows]
-    found = [analyze(t, matriks=matriks.get(str(r[0]))) for r, t in zip(rows, texts)]
-    if two_run:
-        two_run_check(found, texts)
-    found = judge_pass(found, texts, judge)
+    found = analyze_rows(rows, matriks, judge, two_run=two_run, provenance=provenance)
     results = []
     for (news_id, url, symbol, published_at, text), res in zip(rows, found):
         results.append(
@@ -255,7 +251,7 @@ def main():
         if other:
             raise SystemExit(f'{other} rows in {args.from_pipeline} are not from {args.date}')
     else:
-        results = extract_day(args.date, two_run=TWO_RUN)
+        results = extract_day(args.date, two_run=TWO_RUN, provenance=True)
     items = enrich(results)
     out_path = save(args.date, items)
     look = sum(i['importance']['needs_review'] or i['importance']['level'] == 'high' for i in items)
