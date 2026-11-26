@@ -39,6 +39,7 @@ kap_triage = ["analysis/prompt_v3.txt", "collect/schema.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 120
