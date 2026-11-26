@@ -1,6 +1,6 @@
 # Architecture
 
-Morning triage for KAP "Yeni İş İlişkisi" disclosures. Everything runs on one Mac: models are local (Ollama, sentence-transformers), and no licensed data leaves the machine. The only outgoing message is the nightly phone alert (ntfy): counts on success, a short error line on failure.
+Morning triage for KAP "Yeni İş İlişkisi" disclosures. Everything runs on one Mac: models are local (Ollama, sentence-transformers), and no licensed data leaves the machine. The nightly phone alert (ntfy) sends counts on success and fixed text on failure. Detailed errors remain in the local `data/daily.log`.
 
 The code is the `kap_triage/` package (`collect`, `analysis`, `assistant`, `web`) with one entry point, `main.py`; version 1 kept the same code in `scripts/` ([`v1_to_v2_map.md`](v1_to_v2_map.md)).
 
@@ -30,7 +30,7 @@ flowchart TD
     classDef out fill:#1a7f37,stroke:#1a7f37,color:#ffffff
 
     SRC["Matriks (licensed)<br/>new-business-api, news, daily bars"]:::code
-    COL["collect/nightly.py + collector.py<br/>launchd 23:43, 1 req/s, one pull per day<br/>ntfy alert OK / FAILED"]:::code
+    COL["collect/nightly.py + collector.py<br/>launchd 23:43, 1 req/s, one pull per day<br/>ntfy: counts OK / fixed failure text"]:::code
     DB[("DuckDB<br/>disclosures, new_business, daily_bars")]:::store
 
     LLM["1 Extraction (LLM)<br/>gemma4:e4b, prompt v3"]:::llm

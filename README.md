@@ -94,7 +94,7 @@ flowchart LR
         X --> K["Code checks +<br/>injection defence<br/>(code + LLM judge)<br/>flag, never fix"]:::code
         K --> S["Importance<br/>and order (code)"]:::code
         S --> L["Morning list<br/>reasons + KAP links"]:::out
-        L --> AL["Phone alert<br/>(counts; error line<br/>on failure)"]:::out
+        L --> AL["Phone alert<br/>(counts on success;<br/>fixed failure text)"]:::out
     end
     subgraph MORNING["Every morning"]
         P["Panel<br/>analyst confirms or<br/>rejects each flag"]:::out
@@ -258,7 +258,7 @@ KAP summary sites and MCP servers for Borsa İstanbul (including Matriks' own) b
 </details>
 
 ## Data, privacy, license
-- Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out: the only outgoing message is the nightly phone alert (through the ntfy push service): counts on success, a short error line on failure. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
+- Matriks data is used with permission, stays in `data/` and is never committed. All models run locally, and no licensed data is sent out. The nightly phone alert (through the ntfy push service) sends counts on success and fixed text on failure. Detailed errors remain in the local `data/daily.log`. n8n and Mailpit run locally with telemetry off, and desk e-mails carry no amounts.
 - The Matriks permission runs to the end of December 2026. After that the nightly pipeline stops; kap-kart, the sample data and the code stay.
 - This history was cleaned from the private development repository (internal notes and measurement scripts removed, addresses replaced; [`docs/public_release.md`](docs/public_release.md)), so commit IDs quoted in `docs/PROJECT_NOTES.md` refer to that repository.
 - The code is MIT ([`LICENSE`](LICENSE)); the license covers the code, not the data. A few tests contain short fragments of public KAP disclosure texts.
