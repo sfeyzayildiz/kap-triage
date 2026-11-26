@@ -105,7 +105,7 @@ flowchart LR
         API["Desk lists (code)<br/>desk, order, text"]:::code --> N["n8n<br/>weekdays 07:30"]:::code --> IN["Desk inboxes<br/>(local Mailpit)"]:::out
         OD["Desk e-mail queued by CLI"]:::code --> H{"Panel /onay<br/>approval?"}:::out
         H -- yes --> SMTP["SMTP MCP server"]:::code --> IN
-        H -- no --> X["nothing is sent"]:::out
+        H -- no --> NO["nothing is sent"]:::out
     end
     L --> P
     L --> API

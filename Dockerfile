@@ -30,6 +30,13 @@ RUN pip install -r requirements.txt
 COPY pyproject.toml main.py ./
 COPY kap_triage/ kap_triage/
 COPY docs/ docs/
+# public frozen evidence JSONL files (no licensed data; used by verify-results and layer-attribution)
+COPY evidence/set_c.jsonl \
+     evidence/regex_set_c.jsonl \
+     evidence/set_d.jsonl \
+     evidence/injection_set_c.jsonl \
+     evidence/rag_set_d.jsonl \
+     evidence/
 COPY README.md LICENSE ./
 # sample/: the kap-kart examples and the folder `main.py panel --sample` builds into (sample/data/ is not copied)
 COPY sample/ sample/

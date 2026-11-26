@@ -32,7 +32,7 @@ Rebuild one day's morning list by hand (after 23:50; no alert is sent):
 
 **Desk e-mails (07:30, weekdays):** the n8n workflow "KAP masa yönlendirme" sends the most recent saved list to each sector desk (Mailpit inbox `http://127.0.0.1:8025`). After an incomplete or skipped night that can be an earlier list. The API payload and subject carry the saved list's date. Needs Docker running with the three services (`docker compose up -d`). If no e-mails came, n8n → Executions shows the failed node. To send one day again, call the workflow's webhook with `curl 'http://127.0.0.1:5678/webhook/desk-routing?day=YYYY-MM-DD'`. Setup: `docs/n8n_guide.md`.
 
-**On-demand desk e-mail with approval** — Install the pinned SMTP MCP package with `cd mcp/smtp && npm ci --ignore-scripts` (Node ≥ 24), then return to the repository root. With Mailpit running, use `python main.py mail --send --day YYYY-MM-DD` to list the desks. Add `--desk NAME` to queue a preview. Open `http://127.0.0.1:8765/onay` to approve or reject it. Approval starts delivery to the configured local mailbox. Use `python main.py mail --check` to check the SMTP setup without reading disclosure data.
+**On-demand desk e-mail with approval** — Install the pinned SMTP MCP package with `cd mcp/smtp && npm ci --ignore-scripts` (Node ≥ 22), then return to the repository root. With Mailpit running, use `python main.py mail --send --day YYYY-MM-DD` to list the desks. Add `--desk NAME` to queue a preview. Open `http://127.0.0.1:8765/onay` to approve or reject it. Approval starts delivery to the configured local mailbox. Use `python main.py mail --check` to check the SMTP setup without reading disclosure data.
 
 ## After every merge to main (update the deploy clone)
 ```
