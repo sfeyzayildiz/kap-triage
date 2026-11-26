@@ -16,14 +16,14 @@
     <!-- deploy venv python (same Python and packages as the dev venv) -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/<user>/projects/kap-deploy/.venv/bin/python</string>
+        <string>/Users/YOUR_USERNAME/projects/kap-deploy/.venv/bin/python</string>
         <string>main.py</string>
         <string>nightly</string>
     </array>
 
     <!-- data/ and .env are relative to the repository root, so run from the deploy clone root -->
     <key>WorkingDirectory</key>
-    <string>/Users/<user>/projects/kap-deploy</string>
+    <string>/Users/YOUR_USERNAME/projects/kap-deploy</string>
 
     <!-- every day at 23:43; if the Mac is asleep, runs on wake -->
     <key>StartCalendarInterval</key>
@@ -36,8 +36,8 @@
 
     <!-- logs stay in the real data/ folder (gitignored) -->
     <key>StandardOutPath</key>
-    <string>/Users/<user>/projects/kap-explore/data/daily.log</string>
+    <string>/Users/YOUR_USERNAME/projects/kap-explore/data/daily.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/<user>/projects/kap-explore/data/daily.log</string>
+    <string>/Users/YOUR_USERNAME/projects/kap-explore/data/daily.log</string>
 </dict>
 </plist>

@@ -16,6 +16,7 @@ import socket
 import time
 import subprocess
 import sys
+import traceback
 from datetime import date, datetime, timedelta
 import duckdb
 import requests
@@ -36,6 +37,7 @@ LOOKBACK_DAYS = 3
 LOCK_RETRIES = 6
 LOCK_WAIT = int(os.environ.get('LOCK_WAIT', '300'))  # seconds between attempts
 NTFY_URL = os.environ.get('NTFY_URL')
+FAILURE_HINT = 'See data/daily.log.'
 API_HOSTS = ('<MATRIKS_API_HOST>', '<MATRIKS_API_HOST>')  # NB_API and NEWS_API hosts in collector.py
 NET_RETRIES = 10
 NET_WAIT = 60  # seconds; after wake from sleep Wi-Fi can take a while
@@ -156,8 +158,8 @@ def collect_and_list():
 def main():
     try:
         collect_and_list()
-    except Exception as e:
-        notify('KAP collector FAILED', f'{type(e).__name__}: {str(e)[-300:]}', 'high')
+    except Exception:
+        notify('KAP collector FAILED', FAILURE_HINT, 'high')
         raise  # keep the traceback in daily.log and a non-zero exit code
 
 
@@ -203,7 +205,8 @@ def run_morning(day, notify, runner=subprocess.run, sealer=None):
             timeout=TIMEOUT,
         )
         if r.returncode != 0:
-            notify('KAP morning FAILED', f'{day}: {last_error_line(r.stderr)}', 'high')
+            print(f'Morning list exited with status {r.returncode}\n{r.stderr}', file=sys.stderr, flush=True)
+            notify('KAP morning FAILED', f'{day}: {FAILURE_HINT}', 'high')
             return False
         s = summary(r.stdout)
         if s is None:
@@ -211,8 +214,9 @@ def run_morning(day, notify, runner=subprocess.run, sealer=None):
             return False
         notify('KAP morning list', message(day, s) + sealer(day), 'high' if s['run_errors'] else 'default')
         return True
-    except Exception as e:
-        notify('KAP morning FAILED', f'{day}: {type(e).__name__}', 'high')
+    except Exception:
+        traceback.print_exc()
+        notify('KAP morning FAILED', f'{day}: {FAILURE_HINT}', 'high')
         return False
 
 

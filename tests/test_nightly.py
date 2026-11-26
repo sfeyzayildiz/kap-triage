@@ -1,15 +1,50 @@
 """Nightly job (kap_triage/collect/nightly.py) with fake collectors, runners and alerts: no network, no Matriks."""
 
+import plistlib
 import socket
-from datetime import date
 import subprocess
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
+from unittest.mock import Mock
 
+import pytest
+
+from kap_triage.collect import nightly
 from kap_triage.collect.nightly import API_HOSTS, last_error_line, skip_message, wait_for_network
 from kap_triage.collect.nightly import list_day, message, run_morning as run, summary
 
 
+def test_launchd_template_paths():
+    template = Path(__file__).resolve().parents[1] / 'deploy' / 'com.feyza.kap-daily.plist'
+    plist = plistlib.loads(template.read_bytes())
+    projects = '/Users/YOUR_USERNAME/projects'
+    deploy = f'{projects}/kap-deploy'
+    log = f'{projects}/kap-explore/data/daily.log'
+    assert plist['ProgramArguments'] == [f'{deploy}/.venv/bin/python', 'main.py', 'nightly']
+    assert plist['WorkingDirectory'] == deploy
+    assert plist['StandardOutPath'] == plist['StandardErrorPath'] == log
+
+
 # --- Collection -----------------------------------------------------------------
+
+
+def test_collector_failure_keeps_exception_local(monkeypatch):
+    error = RuntimeError('HTTP 401: synthetic vendor response with a test token')
+    monkeypatch.setattr(nightly, 'collect_and_list', Mock(side_effect=error))
+    monkeypatch.setattr(nightly, 'NTFY_URL', 'https://push.invalid/test')
+    post = Mock()
+    monkeypatch.setattr(nightly.requests, 'post', post)
+
+    with pytest.raises(RuntimeError) as caught:
+        nightly.main()
+
+    assert caught.value is error
+    post.assert_called_once_with(
+        'https://push.invalid/test',
+        data=b'See data/daily.log.',
+        headers={'Title': 'KAP collector FAILED', 'Priority': 'high'},
+        timeout=10,
+    )
 
 
 def test_daily_collect():
@@ -40,6 +75,17 @@ def test_daily_collect():
 # --- Morning list ---------------------------------------------------------------
 
 
+def test_morning_subprocess_failure_keeps_stderr_local(capsys):
+    stderr = 'HTTP 403: synthetic private response body\n'
+    runner = Mock(return_value=subprocess.CompletedProcess([], 1, stdout='', stderr=stderr))
+    notify = Mock()
+
+    assert run('2026-11-09', notify, runner=runner) is False
+
+    notify.assert_called_once_with('KAP morning FAILED', '2026-11-09: See data/daily.log.', 'high')
+    assert stderr in capsys.readouterr().err
+
+
 def test_morning_job():
     assert list_day(datetime(2026, 11, 9, 23, 45)) == '2026-11-09'
     assert list_day(datetime(2026, 11, 10, 0, 20)) == '2026-11-09'
@@ -62,16 +108,12 @@ def test_morning_job():
         '2026-11-09: 3 bildirim, önce bak 1, kontrol et 1',
         'default',
     )
-    assert (
-        not run('d', note, runner=lambda *a, **k: R(1, err='Traceback\n  x\n  ^^^\nValueError: bad\n'))
-        and sent[-1][1] == 'd: ValueError: bad'
-    )
     assert not run('d', note, runner=lambda *a, **k: R(0, 'no line')) and sent[-1][1] == 'd: no summary line'
 
     def boom(*a, **k):
         raise subprocess.TimeoutExpired('x', 1)
 
-    assert not run('d', note, runner=boom) and sent[-1] == ('KAP morning FAILED', 'd: TimeoutExpired', 'high')
+    assert not run('d', note, runner=boom) and sent[-1] == ('KAP morning FAILED', 'd: See data/daily.log.', 'high')
     assert (
         run('d', note, runner=lambda *a, **k: R(0, out.replace('run_errors=0', 'run_errors=2')))
         and sent[-1][2] == 'high'

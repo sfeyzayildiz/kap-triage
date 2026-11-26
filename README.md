@@ -39,7 +39,7 @@ python main.py verify-results
 python -m pytest -q
 ```
 
-Five lines end in `MATCH`, one per result. The test summary shows `108 passed`.
+Five lines end in `MATCH`, one per result. The test summary shows `111 passed`.
 
 ## Try it in 2 minutes (no licensed data needed)
 ```

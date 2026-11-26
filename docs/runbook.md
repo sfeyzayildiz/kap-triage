@@ -4,15 +4,19 @@ Who runs what: I run everything that touches Matriks data or takes long, on my o
 The nightly job runs from a separate clone that always stays on `main` (`deploy/com.feyza.kap-daily.plist`), so a branch in the development folder never affects it. That clone runs version 1 (the same logic, `scripts/`); the commands below are the version 2 ones.
 
 ## Nightly (automatic)
+
+Before loading the version 2 job, copy `deploy/com.feyza.kap-daily.plist` to `~/Library/LaunchAgents/`. In that copy, replace every `/Users/YOUR_USERNAME` with your absolute home directory. Check the deploy clone and log paths, then run `plutil -lint ~/Library/LaunchAgents/com.feyza.kap-daily.plist`.
+
 - 23:43 launchd (`com.feyza.kap-daily`) runs `.venv/bin/python main.py nightly` in the deploy clone: collection (one pull), then the morning list for the day.
-- Two phone alerts, counts only: `KAP collector OK` (or `FAILED` with the error) and `KAP morning list` (or `KAP morning FAILED`).
+- A successful collection sends `KAP collector OK` with counts, followed by `KAP morning list` with the list summary and the seal prefix when available. A failure alert identifies the failed stage. Read `data/daily.log` in the deploy clone for the error details.
 - Needs: Mac awake or waking (launchd runs a missed job at wake), network, **Ollama running**.
 - Nothing else may touch the DB between 23:40 and 23:50; the panel answers 503 on the pages that read it.
 
 ### If an alert says FAILED
-| alert | first check |
+
+| Finding in `data/daily.log` | First check |
 |---|---|
-| collector FAILED, DB lock | another Python process holds `data/kap.duckdb` (a panel, a notebook); the alert names the holder. Close it; the next night fills the gap. |
+| collector FAILED, DB lock | The lock retry entry identifies the holder when available. Close the panel or notebook holding `data/kap.duckdb`. The next night fills the gap. |
 | collector FAILED, network | the Mac woke without network; the next night fills the gap. |
 | collector FAILED, `KAP_TOKEN is missing` | `.env` is missing in the deploy clone. |
 | morning FAILED, `ModuleNotFoundError` | the deploy venv is missing a package: see "After every merge". Then rebuild the day by hand (below). |
